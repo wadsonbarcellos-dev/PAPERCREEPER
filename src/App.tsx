@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Outlet } from "react-router-dom";
 import { useState, useEffect } from "react";
+import { Shield } from "lucide-react";
 import Navbar from "./components/Navbar";
 import Home from "./pages/Home";
 import Store from "./pages/Store";
@@ -34,7 +35,7 @@ export default function App() {
       if (saved) return JSON.parse(saved);
     } catch(e) {}
     return {
-      storeEnabled: false,
+      storeEnabled: true,
       externalUrl: "", // e.g., "https://store.myserver.com"
       serverMode: "single", // "single" | "multi"
       language: navigator.language.startsWith('pt') ? 'pt' : 'en',
@@ -47,6 +48,16 @@ export default function App() {
     localStorage.setItem("appConfig", JSON.stringify(appConfig));
   }, [appConfig]);
 
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "appConfig" && e.newValue) {
+        setAppConfig(JSON.parse(e.newValue));
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
+
   const t = translations[appConfig.language] || translations['en'];
 
   return (
@@ -55,9 +66,20 @@ export default function App() {
         <Route path="/" element={<Panel appConfig={appConfig} setAppConfig={setAppConfig} />} />
         
         <Route path="/site" element={appConfig.storeEnabled === false ? (
-          <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4">
-            <h1 className="text-3xl font-black text-rose-500 mb-4 uppercase tracking-tighter italic">Portal Offline</h1>
-            <p className="text-zinc-500 text-center max-w-md font-bold uppercase text-xs tracking-widest leading-relaxed">A loja e o site deste servidor encontram-se desativados no momento pelo administrador.</p>
+          <div className="min-h-screen bg-[#09090b] flex flex-col items-center justify-center p-6 text-center">
+            <div className="w-20 h-20 bg-rose-500/10 rounded-3xl flex items-center justify-center mb-8 border border-rose-500/20 shadow-[0_0_50px_rgba(244,63,94,0.1)]">
+              <Shield className="w-10 h-10 text-rose-500" />
+            </div>
+            <h1 className="text-4xl font-black text-rose-500 mb-4 uppercase tracking-tighter italic">Portal Offline</h1>
+            <p className="text-zinc-500 max-w-md font-bold uppercase text-[10px] tracking-widest leading-relaxed mb-8">
+              A loja e o site deste servidor encontram-se desativados no momento pelo administrador.
+            </p>
+            <button 
+              onClick={() => window.location.reload()}
+              className="px-6 py-3 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-xl transition-all border border-zinc-800 active:scale-95"
+            >
+              Tentando Reconectar...
+            </button>
           </div>
         ) : <SiteLayout appConfig={appConfig} setAppConfig={setAppConfig} t={t} />}>
           <Route index element={<Home appConfig={appConfig} t={t} />} />

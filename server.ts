@@ -44,7 +44,7 @@ async function startServer() {
   const getSrvConfigPath = (id: string) => path.join(getServerDir(id), "panel-config.json");
   const DEFAULT_CONFIG = { 
     name: "Novo Servidor", 
-    ram: 2, 
+    ram: 4, 
     minRam: 1, 
     usePlayit: true,
     store: {
@@ -582,7 +582,7 @@ Exemplo: "Vou te dar permissão de administrador agora! [ACTION:cmd|op playernam
     const pluginsDir = path.join(dir, "plugins");
     if (!fs.existsSync(pluginsDir)) fs.mkdirSync(pluginsDir, { recursive: true });
 
-    saveSrvConfig(id, { ...DEFAULT_CONFIG, name: name || "Novo Servidor", ram: Number(ram) || 2, type: type || "paper", version: version || "1.21.1", usePlayit: usePlayit !== undefined ? usePlayit : true });
+    saveSrvConfig(id, { ...DEFAULT_CONFIG, name: name || "Novo Servidor", ram: Number(ram) || 4, type: type || "paper", version: version || "1.21.1", usePlayit: usePlayit !== undefined ? usePlayit : true });
     res.json({ id });
   });
 
@@ -1200,14 +1200,14 @@ command /creeper-ai <text>:
     }
     else if (type === "spigot") {
       // Spigot doesn't have a direct official download API like others.
-      // We'll use a reliable mirror/community provider for pre-built spigot jars.
-      url = `https://download.getbukkit.org/spigot/spigot-${version}.jar`;
+      // Use CDN from getbukkit
+      url = `https://cdn.getbukkit.org/spigot/spigot-${version}.jar`;
     }
     else if (type === "bungeecord") {
       url = "https://ci.md-5.net/job/BungeeCord/lastStableBuild/artifact/bootstrap/target/BungeeCord.jar";
     }
     else if (type === "nukkit") {
-       url = "https://repo.opencollab.dev/maven-snapshots/cn/nukkit/nukkit/1.0-SNAPSHOT/nukkit-1.0-SNAPSHOT.jar";
+       url = "https://ci.opencollab.dev/job/NukkitX/job/Nukkit/job/master/lastSuccessfulBuild/artifact/target/nukkit-1.0-SNAPSHOT.jar";
     }
     else if (type === "custom") url = customUrl;
 
@@ -1228,7 +1228,7 @@ command /creeper-ai <text>:
 
     addLog(serverId, `[INSTALLER] Baixando de: ${url}`);
 
-    exec(`curl --max-time 120 --http1.1 -A "Mozilla/5.0" -L "${url}" -o "${dest}"`, (err) => {
+    exec(`curl --http1.1 -A "Mozilla/5.0" -L "${url}" -o "${dest}"`, (err) => {
       if (err) addLog(serverId, `[ERROR] Falha no download: ${err.message}`);
       else {
         if (type === "forge") {

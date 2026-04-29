@@ -389,9 +389,10 @@ export default function App({ appConfig, setAppConfig }: { appConfig?: any, setA
     name: "", 
     type: "paper", 
     version: "1.21.1", 
-    ram: 2, 
+    ram: 4, 
     minRam: 1,
-    url: "" // for custom or github
+    url: "", // for custom or github
+    usePlayit: true
   });
 
   const togglePlayit = async () => {
@@ -512,7 +513,7 @@ export default function App({ appConfig, setAppConfig }: { appConfig?: any, setA
           }),
         });
 
-        setNewServerConfig({ name: "", type: "paper", version: "1.21.1", ram: 2, minRam: 1, url: "" });
+        setNewServerConfig({ name: "", type: "paper", version: "1.21.1", ram: 4, minRam: 1, url: "", usePlayit: true });
         setShowCreateModal(false);
         await fetchServers();
         setCurrentServerId(serverId);
@@ -2115,6 +2116,19 @@ export default function App({ appConfig, setAppConfig }: { appConfig?: any, setA
                            ) : (
                               <div className="text-emerald-500/60 font-bold text-xs flex justify-center items-center gap-2 uppercase tracking-widest"><RefreshCw size={14} className={playitStatus.running ? "animate-spin" : ""} /> {playitStatus.running ? 'Obtendo info...' : 'Offline'}</div>
                            )}
+
+                           {playitStatus.logs && playitStatus.logs.length > 0 && (
+                             <div className="mt-4 p-3 bg-black/60 rounded-xl border border-zinc-800/50 text-left overflow-hidden hidden">
+                               <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest mb-2 border-b border-zinc-800 pb-2">Logs Recentes do Playit</p>
+                               <div className="max-h-32 overflow-y-auto space-y-1 scrollbar-thin scrollbar-thumb-zinc-700">
+                                 {playitStatus.logs.map((log, idx) => (
+                                   <div key={idx} className="text-[10px] text-zinc-400 font-mono leading-tight break-all">
+                                      {log}
+                                   </div>
+                                 ))}
+                               </div>
+                             </div>
+                           )}
                         </div>
                       </div>
                   ) : (
@@ -2322,6 +2336,10 @@ export default function App({ appConfig, setAppConfig }: { appConfig?: any, setA
                                </div>
                              </div>
                              <div className="flex items-center gap-3">
+                               <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${appConfig.storeEnabled !== false ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
+                                 <div className={`w-1 h-1 rounded-full ${appConfig.storeEnabled !== false ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'}`} />
+                                 {appConfig.storeEnabled !== false ? 'Online' : 'Offline'}
+                               </div>
                                <button 
                                  onClick={() => setAppConfig({ ...appConfig, storeEnabled: appConfig.storeEnabled === false })}
                                  className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center justify-start rounded-full transition-all duration-300 focus:outline-none ring-2 ring-offset-2 ring-offset-black ${appConfig.storeEnabled !== false ? 'bg-fuchsia-600 ring-fuchsia-500/20' : 'bg-zinc-700 ring-zinc-700/20'}`}
