@@ -198,9 +198,22 @@ async function startServer() {
     }
 
     if (!javaIsValid) {
-       console.log("Downloading Java 21 Runtime for linux-x64...");
-       const tempTar = path.join(BIN_DIR, "java21.tar.gz");
-       const jreUrl = "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.6%2B7/OpenJDK21U-jre_x64_linux_hotspot_21.0.6_7.tar.gz";
+       console.log("Downloading Java 21 Runtime...");
+       const osPlatform = os.platform();
+       const osArch = os.arch();
+       
+       let jreFile = "OpenJDK21U-jre_x64_linux_hotspot_21.0.6_7.tar.gz";
+       if (osPlatform === "win32") {
+          jreFile = osArch === "arm64" ? "OpenJDK21U-jre_aarch64_windows_hotspot_21.0.6_7.zip" : "OpenJDK21U-jre_x64_windows_hotspot_21.0.6_7.zip";
+       } else if (osPlatform === "darwin") {
+          jreFile = osArch === "arm64" ? "OpenJDK21U-jre_aarch64_mac_hotspot_21.0.6_7.tar.gz" : "OpenJDK21U-jre_x64_mac_hotspot_21.0.6_7.tar.gz";
+       } else if (osPlatform === "linux") {
+          jreFile = osArch === "arm64" ? "OpenJDK21U-jre_aarch64_linux_hotspot_21.0.6_7.tar.gz" : "OpenJDK21U-jre_x64_linux_hotspot_21.0.6_7.tar.gz";
+       }
+
+       const tempTar = path.join(BIN_DIR, jreFile);
+       const jreUrl = `https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.6%2B7/${jreFile}`;
+       
        try {
          // Clean up broken
          if (fs.existsSync(javaDir)) fs.rmSync(javaDir, { recursive: true, force: true });
@@ -208,26 +221,48 @@ async function startServer() {
 
          execSync(`curl -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" -L "${jreUrl}" -o "${tempTar}"`, { stdio: "inherit" });
          
-         // Extract and strip first directory to put bin right inside java_runtime
-         execSync(`tar -xzf "${tempTar}" -C "${javaDir}" --strip-components=1`, { stdio: "inherit" });
+         // Extract and strip first directory. Note on Windows tar might require different args, but windows 10+ has tar
+         execSync(`tar -xf "${tempTar}" -C "${javaDir}" --strip-components=1`, { stdio: "inherit" });
          fs.rmSync(tempTar, { force: true });
 
-         if (checkJava(localJava)) {
-           JAVA_PATH = localJava;
-           console.log("Successfully downloaded and installed Local Java 21:", JAVA_PATH);
+         // If windows, java executable ends in .exe
+         if (osPlatform === "win32") {
+             const localJavaExe = path.join(javaDir, "bin/java.exe");
+             if (checkJava(localJavaExe)) {
+                 JAVA_PATH = localJavaExe;
+                 console.log("Successfully downloaded and installed Local Java 21:", JAVA_PATH);
+             } else {
+                 console.error("Failed to validate Java after download!");
+             }
          } else {
-           console.error("Failed to validate Java after download!");
+             if (checkJava(localJava)) {
+               JAVA_PATH = localJava;
+               console.log("Successfully downloaded and installed Local Java 21:", JAVA_PATH);
+             } else {
+               console.error("Failed to validate Java after download!");
+             }
          }
        } catch (e: any) {
          console.error("Failed to download Java:", e.message);
        }
     }
 
-    if (fs.existsSync(localPlayit)) {
-      PLAYIT_PATH = localPlayit;
-      try { fs.chmodSync(PLAYIT_PATH, 0o755); } catch(e){}
-    } else {
-      PLAYIT_PATH = localPlayit; // Default to local path so it downloads
+    const osPlatform = os.platform();
+    let playitFile = "playit-linux-amd64";
+    if (osPlatform === "win32") playitFile = "playit-windows-x86_64.exe";
+    else if (osPlatform === "darwin") playitFile = "playit-macos-aarch64";
+    else {
+      const osArch = os.arch();
+      if (osArch === "arm64") playitFile = "playit-linux-aarch64";
+      else if (osArch === "arm") playitFile = "playit-linux-armv7"; // fallback
+    }
+
+    PLAYIT_PATH = path.join(BIN_DIR, playitFile);
+    
+    if (fs.existsSync(PLAYIT_PATH)) {
+      if (osPlatform !== "win32") {
+        try { fs.chmodSync(PLAYIT_PATH, 0o755); } catch(e){}
+      }
     }
   };
 
@@ -237,8 +272,12 @@ async function startServer() {
     // Playit setup if missing
     if (!fs.existsSync(PLAYIT_PATH)) {
       addLog("system", " [SETUP] Playit não encontrado, baixando...");
-      exec(`curl -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" -L "https://github.com/playit-cloud/playit-agent/releases/latest/download/playit-linux-amd64" -o "${PLAYIT_PATH}" && chmod +x "${PLAYIT_PATH}"`, (err) => {
+      const playitUrl = `https://github.com/playit-cloud/playit-agent/releases/latest/download/${path.basename(PLAYIT_PATH)}`;
+      exec(`curl -A "Mozilla/5.0" -L "${playitUrl}" -o "${PLAYIT_PATH}"`, (err) => {
         if (!err) {
+          if (os.platform() !== "win32") {
+             try { fs.chmodSync(PLAYIT_PATH, 0o755); } catch(e){}
+          }
           addLog("system", " [SUCCESS] Playit.gg pronto!");
           // Ensure binary is usable
           exec(`"${PLAYIT_PATH}" version`, (vErr, vOut) => {
