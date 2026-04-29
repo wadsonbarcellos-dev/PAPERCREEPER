@@ -1,0 +1,50 @@
+#!/bin/bash
+
+# PaperCreeper Auto-Installer & Optimizer
+echo "💎 Iniciando Setup do PaperCreeper AI..."
+
+# 1. Preparar o sistema (Essencial para Codespaces/Linux)
+echo "📦 Atualizando dependências do sistema..."
+if command -v apt-get &> /dev/null; then
+    sudo apt-get update && sudo apt-get install -y git
+fi
+
+if command -v pip &> /dev/null; then
+    pip install distro --quiet
+fi
+
+# 2. Preparar variáveis de ambiente
+if [ ! -f ".env" ]; then
+    echo "📝 Preparando ambiente (.env)..."
+    if [ ! -z "$GEMINI_API_KEY" ]; then
+        echo "VITE_GEMINI_API_KEY=$GEMINI_API_KEY" > .env
+        echo "GEMINI_API_KEY=$GEMINI_API_KEY" >> .env
+        echo "✅ Configuração automática via variável de sistema concluída!"
+    elif [ -f ".env.example" ]; then
+        cp .env.example .env
+        echo "✅ Arquivo .env criado a partir do exemplo. Edite-o se necessário."
+    else
+        echo "VITE_GEMINI_API_KEY=" > .env
+        echo "GEMINI_API_KEY=" >> .env
+        echo "📝 Arquivo .env vazio criado."
+    fi
+else
+    echo "ℹ️ Arquivo .env já existe, pulando criação."
+fi
+
+# 3. Instalar dependências do Node
+echo "📦 Verificando dependências..."
+
+# 4. Verificar Java (JRE 17+ é necessário para Minecraft moderno)
+if [ ! -d "bin/java_runtime" ] && ! command -v java &> /dev/null; then
+    echo "☕ Java não encontrado. Baixando JRE 21 otimizado..."
+    mkdir -p bin/java_runtime
+    curl -L "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.6%2B7/OpenJDK21U-jre_x64_linux_hotspot_21.0.6_7.tar.gz" -o jre.tar.gz
+    tar -xzf jre.tar.gz -C bin/java_runtime --strip-components=1
+    rm jre.tar.gz
+    echo "✅ Java instalado localmente em ./bin/java_runtime"
+else
+    echo "✅ Ambiente Java pronto."
+fi
+
+echo "🚀 Setup concluído! Use 'npm run dev' para iniciar."

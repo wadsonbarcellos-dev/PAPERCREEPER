@@ -1,0 +1,28 @@
+{
+  "name": "Mágico Server Manager",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:1-22-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {}
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dsznajder.es7-react-js-snippets",
+        "bradlc.vscode-tailwindcss",
+        "dbaeumer.vscode-eslint"
+      ]
+    }
+  },
+  "forwardPorts": [3000, 25565],
+  "portsAttributes": {
+    "3000": {
+      "label": "Painel Mágico",
+      "onAutoForward": "openPreview"
+    },
+    "25565": {
+      "label": "Servidor Minecraft",
+      "onAutoForward": "ignore"
+    }
+  },
+  "postCreateCommand": "sudo curl -SsL https://playit-cloud.github.io/ppa/key.gpg | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/playit.gpg >/dev/null && echo \"deb [signed-by=/etc/apt/trusted.gpg.d/playit.gpg] https://playit-cloud.github.io/ppa/data ./\" | sudo tee /etc/apt/sources.list.d/playit.list && sudo apt update && sudo apt install playit -y && npm install"
+}

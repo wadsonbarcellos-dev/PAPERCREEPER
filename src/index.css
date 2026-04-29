@@ -1,0 +1,82 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-[#F0F4F8] text-slate-800 antialiased;
+    overflow-x: hidden;
+  }
+}
+
+/* Performance Mode resets */
+.performance-mode * {
+  animation: none !important;
+  transition: none !important;
+  backdrop-filter: none !important;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 20px;
+}
+
+.custom-scrollbar:hover::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+}
+
+/* Panel specific utilities restored to avoid breaking old panel */
+.tech-border {
+  @apply border border-emerald-500/20 backdrop-blur-sm;
+}
+.tech-grid {
+  background-image: 
+    linear-gradient(to right, rgba(16, 185, 129, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(16, 185, 129, 0.05) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+.creeper-pattern {
+  position: fixed;
+  inset: 0;
+  background-image: 
+    linear-gradient(45deg, #1b4332 25%, transparent 25%), 
+    linear-gradient(-45deg, #1b4332 25%, transparent 25%), 
+    linear-gradient(45deg, transparent 75%, #1b4332 75%), 
+    linear-gradient(-45deg, transparent 75%, #1b4332 75%);
+  background-size: 40px 40px;
+  background-position: 0 0, 0 20px, 20px -20px, -20px 0px;
+  opacity: 0.05;
+  pointer-events: none;
+  z-index: -1;
+}
+.custom-scrollbar-sidebar::-webkit-scrollbar,
+.custom-scrollbar-main::-webkit-scrollbar {
+  width: 0px;
+}
+.custom-scrollbar-sidebar:hover::-webkit-scrollbar,
+.custom-scrollbar-main:hover::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar-sidebar::-webkit-scrollbar-thumb,
+.custom-scrollbar-main::-webkit-scrollbar-thumb {
+  background: #38b00050;
+  border-radius: 20px;
+}
+.animate-spin-slow {
+  animation: spin 8s linear infinite;
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

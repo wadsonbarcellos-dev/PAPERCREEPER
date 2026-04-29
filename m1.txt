@@ -1,0 +1,20 @@
+262:  <motion.div 
+1235:            <motion.div 
+1241:              <motion.div 
+1272:            <motion.div 
+1278:              <motion.div 
+1403:            <motion.div 
+1409:              <motion.div 
+1547:                                <motion.p 
+1799:            <motion.div 
+1835:            <motion.div 
+2093:                <motion.div 
+2230:                <motion.div 
+2458:                <motion.div 
+2484:                      <motion.div 
+2523:                <motion.div 
+2587:                  <motion.div 
+2682:                            <motion.div 
+2819:      {active && <motion.div layoutId="nav-pill" className="hidden lg:block absolute right-4 w-2 h-2 bg-white rounded-full" />}
+2828:    <motion.div 
+2843:            <motion.div 
