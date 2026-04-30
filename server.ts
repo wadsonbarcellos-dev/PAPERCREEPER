@@ -652,12 +652,10 @@ Exemplo: "Vou te dar permissão de administrador agora! [ACTION:cmd|op playernam
 
     const srv = serversState[serverId];
     if (!srv || !srv.process || srv.status !== "online") {
-      return res
-        .status(400)
-        .json({
-          error:
-            "O servidor precisa estar Online (Ligado) para processar o pacote.",
-        });
+      return res.status(400).json({
+        error:
+          "O servidor precisa estar Online (Ligado) para processar o pacote.",
+      });
     }
 
     // Fire commands
@@ -858,13 +856,11 @@ command /creeper-ai <text>:
       });
       res.json({ success: true, text: result.text });
     } catch (e: any) {
-      res
-        .status(500)
-        .json({
-          error: e.message,
-          envKeyType: typeof process.env.GEMINI_API_KEY,
-          envKeyLen: process.env.GEMINI_API_KEY?.length,
-        });
+      res.status(500).json({
+        error: e.message,
+        envKeyType: typeof process.env.GEMINI_API_KEY,
+        envKeyLen: process.env.GEMINI_API_KEY?.length,
+      });
     }
   });
 
@@ -1840,19 +1836,37 @@ command /creeper-ai <text>:
             const tunnel = data.data.tunnels[0];
 
             let domain = "";
-            if (tunnel.domain && tunnel.domain.domain) {
+            let port = "";
+
+            if (tunnel.alloc && tunnel.alloc.data) {
+              const data = tunnel.alloc.data;
+              if (data.port_start !== undefined)
+                port = data.port_start.toString();
+              
+              // Prioritize SRV domain (e.g. .joinmc.link) because it doesn't need a port, it's prettier for Java Edition
+              if (data.assigned_srv) domain = data.assigned_srv;
+              else if (data.assigned_domain) domain = data.assigned_domain;
+              else if (data.ip_hostname) domain = data.ip_hostname;
+            }
+
+            if (!domain && tunnel.domain && tunnel.domain.domain) {
               domain = tunnel.domain.domain;
-            } else if (tunnel.assigned_domain) {
+            }
+            if (!domain && tunnel.custom_domain) {
+              domain = tunnel.custom_domain;
+            }
+            if (!domain && tunnel.assigned_domain) {
               domain = tunnel.assigned_domain;
             }
 
-            let port = "";
             if (
+              !port &&
               tunnel.public_allocations &&
               tunnel.public_allocations.length > 0
             ) {
               const alloc = tunnel.public_allocations[0].details;
               if (alloc.port) port = alloc.port.toString();
+              if (alloc.port_start) port = alloc.port_start.toString();
               if (!domain)
                 domain = alloc.auto_domain || alloc.ip_hostname || "";
             }
@@ -1861,14 +1875,22 @@ command /creeper-ai <text>:
             const isBedrock =
               tunnel.tunnel_type?.name?.toLowerCase().includes("bedrock") ||
               tunnel.port_type === "udp" ||
-              port === "19132";
+              port === "19132" ||
+              tunnel.tunnel_type === "minecraft-bedrock";
 
             if (isBedrock && domain && port) {
-              globalTunnel = `💎 Bedrock: [${domain}] Porta: [${port}]`;
-            } else if (domain && port) {
-              globalTunnel = `${domain}:${port}`;
+              if (domain.includes(".ply.gg")) {
+                globalTunnel = `💎 Bedrock: [${domain}] Porta: [${port}]`;
+              } else {
+                globalTunnel = `💎 Bedrock: [${domain}]`;
+              }
             } else if (domain) {
-              globalTunnel = domain;
+              if (domain.includes(".ply.gg") && port) {
+                globalTunnel = `${domain}:${port}`;
+              } else {
+                // joinmc.link, custom domains, etc don't need port suffix usually, but we check if we should add it
+                globalTunnel = domain;
+              }
             }
 
             if (
@@ -1944,6 +1966,36 @@ command /creeper-ai <text>:
       startGlobalTunnel();
       res.json({ success: true });
     }
+  });
+
+  app.post("/api/playit/update", async (req, res) => {
+    if (globalPlayitProcess) {
+      try {
+        globalPlayitProcess.kill();
+      } catch (e) {}
+      globalPlayitProcess = null;
+    }
+    try {
+      if (fs.existsSync(PLAYIT_PATH)) fs.unlinkSync(PLAYIT_PATH);
+    } catch (e) {}
+
+    const playitUrl = `https://github.com/playit-cloud/playit-agent/releases/latest/download/${path.basename(PLAYIT_PATH)}`;
+    exec(
+      `curl -A "Mozilla/5.0" -L "${playitUrl}" -o "${PLAYIT_PATH}"`,
+      (err) => {
+        if (!err) {
+          if (os.platform() !== "win32") {
+            try {
+              fs.chmodSync(PLAYIT_PATH, 0o755);
+            } catch (e) {}
+          }
+          startGlobalTunnel();
+          res.json({ success: true, message: "Atualizado com sucesso." });
+        } else {
+          res.status(500).json({ error: "Falha ao baixar atualização." });
+        }
+      },
+    );
   });
 
   app.post("/api/playit/uninstall", (req, res) => {

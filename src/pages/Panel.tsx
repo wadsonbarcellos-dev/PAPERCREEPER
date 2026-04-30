@@ -43,6 +43,11 @@ import {
   Info,
   CheckCircle2,
   Map,
+  Shield,
+  Hammer,
+  Skull,
+  Hand,
+  UploadCloud,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { askAI } from "../services/geminiService";
@@ -150,6 +155,31 @@ const translations: any = {
       "Playit.gg is disabled for this server. Only recommended for panels hosted on VPS machines with dedicated IPs and open ports.",
     playit_tunnel_public: "Playit.gg Tunnel (Public)",
     playit_tunnel_desc: "Disable if using VPS with a dedicated IP.",
+    map_editor_title: "Spawn/Region Manager",
+    map_editor_desc:
+      "Create and protect important areas like Lobbies, Spawns, and Stores. Requires WorldGuard & WorldEdit plugins.",
+    map_upload_btn: "Upload Map or Schematic (.zip / .schem)",
+    map_protector_title: "Quick Protector (WorldGuard)",
+    map_region_label: "Select target",
+    map_region_tip:
+      "Tip: Type `/wand` in-game, select the corners, and type `/rg define {mapRegion}` before applying the permissions below!",
+    map_no_pvp: "NO PVP",
+    map_no_build: "NO BUILD",
+    map_no_mobs: "NO MOBS",
+    map_immortal: "IMMORTAL",
+    map_allow_interact: "ALLOW INTERACTION (CHESTS/DOORS)",
+    map_upload_zip: "Upload Schematic/Zip",
+    map_download_web: "Download from Web",
+    map_view_schematics: "View Schematics (Server)",
+    map_view_worlds: "View Worlds (Server)",
+    store_editor_title: "Store Manager",
+    store_editor_desc: "Create your own 100% custom Skript store or manage native NPC/GUI store plugins.",
+    store_generate_skript: "Generate In-Game Skript Store (AI)",
+    store_npc_shopkeepers: "NPC Shop (Shopkeepers)",
+    store_gui_economy: "Ready GUI Store (EconomyShopGUI)",
+    store_npc_commands: "NPC Commands (Citizens)",
+    store_status_help: "Status / Help",
+    store_help_desc: "If you generate a Skript Store, the code will be created by our AI assistant. Remember to install the Skript plugin in the Plugins tab first for it to work.",
   },
   pt: {
     menu_magic: "MENU MÁGICO",
@@ -255,6 +285,31 @@ const translations: any = {
       "Playit.gg está desativado para este servidor. Recomendado apenas para painéis hospedados em máquinas VPS que possuam IPs dedicados e portas livres.",
     playit_tunnel_public: "Túnel Playit.gg (Público)",
     playit_tunnel_desc: "Desative se usar VPS com IP Dedicado.",
+    map_editor_title: "Gerenciador de Spawns/Regiões",
+    map_editor_desc:
+      "Crie e proteja áreas importantes como Lobbies, Spawns e Lojas. É obrigatório ter o plugin WorldGuard & WorldEdit instalado.",
+    map_upload_btn: "Upload Mapa ou Schematic (.zip / .schem)",
+    map_protector_title: "Protetor Rápido (WorldGuard)",
+    map_region_label: "Selecione o alvo",
+    map_region_tip:
+      "Dica: Digite `/wand` no jogo, selecione os cantos e digite `/rg define {mapRegion}` antes de aplicar as permissões abaixo!",
+    map_no_pvp: "SEM PVP",
+    map_no_build: "SEM CONSTRUIR",
+    map_no_mobs: "SEM MOBS",
+    map_immortal: "IMORTAL",
+    map_allow_interact: "PERMITIR INTERAÇÃO (BAÚS/PORTAS)",
+    map_upload_zip: "Upload Schematic/Zip",
+    map_download_web: "Baixar da Web",
+    map_view_schematics: "Ver Schematics no SV",
+    map_view_worlds: "Ver Mundos do SV",
+    store_editor_title: "Gerenciador de Lojas",
+    store_editor_desc: "Crie sua própria loja Skript 100% customizada ou gerencie plugins de Lojas NPC / GUI nativos.",
+    store_generate_skript: "Gerar Loja Skript In-Game (IA)",
+    store_npc_shopkeepers: "Loja de NPCs (Shopkeepers)",
+    store_gui_economy: "Loja GUI Pronta (EconomyShopGUI)",
+    store_npc_commands: "Comandos em NPCs (Citizens)",
+    store_status_help: "Status / Ajuda",
+    store_help_desc: "Se você gerar uma Loja Skript, o código será criado pelo nosso assistente. Lembre-se de instalar o plugin Skript na aba de Plugins primeiro para que ele funcione.",
   },
 };
 
@@ -491,7 +546,9 @@ export default function App({
     tunnel: null,
     running: false,
   });
-  const [playitLoading, setPlayitLoading] = useState<"install"|"uninstall"|"start"|"stop"|"reset"|null>(null);
+  const [playitLoading, setPlayitLoading] = useState<
+    "install" | "uninstall" | "start" | "stop" | "reset" | null
+  >(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newServerConfig, setNewServerConfig] = useState({
@@ -515,6 +572,7 @@ export default function App({
     "general",
   );
   const [isInstalling, setIsInstalling] = useState(false);
+  const [mapRegion, setMapRegion] = useState("spawn");
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastActivity = useRef(Date.now());
@@ -2770,7 +2828,9 @@ export default function App({
                     <button
                       disabled={!!playitLoading}
                       onClick={async () => {
-                        setPlayitLoading(playitStatus.running ? "stop" : "start");
+                        setPlayitLoading(
+                          playitStatus.running ? "stop" : "start",
+                        );
                         if (playitStatus.running) {
                           await fetch("/api/playit/stop", {
                             method: "POST",
@@ -2788,10 +2848,18 @@ export default function App({
                       }}
                       className={`w-full py-4 rounded-xl flex items-center justify-center gap-3 font-black text-xs uppercase shadow-lg transition-transform active:scale-95 border-b-4 ${playitLoading ? "opacity-50 cursor-not-allowed " : ""}${playitStatus.running ? "bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 border-rose-900/50" : "bg-emerald-500 hover:bg-emerald-400 text-emerald-950 border-emerald-700"}`}
                     >
-                      {playitLoading === "start" || playitLoading === "stop" ? <RefreshCw className="animate-spin" size={18} /> : <Power size={18} />}
-                      {playitLoading === "start" ? "Ligando..." : playitLoading === "stop" ? "Desligando..." : playitStatus.running
-                        ? "Desligar Agente"
-                        : "Ligar Agente Playit"}
+                      {playitLoading === "start" || playitLoading === "stop" ? (
+                        <RefreshCw className="animate-spin" size={18} />
+                      ) : (
+                        <Power size={18} />
+                      )}
+                      {playitLoading === "start"
+                        ? "Ligando..."
+                        : playitLoading === "stop"
+                          ? "Desligando..."
+                          : playitStatus.running
+                            ? "Desligar Agente"
+                            : "Ligar Agente Playit"}
                     </button>
 
                     <div className="flex w-full gap-4">
@@ -2819,31 +2887,51 @@ export default function App({
                       </button>
 
                       {playitStatus.installed ? (
-                        <button
-                          disabled={!!playitLoading}
-                          onClick={async (e) => {
-                            e.stopPropagation();
-                            if (
-                              confirm(
-                                "Tem certeza que deseja desinstalar o Playit.gg?",
-                              )
-                            ) {
-                              setPlayitLoading("uninstall");
-                              await fetch("/api/playit/uninstall", {
+                        <>
+                          <button
+                            disabled={!!playitLoading}
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              setPlayitLoading("update");
+                              await fetch("/api/playit/update", {
                                 method: "POST",
                               });
-                              setPlayitStatus((prev) => ({
-                                ...prev,
-                                installed: false,
-                                running: false,
-                              }));
                               setPlayitLoading(null);
-                            }
-                          }}
-                          className={`flex-1 py-3 bg-rose-900/50 hover:bg-rose-800 text-rose-400 font-bold text-xs uppercase rounded-xl transition-all border border-rose-900 shadow-md ${playitLoading ? "opacity-50 cursor-not-allowed" : ""}`}
-                        >
-                          {playitLoading === "uninstall" ? "Desinstalando..." : "Desinstalar"}
-                        </button>
+                            }}
+                            className={`flex-1 py-3 bg-blue-900/50 hover:bg-blue-800 text-blue-400 font-bold text-xs uppercase rounded-xl transition-all border border-blue-900 shadow-md ${playitLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+                          >
+                            {playitLoading === "update"
+                              ? "Atualizando..."
+                              : "Atualizar"}
+                          </button>
+                          <button
+                            disabled={!!playitLoading}
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              if (
+                                confirm(
+                                  "Tem certeza que deseja desinstalar o Playit.gg?",
+                                )
+                              ) {
+                                setPlayitLoading("uninstall");
+                                await fetch("/api/playit/uninstall", {
+                                  method: "POST",
+                                });
+                                setPlayitStatus((prev) => ({
+                                  ...prev,
+                                  installed: false,
+                                  running: false,
+                                }));
+                                setPlayitLoading(null);
+                              }
+                            }}
+                            className={`flex-1 py-3 bg-rose-900/50 hover:bg-rose-800 text-rose-400 font-bold text-xs uppercase rounded-xl transition-all border border-rose-900 shadow-md ${playitLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+                          >
+                            {playitLoading === "uninstall"
+                              ? "Desinstalando..."
+                              : "Desinstalar"}
+                          </button>
+                        </>
                       ) : (
                         <button
                           disabled={!!playitLoading}
@@ -2861,8 +2949,12 @@ export default function App({
                           }}
                           className={`flex-1 py-3 flex justify-center items-center gap-2 bg-emerald-900/50 hover:bg-emerald-800 text-emerald-400 font-bold text-xs uppercase rounded-xl transition-all border border-emerald-900 shadow-md ${playitLoading ? "opacity-50 cursor-not-allowed" : ""}`}
                         >
-                          {playitLoading === "install" && <RefreshCw size={14} className="animate-spin" />}
-                          {playitLoading === "install" ? "Instalando..." : "Instalar"}
+                          {playitLoading === "install" && (
+                            <RefreshCw size={14} className="animate-spin" />
+                          )}
+                          {playitLoading === "install"
+                            ? "Instalando..."
+                            : "Instalar"}
                         </button>
                       )}
                     </div>
@@ -2935,24 +3027,6 @@ export default function App({
                             Verificando conexão...
                           </div>
                         )}
-
-                        {playitStatus.logs && playitStatus.logs.length > 0 && (
-                          <div className="mt-6 p-3 bg-black rounded-xl border border-zinc-900 text-left overflow-hidden">
-                            <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest mb-2 pb-2 border-b border-zinc-900">
-                              Logs do Agente Playit
-                            </p>
-                            <div className="max-h-24 overflow-y-auto space-y-1 scrollbar-thin scrollbar-thumb-zinc-800">
-                              {playitStatus.logs.map((log, idx) => (
-                                <div
-                                  key={idx}
-                                  className={`text-[10px] font-mono leading-tight break-all ${log.includes("[ERR]") ? "text-rose-500" : "text-emerald-400/80"}`}
-                                >
-                                  {log}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
                       </div>
                     )}
                   </div>
@@ -2968,26 +3042,196 @@ export default function App({
                 >
                   <Map size={64} className="text-emerald-500 mb-6 opacity-80" />
                   <h3 className="text-3xl font-black text-white tracking-tighter mb-4 text-center uppercase">
-                    Modelador de Mapas IA
+                    {t("map_editor_title")}
                   </h3>
                   <p className="text-emerald-500 font-bold mb-8 text-center max-w-lg leading-relaxed mix-blend-screen text-[10px] sm:text-xs uppercase tracking-widest hidden sm:block">
-                    Importe Schematics diretamente ou peça para a IA reconstruir
-                    suas ideias dentro do mundo.
+                    {t("map_editor_desc")}
                   </p>
 
-                  <div className="flex flex-col items-center gap-4 w-full max-w-md">
-                    <button className="w-full py-4 rounded-xl flex items-center justify-center gap-3 font-black text-xs uppercase shadow-lg transition-transform active:scale-95 border-b-4 bg-emerald-500 hover:bg-emerald-400 text-emerald-950 border-emerald-700">
-                      Upload Schematic (.schematic)
-                    </button>
+                  <div className="flex flex-col items-center gap-4 w-full max-w-lg">
+                    <div className="grid grid-cols-2 gap-3 w-full">
+                      <button
+                        onClick={() => {
+                          if (!currentServerId)
+                            return alert("Selecione um servidor primeiro!");
+                          const input = document.createElement("input");
+                          input.type = "file";
+                          input.accept = ".zip,.schematic,.schem";
+                          input.onchange = async (e: any) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
 
-                    <div className="w-full mt-4 p-5 bg-black/40 border-2 border-zinc-900/80 rounded-2xl text-center">
-                      <p className="text-[10px] text-zinc-500 font-black tracking-widest uppercase mb-1">
-                        MCEdit Web engine
+                            let targetFolder = "";
+                            if (
+                              file.name.endsWith(".schem") ||
+                              file.name.endsWith(".schematic")
+                            ) {
+                              targetFolder = "plugins/WorldEdit/schematics";
+                            }
+
+                            await uploadMultipleFiles(
+                              [file],
+                              currentServerId,
+                              targetFolder,
+                            );
+                            alert("Mapa/Schematic enviado com sucesso!");
+                          };
+                          input.click();
+                        }}
+                        className="w-full py-4 rounded-xl flex items-center justify-center gap-2 font-black text-[10px] uppercase shadow-lg transition-transform active:scale-95 border-b-4 bg-emerald-500 hover:bg-emerald-400 text-emerald-950 border-emerald-700"
+                      >
+                        <UploadCloud size={16} /> {t("map_upload_zip")}
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          window.open(
+                            "https://www.minecraft-schematics.com/",
+                            "_blank",
+                          );
+                        }}
+                        className="w-full py-4 rounded-xl flex items-center justify-center gap-2 font-black text-[10px] uppercase shadow-lg transition-transform active:scale-95 border-b-4 bg-zinc-800 hover:bg-zinc-700 text-emerald-400 border-zinc-950"
+                      >
+                        <Search size={16} /> {t("map_download_web")}
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setActiveTab("files");
+                          setCurrentFolder("plugins/WorldEdit/schematics");
+                        }}
+                        className="w-full py-4 rounded-xl flex items-center justify-center gap-2 font-black text-[10px] uppercase shadow-lg transition-transform active:scale-95 border-b-4 bg-zinc-800 hover:bg-zinc-700 text-emerald-400 border-zinc-950"
+                      >
+                        <Folder size={16} /> {t("map_view_schematics")}
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setActiveTab("files");
+                          setCurrentFolder("");
+                        }}
+                        className="w-full py-4 rounded-xl flex items-center justify-center gap-2 font-black text-[10px] uppercase shadow-lg transition-transform active:scale-95 border-b-4 bg-zinc-800 hover:bg-zinc-700 text-emerald-400 border-zinc-950"
+                      >
+                        <Map size={16} /> {t("map_view_worlds")}
+                      </button>
+                    </div>
+
+                    <div className="w-full mt-4 p-6 bg-black/40 border-2 border-emerald-900/40 rounded-2xl">
+                      <p className="text-[12px] text-emerald-500 font-black tracking-widest uppercase mb-4 text-center">
+                        {t("map_protector_title")}
                       </p>
-                      <div className="text-zinc-600 font-bold text-xs uppercase tracking-widest leading-relaxed">
-                        Em desenvolvimento: Visualizador WebGL 3D em breve. Por
-                        enquanto, utilize o Assistente IA para rodar comandos de
-                        WorldEdit automaticamente!
+
+                      <div className="space-y-4">
+                        <div>
+                          <label className="text-[10px] uppercase font-black tracking-widest text-emerald-600 block mb-2 px-1">
+                            {t("map_region_label")}
+                          </label>
+                          <input
+                            value={mapRegion}
+                            onChange={(e) => setMapRegion(e.target.value)}
+                            className="w-full bg-emerald-950/20 border-2 border-emerald-900/50 p-4 rounded-xl text-emerald-400 text-xs font-black uppercase focus:border-emerald-500 transition outline-none"
+                            placeholder="NOME_DA_REGIAO (EX: SPAWN, VIP_ZONE)"
+                          />
+                        </div>
+                        <p className="text-emerald-500/50 text-[9px] font-bold uppercase tracking-widest leading-relaxed">
+                          {t("map_region_tip").replace(
+                            "{mapRegion}",
+                            mapRegion,
+                          )}
+                        </p>
+
+                        <div className="grid grid-cols-2 gap-3 mt-4">
+                          <button
+                            onClick={async () => {
+                              if (!currentServerId)
+                                return alert("Selecione ou inicie o servidor!");
+                              await fetch("/api/server/command", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  command: `rg flag ${mapRegion} pvp deny`,
+                                  serverId: currentServerId,
+                                }),
+                              });
+                              alert("Permissão aplicada!");
+                            }}
+                            className="bg-emerald-900/30 border border-emerald-800 text-emerald-400 p-4 rounded-xl font-black text-[10px] uppercase hover:bg-emerald-800 transition active:scale-95 shadow-lg flex items-center justify-center gap-2"
+                          >
+                            <Shield size={14} /> {t("map_no_pvp")}
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (!currentServerId)
+                                return alert("Selecione ou inicie o servidor!");
+                              await fetch("/api/server/command", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  command: `rg flag ${mapRegion} build deny`,
+                                  serverId: currentServerId,
+                                }),
+                              });
+                              alert("Permissão aplicada!");
+                            }}
+                            className="bg-emerald-900/30 border border-emerald-800 text-emerald-400 p-4 rounded-xl font-black text-[10px] uppercase hover:bg-emerald-800 transition active:scale-95 shadow-lg flex items-center justify-center gap-2"
+                          >
+                            <Hammer size={14} /> {t("map_no_build")}
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (!currentServerId)
+                                return alert("Selecione ou inicie o servidor!");
+                              await fetch("/api/server/command", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  command: `rg flag ${mapRegion} mob-spawning deny`,
+                                  serverId: currentServerId,
+                                }),
+                              });
+                              alert("Permissão aplicada!");
+                            }}
+                            className="bg-emerald-900/30 border border-emerald-800 text-emerald-400 p-4 rounded-xl font-black text-[10px] uppercase hover:bg-emerald-800 transition active:scale-95 shadow-lg flex items-center justify-center gap-2"
+                          >
+                            <Skull size={14} /> {t("map_no_mobs")}
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (!currentServerId)
+                                return alert("Selecione ou inicie o servidor!");
+                              await fetch("/api/server/command", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  command: `rg flag ${mapRegion} invincible allow`,
+                                  serverId: currentServerId,
+                                }),
+                              });
+                              alert("Permissão aplicada!");
+                            }}
+                            className="bg-emerald-900/30 border border-emerald-800 text-emerald-400 p-4 rounded-xl font-black text-[10px] uppercase hover:bg-emerald-800 transition active:scale-95 shadow-lg flex items-center justify-center gap-2"
+                          >
+                            <Heart size={14} /> {t("map_immortal")}
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (!currentServerId)
+                                return alert("Selecione ou inicie o servidor!");
+                              await fetch("/api/server/command", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  command: `rg flag ${mapRegion} interact allow`,
+                                  serverId: currentServerId,
+                                }),
+                              });
+                              alert("Permissão aplicada!");
+                            }}
+                            className="col-span-2 bg-emerald-900/30 border border-emerald-800 text-emerald-400 p-4 rounded-xl font-black text-[10px] uppercase hover:bg-emerald-800 transition active:scale-95 shadow-lg flex items-center justify-center gap-2"
+                          >
+                            <Hand size={14} /> {t("map_allow_interact")}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -3006,25 +3250,70 @@ export default function App({
                     className="text-emerald-500 mb-6 opacity-80"
                   />
                   <h3 className="text-3xl font-black text-white tracking-tighter mb-4 text-center uppercase">
-                    Loja In-Game
+                    {t("store_editor_title") || "Gerenciador de Lojas"}
                   </h3>
                   <p className="text-emerald-500 font-bold mb-8 text-center max-w-lg leading-relaxed mix-blend-screen text-[10px] sm:text-xs uppercase tracking-widest hidden sm:block">
-                    Menu GUI interativo dentro do servidor Minecraft
+                    {t("store_editor_desc") ||
+                      "Crie sua própria loja Skript 100% customizada ou gerencie plugins de Lojas NPC / GUI nativos."}
                   </p>
 
-                  <div className="flex flex-col items-center gap-4 w-full max-w-md">
-                    <button className="w-full py-4 rounded-xl flex items-center justify-center gap-3 font-black text-xs uppercase shadow-lg transition-transform active:scale-95 border-b-4 bg-emerald-500 hover:bg-emerald-400 text-emerald-950 border-emerald-700">
-                      Gerar Plugin da Loja (Em breve)
+                  <div className="flex flex-col items-center gap-4 w-full max-w-lg">
+                    <button
+                      onClick={() => {
+                        const prompt = window.prompt(
+                          "Descreva a sua loja (Ex: Loja de Vips, Loja de Blocos, NPCs que vendem espadas):",
+                          "Quero uma loja GUI simples que venda pedra por $10",
+                        );
+                        if (!prompt) return;
+
+                        setAiInput(
+                          `Crie um plugin Skript para uma Loja In-Game com as seguintes características: ${prompt}. O código DEVE estar em um bloco \`\`\`skript ... \`\`\`. O Skript deve usar um menu GUI e ter economia básica.`,
+                        );
+                        setActiveTab("ai");
+                      }}
+                      className="w-full py-4 rounded-xl flex items-center justify-center gap-3 font-black text-xs uppercase shadow-lg transition-transform active:scale-95 border-b-4 bg-emerald-500 hover:bg-emerald-400 text-emerald-950 border-emerald-700"
+                    >
+                      <Sparkles size={18} />{" "}
+                      {t("store_generate_skript") ||
+                        "Gerar Loja Skript In-Game (IA)"}
                     </button>
 
-                    <div className="w-full mt-4 p-5 bg-black/40 border-2 border-zinc-900/80 rounded-2xl text-center">
+                    <div className="grid grid-cols-2 gap-3 w-full">
+                      <button
+                        onClick={() => {
+                          setActiveTab("plugins");
+                          setStoreSearch("Shopkeepers");
+                        }}
+                        className="w-full py-4 rounded-xl flex flex-col items-center justify-center gap-2 font-black text-[10px] uppercase shadow-lg transition-transform active:scale-95 border-b-4 bg-zinc-800 hover:bg-zinc-700 text-emerald-400 border-zinc-950"
+                      >
+                        <Users size={16} /> {t("store_npc_shopkeepers")}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setActiveTab("plugins");
+                          setStoreSearch("EconomyShopGUI");
+                        }}
+                        className="w-full py-4 rounded-xl flex flex-col items-center justify-center gap-2 font-black text-[10px] uppercase shadow-lg transition-transform active:scale-95 border-b-4 bg-zinc-800 hover:bg-zinc-700 text-emerald-400 border-zinc-950"
+                      >
+                        <Store size={16} /> {t("store_gui_economy")}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setActiveTab("plugins");
+                          setStoreSearch("Citizens");
+                        }}
+                        className="col-span-2 w-full py-4 rounded-xl flex flex-col items-center justify-center gap-2 font-black text-[10px] uppercase shadow-lg transition-transform active:scale-95 border-b-4 bg-zinc-800 hover:bg-zinc-700 text-emerald-400 border-zinc-950"
+                      >
+                        <Bot size={16} /> {t("store_npc_commands")}
+                      </button>
+                    </div>
+
+                    <div className="w-full mt-4 p-5 bg-black/40 border-2 border-emerald-900/40 rounded-2xl text-center">
                       <p className="text-[10px] text-zinc-500 font-black tracking-widest uppercase mb-1">
-                        Status
+                        {t("store_status_help")}
                       </p>
-                      <div className="text-zinc-600 font-bold text-xs uppercase tracking-widest leading-relaxed">
-                        Nesta nova engine, a loja roda de forma nativa in-game.
-                        Configure os pacotes via IA e gere o plugin customizado
-                        automaticamente!
+                      <div className="text-zinc-600 font-normal text-xs leading-relaxed max-w-md mx-auto">
+                        {t("store_help_desc")}
                       </div>
                     </div>
                   </div>
