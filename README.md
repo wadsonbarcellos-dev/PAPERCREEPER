@@ -23,8 +23,8 @@ To install on a clean Ubuntu/Debian server or container:
 sudo apt update && sudo apt install -y curl git nodejs npm
 
 # 2. Clone the Repository
-git clone https://github.com/wadsonbarcellos-dev/PAPERCREEPER.git
-cd PAPERCREEPER
+git clone https://github.com/wadsonbarcellos/papercreeper.git
+cd papercreeper
 
 # 3. Setup Project
 chmod +x setup.sh && ./setup.sh
@@ -35,18 +35,20 @@ npm start
 ```
 The panel will securely expose itself on port **3000** (e.g., `http://YOUR_SERVER_IP:3000`).
 
-### Method B: GitHub Codespaces (For Developers & Testing)
+### Method B: Windows Server via WSL2 (Highly Recommended)
+Running a Minecraft Server natively on the Windows CMD/PowerShell can lead to poor performance and file-locking issues. We highly recommend using Windows Subsystem for Linux (WSL2).
+
+1. Open PowerShell as Administrator and run: `wsl --install`
+2. Restart your PC, and open the new Ubuntu terminal.
+3. Inside the Ubuntu terminal, follow **Method A** exactly as if you were on a Linux VPS.
+4. Access the panel at `http://localhost:3000`.
+
+*Tip: If you absolutely must run natively on Windows without WSL, ensure you have Node.js 18+ installed, run `npm install`, then `npm run build` and `npm start` natively via PowerShell.*
+
+### Method C: GitHub Codespaces (For Developers & Testing)
 1. Go to your GitHub repository and click **Code** > **Codespaces** > **Create Codespace**.
 2. It will automatically install `Java 21`, download dependencies, and spin up.
 3. Access the web interface on the forwarded port 3000.
-
-### Method C: Desktop App (Windows)
-Want a native desktop panel to run your friends' localhost server?
-```bash
-npm install
-npm run dist:win
-```
-Wait for the electron builder to finish. Your `.exe` file will be generated in `dist-desktop/`.
 
 ### Method D: Android & iOS (Mobile Devices)
 
@@ -74,6 +76,19 @@ Running full-scale Node.js and Java servers isn't natively supported on iOS due 
 - You can use apps like **iSH Shell** (a Linux emulator), but performance will be severely degraded (too slow for a playable server).
 - Jailbroken devices or using virtual machines (like UTM) can run Linux, but it's not recommended for production servers.
 - The best way to use iOS is as a remote management tool: access your VPS-hosted PaperCreeper panel from your iPhone's Safari browser. The panel is 100% responsive!
+
+## ⚙️ How to get your AI API Key
+
+PaperCreeper features a universal AI engine (supports Gemini, OpenAI, Groq, xAI). 
+
+**If you are running this app inside Google AI Studio (as a generated applet):**
+You might see the key named `AI Studio Free Tier` injected into the environment. You **DO NOT** need to change this! Google AI Studio automatically provides a seamless key to the container. It's a generic environment token that works right out of the box in the preview without you having to hunt for API keys.
+
+**If you are hosting this on your own VPS, PC, or WSL:**
+1. Go to [Google AI Studio](https://aistudio.google.com/app/apikey) (or your preferred AI provider like Groq).
+2. Generate a new API Key (Gemini keys start with `AIza...`).
+3. Open the PaperCreeper Panel, click on the **Settings** (⚙️) menu.
+4. Scroll down to the AI API section, paste your key, and click **Salvar/Save**. The panel will automatically detect if it's Gemini, OpenAI, or Groq and activate the assistant!
 
 ## ⚡ Our Ultimate Power & Capabilities
 

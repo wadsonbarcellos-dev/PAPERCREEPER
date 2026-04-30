@@ -13,7 +13,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Configuração IA no Backend (Totalmente Automática no AI Studio)
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "AIza_fallback" });
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY || "AIza_fallback",
+});
 
 async function startServer() {
   const app = express();
@@ -34,18 +36,22 @@ async function startServer() {
       if (fs.existsSync(cfgP)) {
         try {
           const c = JSON.parse(fs.readFileSync(cfgP, "utf-8"));
-          fs.writeFileSync(cfgP, JSON.stringify({...c, name: "Principal"}, null, 2));
-        } catch(e){}
+          fs.writeFileSync(
+            cfgP,
+            JSON.stringify({ ...c, name: "Principal" }, null, 2),
+          );
+        } catch (e) {}
       }
     }
   }
 
   const getServerDir = (id: string) => path.join(SERVERS_ROOT, id);
-  const getSrvConfigPath = (id: string) => path.join(getServerDir(id), "panel-config.json");
-  const DEFAULT_CONFIG = { 
-    name: "Novo Servidor", 
-    ram: 4, 
-    minRam: 1, 
+  const getSrvConfigPath = (id: string) =>
+    path.join(getServerDir(id), "panel-config.json");
+  const DEFAULT_CONFIG = {
+    name: "Novo Servidor",
+    ram: 4,
+    minRam: 1,
     usePlayit: true,
     store: {
       name: "Loja Oficial",
@@ -55,42 +61,42 @@ async function startServer() {
           id: "vip-hero",
           name: "VIP Hero",
           description: "Rank VIP (1 Mês) + Kit Hero",
-          price: 25.00,
+          price: 25.0,
           commands: [
             "lp user {player} parent add vip",
             "eco give {player} 5000",
-            "say O jogador {player} acabou de adquirir o VIP Hero!"
-          ]
+            "say O jogador {player} acabou de adquirir o VIP Hero!",
+          ],
         },
         {
           id: "money-10k",
           name: "10.000 Coins",
           description: "Adicione fundos na sua conta in-game",
-          price: 10.00,
+          price: 10.0,
           commands: [
             "eco give {player} 10000",
-            "msg {player} Obrigado por adquirir Coins!"
-          ]
+            "msg {player} Obrigado por adquirir Coins!",
+          ],
         },
         {
           id: "perk-fly",
           name: "Permissão /Fly",
           description: "Voe livremente pelo lobby/spawn",
-          price: 15.00,
+          price: 15.0,
           commands: [
             "lp user {player} permission set essentials.fly true",
-            "say {player} agora pode voar!"
-          ]
-        }
-      ]
-    }
+            "say {player} agora pode voar!",
+          ],
+        },
+      ],
+    },
   };
 
   const getSrvConfig = (id: string) => {
     try {
       const p = getSrvConfigPath(id);
       if (fs.existsSync(p)) return JSON.parse(fs.readFileSync(p, "utf-8"));
-    } catch(e){}
+    } catch (e) {}
     return { ...DEFAULT_CONFIG, name: id };
   };
 
@@ -103,11 +109,11 @@ async function startServer() {
   // Multer
   const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-      const sId = req.query.serverId as string || "default";
-      const folder = req.query.folder as string || "";
+      const sId = (req.query.serverId as string) || "default";
+      const folder = (req.query.folder as string) || "";
       const safeBase = getServerDir(sId);
       const tDir = path.join(safeBase, folder);
-      
+
       if (!tDir.startsWith(safeBase)) {
         cb(new Error("Acesso negado fora da raiz do servidor!"), "");
         return;
@@ -116,31 +122,33 @@ async function startServer() {
       if (!fs.existsSync(tDir)) fs.mkdirSync(tDir, { recursive: true });
       cb(null, tDir);
     },
-    filename: (req, file, cb) => cb(null, file.originalname)
+    filename: (req, file, cb) => cb(null, file.originalname),
   });
   const upload = multer({ storage });
 
+  // Global Playit variables
+  let globalPlayitProcess: any = null;
+  let globalPlayitClaimUrl: string | null = null;
+  let globalPlayitClaimLastSeen: number = 0;
+  let globalPlayitLogs: string[] = [];
+
   // State
-  const serversState: Record<string, {
-    status: "online" | "offline" | "starting" | "stopping",
-    tunnelAddress: string | null,
-    logs: string[],
-    process?: any,
-    playitProcess?: any,
-    playitClaimUrl?: string | null,
-    playitClaimLastSeen?: number,
-    playitLogs?: string[]
-  }> = {};
+  const serversState: Record<
+    string,
+    {
+      status: "online" | "offline" | "starting" | "stopping";
+      tunnelAddress: string | null;
+      logs: string[];
+      process?: any;
+    }
+  > = {};
 
   const ensureState = (id: string) => {
     if (!serversState[id]) {
-      serversState[id] = { 
-        status: "offline", 
-        tunnelAddress: null, 
+      serversState[id] = {
+        status: "offline",
+        tunnelAddress: null,
         logs: ["Painel pronto!"],
-        playitClaimUrl: null,
-        playitClaimLastSeen: 0,
-        playitLogs: []
       };
     }
   };
@@ -159,7 +167,7 @@ async function startServer() {
   const JAVA_BIN = path.join(BIN_DIR, "java_runtime/bin/java");
   const PLAYIT_BIN = path.join(BIN_DIR, "playit");
 
-  let JAVA_PATH = "java"; 
+  let JAVA_PATH = "java";
   let PLAYIT_PATH = "playit";
 
   const resolveBinaries = async () => {
@@ -173,7 +181,10 @@ async function startServer() {
     const checkJava = (javaExec: string) => {
       try {
         if (javaExec !== "java" && !fs.existsSync(javaExec)) return false;
-        try { if (javaExec !== "java") execSync(`chmod -R +x "${path.dirname(javaExec)}"`); } catch(e){}
+        try {
+          if (javaExec !== "java")
+            execSync(`chmod -R +x "${path.dirname(javaExec)}"`);
+        } catch (e) {}
         const res = execSync(`"${javaExec}" -version`, { stdio: "pipe" });
         return true;
       } catch (e) {
@@ -186,7 +197,9 @@ async function startServer() {
       javaIsValid = true;
       console.log("Using local Java Runtime:", JAVA_PATH);
     } else {
-      console.log("Local Java is missing or invalid. Will try system java next.");
+      console.log(
+        "Local Java is missing or invalid. Will try system java next.",
+      );
     }
 
     if (!javaIsValid) {
@@ -198,53 +211,74 @@ async function startServer() {
     }
 
     if (!javaIsValid) {
-       console.log("Downloading Java 21 Runtime...");
-       const osPlatform = os.platform();
-       const osArch = os.arch();
-       
-       let jreFile = "OpenJDK21U-jre_x64_linux_hotspot_21.0.6_7.tar.gz";
-       if (osPlatform === "win32") {
-          jreFile = osArch === "arm64" ? "OpenJDK21U-jre_aarch64_windows_hotspot_21.0.6_7.zip" : "OpenJDK21U-jre_x64_windows_hotspot_21.0.6_7.zip";
-       } else if (osPlatform === "darwin") {
-          jreFile = osArch === "arm64" ? "OpenJDK21U-jre_aarch64_mac_hotspot_21.0.6_7.tar.gz" : "OpenJDK21U-jre_x64_mac_hotspot_21.0.6_7.tar.gz";
-       } else if (osPlatform === "linux") {
-          jreFile = osArch === "arm64" ? "OpenJDK21U-jre_aarch64_linux_hotspot_21.0.6_7.tar.gz" : "OpenJDK21U-jre_x64_linux_hotspot_21.0.6_7.tar.gz";
-       }
+      console.log("Downloading Java 21 Runtime...");
+      const osPlatform = os.platform();
+      const osArch = os.arch();
 
-       const tempTar = path.join(BIN_DIR, jreFile);
-       const jreUrl = `https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.6%2B7/${jreFile}`;
-       
-       try {
-         // Clean up broken
-         if (fs.existsSync(javaDir)) fs.rmSync(javaDir, { recursive: true, force: true });
-         fs.mkdirSync(javaDir, { recursive: true });
+      let jreFile = "OpenJDK21U-jre_x64_linux_hotspot_21.0.6_7.tar.gz";
+      if (osPlatform === "win32") {
+        jreFile =
+          osArch === "arm64"
+            ? "OpenJDK21U-jre_aarch64_windows_hotspot_21.0.6_7.zip"
+            : "OpenJDK21U-jre_x64_windows_hotspot_21.0.6_7.zip";
+      } else if (osPlatform === "darwin") {
+        jreFile =
+          osArch === "arm64"
+            ? "OpenJDK21U-jre_aarch64_mac_hotspot_21.0.6_7.tar.gz"
+            : "OpenJDK21U-jre_x64_mac_hotspot_21.0.6_7.tar.gz";
+      } else if (osPlatform === "linux") {
+        jreFile =
+          osArch === "arm64"
+            ? "OpenJDK21U-jre_aarch64_linux_hotspot_21.0.6_7.tar.gz"
+            : "OpenJDK21U-jre_x64_linux_hotspot_21.0.6_7.tar.gz";
+      }
 
-         execSync(`curl -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" -L "${jreUrl}" -o "${tempTar}"`, { stdio: "inherit" });
-         
-         // Extract and strip first directory. Note on Windows tar might require different args, but windows 10+ has tar
-         execSync(`tar -xf "${tempTar}" -C "${javaDir}" --strip-components=1`, { stdio: "inherit" });
-         fs.rmSync(tempTar, { force: true });
+      const tempTar = path.join(BIN_DIR, jreFile);
+      const jreUrl = `https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.6%2B7/${jreFile}`;
 
-         // If windows, java executable ends in .exe
-         if (osPlatform === "win32") {
-             const localJavaExe = path.join(javaDir, "bin/java.exe");
-             if (checkJava(localJavaExe)) {
-                 JAVA_PATH = localJavaExe;
-                 console.log("Successfully downloaded and installed Local Java 21:", JAVA_PATH);
-             } else {
-                 console.error("Failed to validate Java after download!");
-             }
-         } else {
-             if (checkJava(localJava)) {
-               JAVA_PATH = localJava;
-               console.log("Successfully downloaded and installed Local Java 21:", JAVA_PATH);
-             } else {
-               console.error("Failed to validate Java after download!");
-             }
-         }
-       } catch (e: any) {
-         console.error("Failed to download Java:", e.message);
-       }
+      try {
+        // Clean up broken
+        if (fs.existsSync(javaDir))
+          fs.rmSync(javaDir, { recursive: true, force: true });
+        fs.mkdirSync(javaDir, { recursive: true });
+
+        execSync(
+          `curl -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" -L "${jreUrl}" -o "${tempTar}"`,
+          { stdio: "inherit" },
+        );
+
+        // Extract and strip first directory. Note on Windows tar might require different args, but windows 10+ has tar
+        execSync(`tar -xf "${tempTar}" -C "${javaDir}" --strip-components=1`, {
+          stdio: "inherit",
+        });
+        fs.rmSync(tempTar, { force: true });
+
+        // If windows, java executable ends in .exe
+        if (osPlatform === "win32") {
+          const localJavaExe = path.join(javaDir, "bin/java.exe");
+          if (checkJava(localJavaExe)) {
+            JAVA_PATH = localJavaExe;
+            console.log(
+              "Successfully downloaded and installed Local Java 21:",
+              JAVA_PATH,
+            );
+          } else {
+            console.error("Failed to validate Java after download!");
+          }
+        } else {
+          if (checkJava(localJava)) {
+            JAVA_PATH = localJava;
+            console.log(
+              "Successfully downloaded and installed Local Java 21:",
+              JAVA_PATH,
+            );
+          } else {
+            console.error("Failed to validate Java after download!");
+          }
+        }
+      } catch (e: any) {
+        console.error("Failed to download Java:", e.message);
+      }
     }
 
     const osPlatform = os.platform();
@@ -258,111 +292,111 @@ async function startServer() {
     }
 
     PLAYIT_PATH = path.join(BIN_DIR, playitFile);
-    
+
     if (fs.existsSync(PLAYIT_PATH)) {
       if (osPlatform !== "win32") {
-        try { fs.chmodSync(PLAYIT_PATH, 0o755); } catch(e){}
+        try {
+          fs.chmodSync(PLAYIT_PATH, 0o755);
+        } catch (e) {}
       }
     }
   };
 
   const downloadDependencies = async () => {
     await resolveBinaries();
-    
+
     // Playit setup if missing
     if (!fs.existsSync(PLAYIT_PATH)) {
       addLog("system", " [SETUP] Playit não encontrado, baixando...");
       const playitUrl = `https://github.com/playit-cloud/playit-agent/releases/latest/download/${path.basename(PLAYIT_PATH)}`;
-      exec(`curl -A "Mozilla/5.0" -L "${playitUrl}" -o "${PLAYIT_PATH}"`, (err) => {
-        if (!err) {
-          if (os.platform() !== "win32") {
-             try { fs.chmodSync(PLAYIT_PATH, 0o755); } catch(e){}
+      exec(
+        `curl -A "Mozilla/5.0" -L "${playitUrl}" -o "${PLAYIT_PATH}"`,
+        (err) => {
+          if (!err) {
+            if (os.platform() !== "win32") {
+              try {
+                fs.chmodSync(PLAYIT_PATH, 0o755);
+              } catch (e) {}
+            }
+            addLog("system", " [SUCCESS] Playit.gg pronto!");
+            // Ensure binary is usable
+            exec(`"${PLAYIT_PATH}" version`, (vErr, vOut) => {
+              if (!vErr) console.log("[PLAYIT VERSION]", vOut.trim());
+            });
+          } else {
+            addLog("system", " [ERROR] Erro ao baixar Playit: " + err.message);
           }
-          addLog("system", " [SUCCESS] Playit.gg pronto!");
-          // Ensure binary is usable
-          exec(`"${PLAYIT_PATH}" version`, (vErr, vOut) => {
-             if (!vErr) console.log("[PLAYIT VERSION]", vOut.trim());
-          });
-        } else {
-          addLog("system", " [ERROR] Erro ao baixar Playit: " + err.message);
-        }
-      });
+        },
+      );
     }
   };
 
   downloadDependencies();
 
-  const startTunnel = (serverId: string) => {
-    ensureState(serverId);
+  const startGlobalTunnel = () => {
+    if (globalPlayitProcess) return;
     const runTunnel = () => {
       if (!fs.existsSync(PLAYIT_PATH)) {
         setTimeout(runTunnel, 5000);
         return;
       }
-      let playit;
       try {
-        const srvDir = getServerDir(serverId);
-        const persistentConfig = path.join(srvDir, "playit.toml");
-        
+        const persistentConfig = path.join(process.cwd(), "playit.toml");
+
         const args = ["-s", "--platform_docker"];
         if (fs.existsSync(persistentConfig)) {
           args.push("--secret_path", persistentConfig);
         }
         args.push("start");
 
-        playit = spawn(PLAYIT_PATH, args, { 
+        globalPlayitProcess = spawn(PLAYIT_PATH, args, {
           stdio: ["ignore", "pipe", "pipe"],
-          env: { ...process.env, RUST_LOG: "debug", RUST_BACKTRACE: "1" }
+          env: { ...process.env, RUST_LOG: "debug", RUST_BACKTRACE: "1" },
         });
-        
-        serversState[serverId].playitProcess = playit;
-        
       } catch (err) {
-        console.error(`[Playit ${serverId}] Failed to spawn:`, err);
+        console.error(`[Global Playit] Failed to spawn:`, err);
         return;
       }
 
-      playit.on("error", (err) => {
-        console.error(`[Playit ${serverId}] process error:`, err);
+      globalPlayitProcess.on("error", (err: any) => {
+        console.error(`[Global Playit] process error:`, err);
       });
 
-      playit.stdout.on("data", (data) => {
-        const msg = data.toString().replace(/\x1b\[[0-9;]*m/g, '').trim();
-        if (msg && serversState[serverId].playitLogs) {
-          serversState[serverId].playitLogs!.push("[OUT] " + msg);
-          if (serversState[serverId].playitLogs!.length > 20) serversState[serverId].playitLogs!.shift();
-          
-          const addressMatch = msg.match(/([\w\-.]+\.(?:ply\.gg|playit\.gg|joinmc\.link)(?::\d+)?)/i);
-          if (addressMatch) {
-            serversState[serverId].tunnelAddress = addressMatch[1];
-          }
-          const claimMatch = msg.match(/(https:\/\/(?:www\.)?playit\.gg\/claim\/[a-zA-Z0-9_-]+)/i);
-          if (claimMatch) {
-            serversState[serverId].playitClaimUrl = claimMatch[1];
-            serversState[serverId].playitClaimLastSeen = Date.now();
-          }
-        }
-      });
-      
-      playit.stderr.on("data", (data) => {
-        const msg = data.toString().replace(/\x1b\[[0-9;]*m/g, '').trim();
-        if (msg && serversState[serverId].playitLogs) {
-          serversState[serverId].playitLogs!.push("[ERR] " + msg);
-          if (serversState[serverId].playitLogs!.length > 20) serversState[serverId].playitLogs!.shift();
+      const handleOutput = (data: Buffer, isErr: boolean) => {
+        const msg = data
+          .toString()
+          .replace(/\x1b\[[0-9;]*m/g, "")
+          .trim();
+        if (msg) {
+          globalPlayitLogs.push((isErr ? "[ERR] " : "[OUT] ") + msg);
+          if (globalPlayitLogs.length > 20) globalPlayitLogs.shift();
 
-          const claimMatch = msg.match(/(https:\/\/(?:www\.)?playit\.gg\/claim\/[a-zA-Z0-9_-]+)/i);
+          const claimMatch = msg.match(
+            /(https:\/\/(?:www\.)?playit\.gg\/claim\/[a-zA-Z0-9_-]+)/i,
+          );
           if (claimMatch) {
-            serversState[serverId].playitClaimUrl = claimMatch[1];
-            serversState[serverId].playitClaimLastSeen = Date.now();
+            globalPlayitClaimUrl = claimMatch[1];
+            globalPlayitClaimLastSeen = Date.now();
           }
         }
-      });
-      
-      playit.on("close", () => {
-         serversState[serverId].playitProcess = null;
-         if (serversState[serverId].status === "online" || serversState[serverId].status === "starting") {
-           setTimeout(() => { if (serversState[serverId].status !== "offline") startTunnel(serverId); }, 5000);
-         }
+      };
+
+      globalPlayitProcess.stdout.on("data", (data: any) =>
+        handleOutput(data, false),
+      );
+      globalPlayitProcess.stderr.on("data", (data: any) =>
+        handleOutput(data, true),
+      );
+
+      globalPlayitProcess.on("close", () => {
+        globalPlayitProcess = null;
+        // Se algum servidor online estiver usando playit, reinicia o túnel
+        const needsTunnel = Object.values(serversState).some(
+          (s) => s.status === "online" || s.status === "starting",
+        );
+        if (needsTunnel) {
+          setTimeout(startGlobalTunnel, 5000);
+        }
       });
     };
     runTunnel();
@@ -371,33 +405,39 @@ async function startServer() {
   // API Routes
   app.post("/api/config/env", (req, res) => {
     const { key } = req.body;
-    if (key && key.startsWith("AIza")) {
-      process.env.GEMINI_API_KEY = key;
+    if (key && key.length > 5) {
+      process.env.UNIVERSAL_API_KEY = key;
       const envPath = path.join(process.cwd(), ".env");
       let envContent = "";
       if (fs.existsSync(envPath)) {
         envContent = fs.readFileSync(envPath, "utf-8");
       }
-      if (envContent.includes("GEMINI_API_KEY=")) {
-        envContent = envContent.replace(/GEMINI_API_KEY=.*/g, `GEMINI_API_KEY=${key}`);
+      if (envContent.includes("UNIVERSAL_API_KEY=")) {
+        envContent = envContent.replace(
+          /UNIVERSAL_API_KEY=.*/g,
+          `UNIVERSAL_API_KEY=${key}`,
+        );
       } else {
-        envContent += `\nGEMINI_API_KEY=${key}\n`;
+        envContent += `\nUNIVERSAL_API_KEY=${key}\n`;
       }
       fs.writeFileSync(envPath, envContent);
       res.json({ success: true });
     } else {
-      res.status(400).json({ error: "Chave inválida. Deve começar com AIza" });
+      res.status(400).json({ error: "Chave inválida." });
     }
   });
 
-  // --- API IA (AUTOMÁTICA) ---
+  // --- API IA (UNIVERSAL) ---
   app.post("/api/ai/chat", async (req, res) => {
     try {
       const { prompt, context, serverId } = req.body;
       const sId = serverId || "default";
 
-      const currentKey = process.env.GEMINI_API_KEY || "AIza_fallback";
-      const localAi = new GoogleGenAI({ apiKey: currentKey });
+      const currentKey =
+        process.env.UNIVERSAL_API_KEY || process.env.GEMINI_API_KEY || "";
+      if (!currentKey || currentKey === "AIza_fallback") {
+        throw new Error("API Key não configurada. Configure no menu de IA.");
+      }
 
       // Instrução de sistema para manter a personalidade
       const systemInstruction = `
@@ -417,39 +457,91 @@ Quando decidir realizar uma ação técnica, inclua no final da sua resposta:
 
 Ações válidas: START, STOP, CMD:comando, RAM:gigas, READ:caminho, WRITE:caminho|conteudo, LIST:pasta.
 Exemplo: "Vou te dar permissão de administrador agora! [ACTION:cmd|op playername]"
-`;
+      `;
 
-      const result = await localAi.models.generateContent({
-        model: "gemini-1.5-flash",
-        contents: `${context ? `CONTEXTO:\n${context}\n\n` : ''}${prompt}`,
-        config: {
-          systemInstruction,
-          temperature: 0.8,
-          topP: 0.95,
-          topK: 64,
+      let text = "";
+
+      // Autodetect based on prefix
+      if (currentKey.startsWith("AIza")) {
+        // Gemini API via @google/genai
+        const localAi = new GoogleGenAI({ apiKey: currentKey });
+        const result = await localAi.models.generateContent({
+          model: "gemini-2.5-flash",
+          contents: `${context ? `CONTEXTO:\n${context}\n\n` : ""}${prompt}`,
+          config: {
+            systemInstruction,
+            temperature: 0.8,
+            topP: 0.95,
+            topK: 64,
+          },
+        });
+        text = result.text;
+      } else {
+        // OpenAI-compatible generic fetch
+        let endpoint = "https://api.openai.com/v1/chat/completions";
+        let model = "gpt-4o-mini";
+
+        if (currentKey.startsWith("gsk_")) {
+          endpoint = "https://api.groq.com/openai/v1/chat/completions";
+          model = "llama-3.3-70b-versatile"; // best performant generally
+        } else if (currentKey.startsWith("xai-")) {
+          endpoint = "https://api.x.ai/v1/chat/completions";
+          model = "grok-2-latest";
         }
-      });
-      
-      const text = result.text;
+
+        const messages = [{ role: "system", content: systemInstruction }];
+        if (context)
+          messages.push({ role: "system", content: `CONTEXTO:\n${context}` });
+        messages.push({ role: "user", content: prompt });
+
+        const oaiRes = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${currentKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model,
+            messages,
+            temperature: 0.8,
+          }),
+        });
+
+        if (!oaiRes.ok) {
+          const errJson = await oaiRes.json().catch(() => ({}));
+          throw new Error(
+            errJson.error?.message || `Http error ${oaiRes.status}`,
+          );
+        }
+
+        const oaiData: any = await oaiRes.json();
+        text = oaiData.choices?.[0]?.message?.content || "";
+      }
 
       // Tenta extrair ações do texto (Simulação simples para manter compatibilidade)
       let call = null;
       const actionMatch = text.match(/\[ACTION:([\w-]+)\|?([^\]]*)\]/i);
       if (actionMatch) {
-        call = { name: actionMatch[1].toLowerCase(), args: { value: actionMatch[2] } };
+        call = {
+          name: actionMatch[1].toLowerCase(),
+          args: { value: actionMatch[2] },
+        };
       }
 
       res.json({ text, call });
     } catch (error: any) {
       console.error("AI Server Error:", error);
       let message = error.message;
-      if (message.includes("API key not valid") || message.includes("403")) {
+      if (
+        message.includes("API key not valid") ||
+        message.includes("403") ||
+        message.includes("401")
+      ) {
         message = "Chave API inválida ou não configurada.";
       }
-      res.status(500).json({ 
-        error: message, 
+      res.status(500).json({
+        error: message,
         details: error.message,
-        keyInitial: process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.substring(0, 15) + "..." : "none"
       });
     }
   });
@@ -460,18 +552,18 @@ Exemplo: "Vou te dar permissão de administrador agora! [ACTION:cmd|op playernam
     let config;
     try {
       config = getSrvConfig(serverId);
-    } catch(e) {
+    } catch (e) {
       return res.status(404).send("Servidor não encontrado.");
     }
-    
+
     // Serve a simple HTML page using Tailwind CSS via CDN for the store.
     const storeName = config.store?.name || config.name || "Loja do Servidor";
     const themeColor = config.store?.color || "#10b981"; // default emerald
     const items = config.store?.items || [];
-    
+
     const state: any = serversState[serverId] || {};
     const serverIp = state.tunnelAddress || "Requer inicialização...";
-    
+
     const html = `
     <!DOCTYPE html>
     <html lang="pt-BR">
@@ -494,21 +586,25 @@ Exemplo: "Vou te dar permissão de administrador agora! [ACTION:cmd|op playernam
       </header>
       
       <main class="w-full max-w-4xl grid grid-cols-1 md:grid-cols-3 gap-6">
-        ${items.length === 0 ? '<p class="text-zinc-500 text-center col-span-3 py-10">Nenhum pacote disponível na loja ainda.</p>' : ''}
-        ${items.map((i: any) => `
+        ${items.length === 0 ? '<p class="text-zinc-500 text-center col-span-3 py-10">Nenhum pacote disponível na loja ainda.</p>' : ""}
+        ${items
+          .map(
+            (i: any) => `
           <div class="bg-zinc-900 border-2 theme-border border-opacity-30 rounded-3xl p-6 flex flex-col space-y-4 shadow-2xl relative overflow-hidden">
              <div class="absolute top-0 right-0 p-4 opacity-10">
                <svg xmlns="http://www.w3.org/-svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="${themeColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
              </div>
              
              <h3 class="text-2xl font-bold z-10">${i.name}</h3>
-             <p class="text-zinc-400 text-sm flex-grow z-10">${i.description || ''}</p>
+             <p class="text-zinc-400 text-sm flex-grow z-10">${i.description || ""}</p>
              <div class="text-3xl font-black mt-4 z-10">R$ ${Number(i.price).toFixed(2)}</div>
              <button onclick="buy('${i.id}', '${i.name}')" class="w-full py-4 mt-2 rounded-xl theme-bg text-black font-black uppercase tracking-widest hover:opacity-90 transition-opacity z-10 shadow-lg cursor-pointer">
                Adquirir Pacote
              </button>
           </div>
-        `).join('')}
+        `,
+          )
+          .join("")}
       </main>
       
       <script>
@@ -537,23 +633,33 @@ Exemplo: "Vou te dar permissão de administrador agora! [ACTION:cmd|op playernam
 
   app.post("/api/public/store/buy", (req, res) => {
     const { serverId, itemId, player } = req.body;
-    if (!serverId || !itemId || !player) return res.status(400).json({ error: "Dados incompletos" });
-    
+    if (!serverId || !itemId || !player)
+      return res.status(400).json({ error: "Dados incompletos" });
+
     // Simulate payment success and run commands
     let config;
-    try { config = getSrvConfig(serverId); } catch(e) { return res.status(404).json({ error: "Server config not found" }); }
-    
+    try {
+      config = getSrvConfig(serverId);
+    } catch (e) {
+      return res.status(404).json({ error: "Server config not found" });
+    }
+
     const store = config.store || {};
     const items = store.items || [];
     const item = items.find((i: any) => i.id === itemId);
-    
+
     if (!item) return res.status(404).json({ error: "Item não encontrado" });
-    
+
     const srv = serversState[serverId];
     if (!srv || !srv.process || srv.status !== "online") {
-      return res.status(400).json({ error: "O servidor precisa estar Online (Ligado) para processar o pacote." });
+      return res
+        .status(400)
+        .json({
+          error:
+            "O servidor precisa estar Online (Ligado) para processar o pacote.",
+        });
     }
-    
+
     // Fire commands
     const cmds = item.commands || [];
     if (cmds.length === 0) {
@@ -562,13 +668,15 @@ Exemplo: "Vou te dar permissão de administrador agora! [ACTION:cmd|op playernam
       addLog(serverId, `[STORE] Executado (Cmd Padrão): ${defaultCmd}`);
     } else {
       for (const rawCmd of cmds) {
-        let runCmd = rawCmd.replace(/{player}/g, player).replace(/{player}/gi, player);
+        let runCmd = rawCmd
+          .replace(/{player}/g, player)
+          .replace(/{player}/gi, player);
         if (runCmd.startsWith("/")) runCmd = runCmd.substring(1);
         srv.process.stdin.write(runCmd + "\\n");
         addLog(serverId, `[STORE] Executado via Loja: ${runCmd}`);
       }
     }
-    
+
     res.json({ success: true });
   });
 
@@ -576,21 +684,34 @@ Exemplo: "Vou te dar permissão de administrador agora! [ACTION:cmd|op playernam
     const { username, password, serverId } = req.body;
     // Integração simulada: a loja consultaria o banco de dados do plugin AuthMe/nLogin ou enviaria comandos
     // para um proxy no servidor validando o hash.
-    
-    setTimeout(() => { // Simula delay de rede e hash check
+
+    setTimeout(() => {
+      // Simula delay de rede e hash check
       if (password === "demo123" || password === "admin") {
-         res.json({ success: true, user: { username, uuid: "mock-uuid-123", coins: 12500, rank: "VIP Lenda" } });
+        res.json({
+          success: true,
+          user: {
+            username,
+            uuid: "mock-uuid-123",
+            coins: 12500,
+            rank: "VIP Lenda",
+          },
+        });
       } else if (password) {
-         res.json({ success: true, user: { username, uuid: "mock-uuid-456", coins: 150, rank: "Membro" } });
+        res.json({
+          success: true,
+          user: { username, uuid: "mock-uuid-456", coins: 150, rank: "Membro" },
+        });
       } else {
-         res.status(401).json({ error: "Credenciais inválidas." });
+        res.status(401).json({ error: "Credenciais inválidas." });
       }
     }, 600);
   });
 
   app.post("/api/server/store", (req, res) => {
     const { serverId, store } = req.body;
-    if (!serverId) return res.status(400).json({ error: "Servidor não informado" });
+    if (!serverId)
+      return res.status(400).json({ error: "Servidor não informado" });
     const config = getSrvConfig(serverId);
     config.store = store;
     saveSrvConfig(serverId, config);
@@ -599,10 +720,20 @@ Exemplo: "Vou te dar permissão de administrador agora! [ACTION:cmd|op playernam
 
   app.get("/api/servers", (req, res) => {
     if (!fs.existsSync(SERVERS_ROOT)) return res.json({ servers: [] });
-    const servers = fs.readdirSync(SERVERS_ROOT).filter(id => fs.lstatSync(path.join(SERVERS_ROOT, id)).isDirectory());
-    const data = servers.map(id => {
+    const servers = fs
+      .readdirSync(SERVERS_ROOT)
+      .filter((id) => fs.lstatSync(path.join(SERVERS_ROOT, id)).isDirectory());
+    const data = servers.map((id) => {
       const config = getSrvConfig(id);
-      return { id, name: config.name, ram: config.ram, minRam: config.minRam, type: config.type, version: config.version, store: config.store || null };
+      return {
+        id,
+        name: config.name,
+        ram: config.ram,
+        minRam: config.minRam,
+        type: config.type,
+        version: config.version,
+        store: config.store || null,
+      };
     });
     res.json({ servers: data });
   });
@@ -613,26 +744,42 @@ Exemplo: "Vou te dar permissão de administrador agora! [ACTION:cmd|op playernam
 
   app.post("/api/servers/create", (req, res) => {
     const { name, ram, type, version, usePlayit } = req.body;
-    const id = (name || "server").toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "") + "-" + Date.now().toString().slice(-4);
+    const id =
+      (name || "server")
+        .toLowerCase()
+        .replace(/\s+/g, "-")
+        .replace(/[^a-z0-9-]/g, "") +
+      "-" +
+      Date.now().toString().slice(-4);
     const dir = getServerDir(id);
     fs.mkdirSync(dir, { recursive: true });
-    
+
     // Ensure plugins folder exists immediately
     const pluginsDir = path.join(dir, "plugins");
-    if (!fs.existsSync(pluginsDir)) fs.mkdirSync(pluginsDir, { recursive: true });
+    if (!fs.existsSync(pluginsDir))
+      fs.mkdirSync(pluginsDir, { recursive: true });
 
-    saveSrvConfig(id, { ...DEFAULT_CONFIG, name: name || "Novo Servidor", ram: Number(ram) || 4, type: type || "paper", version: version || "1.21.1", usePlayit: usePlayit !== undefined ? usePlayit : true });
+    saveSrvConfig(id, {
+      ...DEFAULT_CONFIG,
+      name: name || "Novo Servidor",
+      ram: Number(ram) || 4,
+      type: type || "paper",
+      version: version || "1.21.1",
+      usePlayit: usePlayit !== undefined ? usePlayit : true,
+    });
     res.json({ id });
   });
 
   const autoInjectAICore = (serverId: string) => {
     const srvDir = getServerDir(serverId);
     const pluginsDir = path.join(srvDir, "plugins");
-    if (!fs.existsSync(pluginsDir)) fs.mkdirSync(pluginsDir, { recursive: true });
-    
-    const skriptUrl = "https://github.com/SkriptLang/Skript/releases/download/2.9.3/Skript.jar";
+    if (!fs.existsSync(pluginsDir))
+      fs.mkdirSync(pluginsDir, { recursive: true });
+
+    const skriptUrl =
+      "https://github.com/SkriptLang/Skript/releases/download/2.9.3/Skript.jar";
     const dest = path.join(pluginsDir, "Skript.jar");
-    
+
     const finishInjection = () => {
       // Inject Skript Script
       const skDir = path.join(pluginsDir, "Skript", "scripts");
@@ -656,7 +803,11 @@ command /creeper-ai <text>:
     if (!fs.existsSync(dest)) {
       addLog(serverId, "[AI] Injetando motor de poder (Skript)...");
       exec(`curl -L "${skriptUrl}" -o "${dest}"`, (err) => {
-        if (err) console.error(`[AI ERROR] Failed to auto-inject Skript to ${serverId}:`, err);
+        if (err)
+          console.error(
+            `[AI ERROR] Failed to auto-inject Skript to ${serverId}:`,
+            err,
+          );
         else {
           addLog(serverId, "[AI] Motor de poder injetado com sucesso! 💎");
           finishInjection();
@@ -676,23 +827,24 @@ command /creeper-ai <text>:
 
   app.post("/api/server/update-config", (req, res) => {
     const { serverId, name, ram, minRam, usePlayit, store } = req.body;
-    if (!serverId) return res.status(404).json({ error: "Servidor não encontrado" });
-    
+    if (!serverId)
+      return res.status(404).json({ error: "Servidor não encontrado" });
+
     ensureState(serverId);
     const configPath = path.join(getServerDir(serverId), "creeper.json");
     const config = getSrvConfig(serverId);
-    
+
     const newConfig = {
       ...config,
       name: name || config.name,
       ram: ram !== undefined ? ram : config.ram,
       minRam: minRam !== undefined ? minRam : config.minRam,
       usePlayit: usePlayit !== undefined ? usePlayit : config.usePlayit,
-      store: store !== undefined ? store : config.store
+      store: store !== undefined ? store : config.store,
     };
 
     saveSrvConfig(serverId, newConfig);
-    
+
     res.json({ success: true });
   });
 
@@ -702,11 +854,17 @@ command /creeper-ai <text>:
       const localAi = new GoogleGenAI({ apiKey: currentKey });
       const result = await localAi.models.generateContent({
         model: "gemini-1.5-flash",
-        contents: "Say hello"
+        contents: "Say hello",
       });
       res.json({ success: true, text: result.text });
     } catch (e: any) {
-      res.status(500).json({ error: e.message, envKeyType: typeof process.env.GEMINI_API_KEY, envKeyLen: process.env.GEMINI_API_KEY?.length });
+      res
+        .status(500)
+        .json({
+          error: e.message,
+          envKeyType: typeof process.env.GEMINI_API_KEY,
+          envKeyLen: process.env.GEMINI_API_KEY?.length,
+        });
     }
   });
 
@@ -715,7 +873,7 @@ command /creeper-ai <text>:
     try {
       const { prompt, context, serverId } = req.body;
       const sId = serverId || "default";
-      
+
       const currentKey = process.env.GEMINI_API_KEY || "AIza_fallback";
       const localAi = new GoogleGenAI({ apiKey: currentKey });
 
@@ -743,107 +901,163 @@ command /creeper-ai <text>:
         model: "gemini-1.5-flash",
         config: {
           systemInstruction,
-          tools: [{
-            functionDeclarations: [
-               {
-                name: "sendTerminalCommand",
-                description: "Executa um comando no console do servidor Minecraft.",
-                parameters: { type: Type.OBJECT, properties: { command: { type: Type.STRING } }, required: ["command"] }
-              },
-              {
-                name: "reloadSkripts",
-                description: "Recarrega todos os scripts do Skript (/sk reload all) para aplicar mudanças na lógica do jogo feitas via saveFile no diretório de scripts.",
-                parameters: { type: Type.OBJECT, properties: { serverId: { type: Type.STRING } } }
-              },
-              {
-                name: "startServer",
-                description: "Inicia o servidor.",
-                parameters: { type: Type.OBJECT, properties: {} }
-              },
-              {
-                name: "stopServer",
-                description: "Para o servidor.",
-                parameters: { type: Type.OBJECT, properties: {} }
-              },
-              {
-                name: "executeTerminal",
-                description: "Executa comandos no shell do sistema (BASH). Use para instalar software, gerenciar rede ou processos.",
-                parameters: { type: Type.OBJECT, properties: { command: { type: Type.STRING } }, required: ["command"] }
-              },
-              {
-                name: "downloadFile",
-                description: "Ferramenta avançada para baixar plugins e arquivos de URLs que bloqueiam Wget/Curl normais (0 bytes) usando User-Agents camuflados.",
-                parameters: { type: Type.OBJECT, properties: { url: { type: Type.STRING }, destPath: { type: Type.STRING } }, required: ["url", "destPath"] }
-              },
-              {
-                name: "listFiles",
-                description: "Lista arquivos de um diretório.",
-                parameters: { type: Type.OBJECT, properties: { folder: { type: Type.STRING } } }
-              },
-              {
-                name: "readFile",
-                description: "Lê o conteúdo de um arquivo técnico (configuracões, logs).",
-                parameters: { type: Type.OBJECT, properties: { path: { type: Type.STRING } }, required: ["path"] }
-              },
-              {
-                name: "saveFile",
-                description: "Salva conteúdo em um arquivo (edição de configs).",
-                parameters: { type: Type.OBJECT, properties: { path: { type: Type.STRING }, content: { type: Type.STRING } }, required: ["path", "content"] }
-              },
-              {
-                name: "updateRAM",
-                description: "Ajusta a memória RAM máxima do servidor.",
-                parameters: { type: Type.OBJECT, properties: { ram: { type: Type.NUMBER } }, required: ["ram"] }
-              },
-              {
-                name: "manageNPC",
-                description: "Gerencia NPCs (Criação, Skins, Mensagens).",
-                parameters: { 
-                  type: Type.OBJECT, 
-                  properties: { 
-                    action: { type: Type.STRING, description: "create, remove, skin, text, role" },
-                    name: { type: Type.STRING },
-                    extra: { type: Type.STRING }
-                  }, 
-                  required: ["action"] 
-                }
-              },
-              {
-                name: "getPlayitStatus",
-                description: "Verifica o status do Playit.gg, obtendo a URL de claim (vinculação) e os logs atuais.",
-                parameters: { type: Type.OBJECT, properties: {} }
-              },
-              {
-                name: "resetPlayit",
-                description: "Reseta o agente do Playit.gg (útil se estiver travado).",
-                parameters: { type: Type.OBJECT, properties: {} }
-              },
-              {
-                name: "evaluateNode",
-                description: "Executa código JavaScript nativo no backend (servidor Node.js do app) fornecendo CONTROLE ABSOLUTO sobre o aplicativo (alterar variáveis, injetar rotas, fs).",
-                parameters: { type: Type.OBJECT, properties: { code: { type: Type.STRING } }, required: ["code"] }
-              },
-              {
-                name: "installAICore",
-                description: "Instala um plugin Core (Skript) silenciosamente na pasta de plugins do servidor, permitindo que a IA programe a lógica do servidor on-the-fly via arquivos .sk",
-                parameters: { type: Type.OBJECT, properties: {} }
-              }
-            ]
-          }]
-        }
+          tools: [
+            {
+              functionDeclarations: [
+                {
+                  name: "sendTerminalCommand",
+                  description:
+                    "Executa um comando no console do servidor Minecraft.",
+                  parameters: {
+                    type: Type.OBJECT,
+                    properties: { command: { type: Type.STRING } },
+                    required: ["command"],
+                  },
+                },
+                {
+                  name: "reloadSkripts",
+                  description:
+                    "Recarrega todos os scripts do Skript (/sk reload all) para aplicar mudanças na lógica do jogo feitas via saveFile no diretório de scripts.",
+                  parameters: {
+                    type: Type.OBJECT,
+                    properties: { serverId: { type: Type.STRING } },
+                  },
+                },
+                {
+                  name: "startServer",
+                  description: "Inicia o servidor.",
+                  parameters: { type: Type.OBJECT, properties: {} },
+                },
+                {
+                  name: "stopServer",
+                  description: "Para o servidor.",
+                  parameters: { type: Type.OBJECT, properties: {} },
+                },
+                {
+                  name: "executeTerminal",
+                  description:
+                    "Executa comandos no shell do sistema (BASH). Use para instalar software, gerenciar rede ou processos.",
+                  parameters: {
+                    type: Type.OBJECT,
+                    properties: { command: { type: Type.STRING } },
+                    required: ["command"],
+                  },
+                },
+                {
+                  name: "downloadFile",
+                  description:
+                    "Ferramenta avançada para baixar plugins e arquivos de URLs que bloqueiam Wget/Curl normais (0 bytes) usando User-Agents camuflados.",
+                  parameters: {
+                    type: Type.OBJECT,
+                    properties: {
+                      url: { type: Type.STRING },
+                      destPath: { type: Type.STRING },
+                    },
+                    required: ["url", "destPath"],
+                  },
+                },
+                {
+                  name: "listFiles",
+                  description: "Lista arquivos de um diretório.",
+                  parameters: {
+                    type: Type.OBJECT,
+                    properties: { folder: { type: Type.STRING } },
+                  },
+                },
+                {
+                  name: "readFile",
+                  description:
+                    "Lê o conteúdo de um arquivo técnico (configuracões, logs).",
+                  parameters: {
+                    type: Type.OBJECT,
+                    properties: { path: { type: Type.STRING } },
+                    required: ["path"],
+                  },
+                },
+                {
+                  name: "saveFile",
+                  description:
+                    "Salva conteúdo em um arquivo (edição de configs).",
+                  parameters: {
+                    type: Type.OBJECT,
+                    properties: {
+                      path: { type: Type.STRING },
+                      content: { type: Type.STRING },
+                    },
+                    required: ["path", "content"],
+                  },
+                },
+                {
+                  name: "updateRAM",
+                  description: "Ajusta a memória RAM máxima do servidor.",
+                  parameters: {
+                    type: Type.OBJECT,
+                    properties: { ram: { type: Type.NUMBER } },
+                    required: ["ram"],
+                  },
+                },
+                {
+                  name: "manageNPC",
+                  description: "Gerencia NPCs (Criação, Skins, Mensagens).",
+                  parameters: {
+                    type: Type.OBJECT,
+                    properties: {
+                      action: {
+                        type: Type.STRING,
+                        description: "create, remove, skin, text, role",
+                      },
+                      name: { type: Type.STRING },
+                      extra: { type: Type.STRING },
+                    },
+                    required: ["action"],
+                  },
+                },
+                {
+                  name: "getPlayitStatus",
+                  description:
+                    "Verifica o status do Playit.gg, obtendo a URL de claim (vinculação) e os logs atuais.",
+                  parameters: { type: Type.OBJECT, properties: {} },
+                },
+                {
+                  name: "resetPlayit",
+                  description:
+                    "Reseta o agente do Playit.gg (útil se estiver travado).",
+                  parameters: { type: Type.OBJECT, properties: {} },
+                },
+                {
+                  name: "evaluateNode",
+                  description:
+                    "Executa código JavaScript nativo no backend (servidor Node.js do app) fornecendo CONTROLE ABSOLUTO sobre o aplicativo (alterar variáveis, injetar rotas, fs).",
+                  parameters: {
+                    type: Type.OBJECT,
+                    properties: { code: { type: Type.STRING } },
+                    required: ["code"],
+                  },
+                },
+                {
+                  name: "installAICore",
+                  description:
+                    "Instala um plugin Core (Skript) silenciosamente na pasta de plugins do servidor, permitindo que a IA programe a lógica do servidor on-the-fly via arquivos .sk",
+                  parameters: { type: Type.OBJECT, properties: {} },
+                },
+              ],
+            },
+          ],
+        },
       });
 
-      const fullPrompt = `${context ? `[CONTEXTO]\n${context}\n\n` : ''}[USUÁRIO]: ${prompt}\n[SERVER_ID]: ${sId}`;
+      const fullPrompt = `${context ? `[CONTEXTO]\n${context}\n\n` : ""}[USUÁRIO]: ${prompt}\n[SERVER_ID]: ${sId}`;
       const result = await chat.sendMessage({ message: fullPrompt });
       const response = result; // @google/genai format doesn't nest response
       const call = response.functionCalls?.[0]; // @google/genai format
-      
+
       res.json({ text: response.text, call });
     } catch (error: any) {
       console.error("AI Proxy Error:", error);
       let errorMsg = "Erro no cérebro da IA. Verifique sua GEMINI_API_KEY.";
       if (error.message?.includes("API key not valid")) {
-        errorMsg = "CHAVE API INVÁLIDA! Por favor, insira uma GEMINI_API_KEY válida nas configurações do painel. 🔑";
+        errorMsg =
+          "CHAVE API INVÁLIDA! Por favor, insira uma GEMINI_API_KEY válida nas configurações do painel. 🔑";
       }
       res.status(500).json({ error: errorMsg });
     }
@@ -852,7 +1066,10 @@ command /creeper-ai <text>:
   app.post("/api/server/skript/reload", (req, res) => {
     const { serverId } = req.body;
     if (!serverId) return res.status(400).json({ error: "Server ID required" });
-    const sId = serverId === "default" ? (Object.keys(serversState)[0] || "default") : serverId;
+    const sId =
+      serverId === "default"
+        ? Object.keys(serversState)[0] || "default"
+        : serverId;
     const proc = serversState[sId]?.process;
     if (proc) {
       proc.stdin.write("sk reload all\n");
@@ -861,8 +1078,8 @@ command /creeper-ai <text>:
   });
 
   app.get("/api/server/status", (req, res) => {
-    const id = req.query.serverId as string || "default";
-    
+    const id = (req.query.serverId as string) || "default";
+
     if (id !== "default" && !fs.existsSync(getServerDir(id))) {
       return res.status(404).json({ error: "Server deleted" });
     }
@@ -877,8 +1094,8 @@ command /creeper-ai <text>:
     const allLogs = serversState[id].logs;
     const newLogs = lastLogIdx > 0 ? allLogs.slice(lastLogIdx) : allLogs;
 
-    res.json({ 
-      status: serversState[id].status, 
+    res.json({
+      status: serversState[id].status,
       tunnel: serversState[id].tunnelAddress,
       logs: newLogs,
       logCount: allLogs.length,
@@ -886,17 +1103,22 @@ command /creeper-ai <text>:
       stats: {
         cpu: `${(cpuLoad * 10).toFixed(1)}%`,
         ram: `${((totalMem - freeMem) / 1024 / 1024 / 1024).toFixed(1)} / ${(totalMem / 1024 / 1024 / 1024).toFixed(1)} GB`,
-        ramPercent: Math.round(((totalMem - freeMem) / totalMem) * 100)
-      }
+        ramPercent: Math.round(((totalMem - freeMem) / totalMem) * 100),
+      },
     });
   });
 
   app.post("/api/server/config", (req, res) => {
     const { serverId, ram, minRam } = req.body;
     ensureState(serverId);
-    if (serversState[serverId].status !== "offline") return res.status(400).json({ error: "Desligue o servidor!" });
+    if (serversState[serverId].status !== "offline")
+      return res.status(400).json({ error: "Desligue o servidor!" });
     const current = getSrvConfig(serverId);
-    saveSrvConfig(serverId, { ...current, ram: Number(ram), minRam: Number(minRam || 1) });
+    saveSrvConfig(serverId, {
+      ...current,
+      ram: Number(ram),
+      minRam: Number(minRam || 1),
+    });
     addLog(serverId, `[CONFIG] RAM: ${ram}GB.`);
     res.json({ message: "Salvo!" });
   });
@@ -911,38 +1133,51 @@ command /creeper-ai <text>:
   app.post("/api/server/execute", (req, res) => {
     const { serverId, command } = req.body;
     if (!command) return res.status(400).json({ error: "Comando vazio" });
-    
+
     // ATENÇÃO: Executa comandos reais no SO! Use com cuidado.
-    exec(command, { cwd: getServerDir(serverId || "default") }, (err, stdout, stderr) => {
-      if (err) return res.json({ success: false, output: stderr });
-      res.json({ success: true, output: stdout });
-    });
+    exec(
+      command,
+      { cwd: getServerDir(serverId || "default") },
+      (err, stdout, stderr) => {
+        if (err) return res.json({ success: false, output: stderr });
+        res.json({ success: true, output: stdout });
+      },
+    );
   });
 
   app.post("/api/server/start", (req, res) => {
     const { serverId } = req.body;
     if (!serverId) return res.status(400).json({ error: "No ID" });
     ensureState(serverId);
-    if (serversState[serverId].status !== "offline") return res.status(400).json({ error: "Já rodando." });
+    if (serversState[serverId].status !== "offline")
+      return res.status(400).json({ error: "Já rodando." });
 
     const srvDir = getServerDir(serverId);
-    if (!fs.existsSync(srvDir)) return res.status(404).json({ error: "Pasta não existe" });
-    
+    if (!fs.existsSync(srvDir))
+      return res.status(404).json({ error: "Pasta não existe" });
+
     // Auto-EULA
     fs.writeFileSync(path.join(srvDir, "eula.txt"), "eula=true");
 
     const runShPath = path.join(srvDir, "run.sh");
     // Forge 1.17+ wrapper creates run.sh. If it exists, prioritize it.
-    const jarFile = fs.readdirSync(srvDir).filter(f => f.endsWith(".jar") && !f.includes("installer")).sort()[0];
+    const jarFile = fs
+      .readdirSync(srvDir)
+      .filter((f) => f.endsWith(".jar") && !f.includes("installer"))
+      .sort()[0];
 
     if (!fs.existsSync(runShPath) && !jarFile) {
-      return res.status(400).json({ error: "Instale um servidor (JAR ou run.sh) primeiro." });
+      return res
+        .status(400)
+        .json({ error: "Instale um servidor (JAR ou run.sh) primeiro." });
     }
 
     const config = getSrvConfig(serverId);
 
     if (JAVA_PATH.includes("bin/") && !fs.existsSync(JAVA_PATH)) {
-      return res.status(400).json({ error: "O Java Runtime ainda não está pronto." });
+      return res
+        .status(400)
+        .json({ error: "O Java Runtime ainda não está pronto." });
     }
 
     serversState[serverId].status = "starting";
@@ -955,11 +1190,23 @@ command /creeper-ai <text>:
       const type = (config.type || "").toLowerCase();
       let args = [
         "-Xmx" + config.ram + "G",
-        "-Xms" + (config.minRam || Math.max(1, Math.floor(config.ram / 2))) + "G"
+        "-Xms" +
+          (config.minRam || Math.max(1, Math.floor(config.ram / 2))) +
+          "G",
       ];
 
       // --- SELEÇÃO DINÂMICA DE FLAGS (LINUX PRO OPTIMIZED) ---
-      if (["paper", "purpur", "spigot", "fabric", "mohist", "forge", "vanilla"].includes(type)) {
+      if (
+        [
+          "paper",
+          "purpur",
+          "spigot",
+          "fabric",
+          "mohist",
+          "forge",
+          "vanilla",
+        ].includes(type)
+      ) {
         // AIKAR'S FLAGS (O padrão ouro para Survival/Modded)
         args.push(
           "-XX:+UseG1GC",
@@ -979,51 +1226,51 @@ command /creeper-ai <text>:
           "-XX:G1RSetUpdatingPauseTimePercent=5",
           "-XX:SurvivorRatio=32",
           "-XX:+PerfDisableSharedMem",
-          "-XX:MaxTenuringThreshold=1"
+          "-XX:MaxTenuringThreshold=1",
         );
       } else if (["velocity", "waterfall", "bungeecord"].includes(type)) {
         // PROXY FLAGS (Focadas em latência e processamento de pacotes)
         args.push(
           "-XX:+UseG1GC",
-          "-XX:MaxGCPauseMillis=50", 
+          "-XX:MaxGCPauseMillis=50",
           "-XX:+UnlockExperimentalVMOptions",
           "-XX:+AlwaysPreTouch",
           "-XX:G1HeapRegionSize=4M",
           "-XX:InitiatingHeapOccupancyPercent=15",
-          "-XX:G1MixedGCCountTarget=4"
+          "-XX:G1MixedGCCountTarget=4",
         );
       } else if (type === "nukkit") {
         // NUKKIT FLAGS (Leveza total com ZGC se disponível no Linux)
         args.push(
           "-XX:+AlwaysPreTouch",
           "-XX:+DisableExplicitGC",
-          "-XX:MaxGCPauseMillis=20"
+          "-XX:MaxGCPauseMillis=20",
         );
       }
 
       args.push("-Dfile.encoding=UTF-8");
 
       if (fs.existsSync(runShPath)) {
-         addLog(serverId, `[INFO] Usando script run.sh em vez de JAR direto...`);
-         command = "sh";
-         args = ["run.sh"];
+        addLog(serverId, `[INFO] Usando script run.sh em vez de JAR direto...`);
+        command = "sh";
+        args = ["run.sh"];
       } else {
-         const jarPath = path.resolve(srvDir, jarFile);
-         args.push("-jar", jarPath, "nogui");
+        const jarPath = path.resolve(srvDir, jarFile);
+        args.push("-jar", jarPath, "nogui");
       }
-      
+
       console.log(`[SPAWN] Executing: ${command} ${args.join(" ")}`);
       console.log(`[SPAWN] Working Directory: ${srvDir}`);
 
-    if (command !== "sh" && command !== "java" && !fs.existsSync(command)) {
-      throw new Error(`Comando de boot não encontrado em: ${command}`);
-    }
-      
+      if (command !== "sh" && command !== "java" && !fs.existsSync(command)) {
+        throw new Error(`Comando de boot não encontrado em: ${command}`);
+      }
+
       const child = spawn(command, args, {
-        cwd: srvDir, 
+        cwd: srvDir,
         stdio: ["pipe", "pipe", "pipe"],
         env: { ...process.env, MALLOC_ARENA_MAX: "2" },
-        shell: false
+        shell: false,
       });
 
       child.on("error", (err) => {
@@ -1033,46 +1280,49 @@ command /creeper-ai <text>:
 
       child.stdout.on("data", (data) => {
         const msg = data.toString().trim();
-        msg.split("\n").forEach(line => {
-           if (line.trim()) {
-             addLog(serverId, line.trim());
-             if (line.includes("Done") || line.includes("For help, type")) {
-               serversState[serverId].status = "online";
-             }
-             
-             // AI Error Listening
-             if (/error|warn|exception|crash/i.test(line)) {
-               const state = serversState[serverId] as any;
-               if (!state.errorBuffer) state.errorBuffer = [];
-               state.errorBuffer.push(line.trim());
-               
-               if (state.errorTimer) clearTimeout(state.errorTimer);
-               state.errorTimer = setTimeout(async () => {
-                 const errors = state.errorBuffer.join('\n');
-                 state.errorBuffer = []; // clear
-                 
-                 const apiKey = process.env.GEMINI_API_KEY;
-                 if (apiKey && !apiKey.startsWith("AIza_fallback")) {
-                   try {
-                     const localAi = new GoogleGenAI({ apiKey });
-                     const res = await localAi.models.generateContent({
-                       model: "gemini-1.5-flash",
-                       contents: `Como assistente técnico do Minecraft, o servidor encontrou os seguintes erros recentes nas logs:\n\n${errors}\n\nAnalise em 1 ou 2 frases curtas o que pode estar errado e dê a solução ou comando necessário. Você é um ajudante automático, responda com algo como "Problema detectado: [X]. Solução: [Y]". Dicas curtas são as melhores.`
-                     });
-                     if (res.text) {
-                       addLog(serverId, `[AI Auto-Fix] 💡 ${res.text.replace(/\n/g, ' ')}`);
-                     }
-                   } catch(e) {}
-                 }
-               }, 3000);
-             }
-           }
+        msg.split("\n").forEach((line) => {
+          if (line.trim()) {
+            addLog(serverId, line.trim());
+            if (line.includes("Done") || line.includes("For help, type")) {
+              serversState[serverId].status = "online";
+            }
+
+            // AI Error Listening
+            if (/error|warn|exception|crash/i.test(line)) {
+              const state = serversState[serverId] as any;
+              if (!state.errorBuffer) state.errorBuffer = [];
+              state.errorBuffer.push(line.trim());
+
+              if (state.errorTimer) clearTimeout(state.errorTimer);
+              state.errorTimer = setTimeout(async () => {
+                const errors = state.errorBuffer.join("\n");
+                state.errorBuffer = []; // clear
+
+                const apiKey = process.env.GEMINI_API_KEY;
+                if (apiKey && !apiKey.startsWith("AIza_fallback")) {
+                  try {
+                    const localAi = new GoogleGenAI({ apiKey });
+                    const res = await localAi.models.generateContent({
+                      model: "gemini-1.5-flash",
+                      contents: `Como assistente técnico do Minecraft, o servidor encontrou os seguintes erros recentes nas logs:\n\n${errors}\n\nAnalise em 1 ou 2 frases curtas o que pode estar errado e dê a solução ou comando necessário. Você é um ajudante automático, responda com algo como "Problema detectado: [X]. Solução: [Y]". Dicas curtas são as melhores.`,
+                    });
+                    if (res.text) {
+                      addLog(
+                        serverId,
+                        `[AI Auto-Fix] 💡 ${res.text.replace(/\n/g, " ")}`,
+                      );
+                    }
+                  } catch (e) {}
+                }
+              }, 3000);
+            }
+          }
         });
       });
 
       child.stderr.on("data", (data) => {
         const msg = data.toString().trim();
-        msg.split("\n").forEach(line => {
+        msg.split("\n").forEach((line) => {
           if (line.trim()) addLog(serverId, `[STDERR] ${line.trim()}`);
         });
       });
@@ -1084,12 +1334,7 @@ command /creeper-ai <text>:
       });
 
       serversState[serverId].process = child;
-      
-      const currentConfig = getSrvConfig(serverId);
-      if (currentConfig.usePlayit) {
-        startTunnel(serverId);
-      }
-      
+      startGlobalTunnel();
     } catch (err: any) {
       addLog(serverId, ` [ERROR] Crash fatal: ${err.message}`);
       serversState[serverId].status = "offline";
@@ -1101,10 +1346,6 @@ command /creeper-ai <text>:
     const { serverId } = req.body;
     const srv = serversState[serverId];
     if (srv && srv.process) {
-      if (srv.playitProcess) {
-        try { srv.playitProcess.kill(); } catch (e) {}
-        srv.playitProcess = null;
-      }
       srv.status = "stopping";
       srv.process.stdin.write("stop\n");
       // Fallback timeout
@@ -1122,11 +1363,7 @@ command /creeper-ai <text>:
     const { serverId } = req.body;
     const srv = serversState[serverId];
     if (srv && srv.process) {
-      if (srv.playitProcess) {
-        try { srv.playitProcess.kill(); } catch (e) {}
-        srv.playitProcess = null;
-      }
-      srv.process.kill('SIGKILL');
+      srv.process.kill("SIGKILL");
       srv.status = "offline";
       addLog(serverId, "[DANGER] Processo finalizado forçadamente!");
       res.json({ message: "Killed" });
@@ -1147,7 +1384,7 @@ command /creeper-ai <text>:
     const srvDir = getServerDir(serverId);
     const backupDir = path.join(process.cwd(), "backups", serverId);
     if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
-    
+
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const zipName = `backup-${timestamp}.tar.gz`;
     const dest = path.join(backupDir, zipName);
@@ -1174,60 +1411,81 @@ command /creeper-ai <text>:
         res.status(500).json({ error: "Erro ao escrever no stdin." });
       }
     } else {
-      res.status(400).json({ error: "Servidor está offline. Ligue-o primeiro! (•◡•)" });
+      res
+        .status(400)
+        .json({ error: "Servidor está offline. Ligue-o primeiro! (•◡•)" });
     }
   });
 
   app.post("/api/server/install", async (req, res) => {
     const { serverId, type, version, customUrl } = req.body;
-    addLog(serverId, `[INSTALLER] Iniciando instalação de ${type === 'custom' ? 'Custom JAR' : type + ' ' + version}...`);
-    
+    addLog(
+      serverId,
+      `[INSTALLER] Iniciando instalação de ${type === "custom" ? "Custom JAR" : type + " " + version}...`,
+    );
+
     const getPaperUrl = async (project: string, ver: string) => {
       try {
-        const vRes = await fetch(`https://api.papermc.io/v2/projects/${project}/versions/${ver}`);
+        const vRes = await fetch(
+          `https://api.papermc.io/v2/projects/${project}/versions/${ver}`,
+        );
         const vData: any = await vRes.json();
         const latestBuild = vData.builds[vData.builds.length - 1];
         return `https://api.papermc.io/v2/projects/${project}/versions/${ver}/builds/${latestBuild}/downloads/${project}-${ver}-${latestBuild}.jar`;
-      } catch (e) { return null; }
+      } catch (e) {
+        return null;
+      }
     };
 
     let url: string | null = "";
     let isFabric = type === "fabric";
 
     if (type === "paper") url = await getPaperUrl("paper", version);
-    else if (type === "purpur") url = `https://api.purpurmc.org/v2/purpur/${version}/latest/download`;
+    else if (type === "purpur")
+      url = `https://api.purpurmc.org/v2/purpur/${version}/latest/download`;
     else if (type === "velocity") url = await getPaperUrl("velocity", version);
-    else if (type === "waterfall") url = await getPaperUrl("waterfall", version);
+    else if (type === "waterfall")
+      url = await getPaperUrl("waterfall", version);
     else if (isFabric) {
       try {
-        const lRes = await fetch("https://meta.fabricmc.net/v2/versions/loader");
+        const lRes = await fetch(
+          "https://meta.fabricmc.net/v2/versions/loader",
+        );
         const lData: any = await lRes.json();
-        const latestLoader = lData.find((x: any) => x.stable)?.version || "0.16.5";
+        const latestLoader =
+          lData.find((x: any) => x.stable)?.version || "0.16.5";
         url = `https://meta.fabricmc.net/v2/versions/loader/${version}/${latestLoader}/1.0.1/server/jar`;
       } catch (e) {
         url = `https://meta.fabricmc.net/v2/versions/loader/${version}/0.16.5/1.0.1/server/jar`;
       }
-    }
-    else if (type === "mohist") {
+    } else if (type === "mohist") {
       try {
-        const mRes = await fetch(`https://mohistmc.com/api/v2/projects/mohist/${version}/builds`);
+        const mRes = await fetch(
+          `https://mohistmc.com/api/v2/projects/mohist/${version}/builds`,
+        );
         const mData: any = await mRes.json();
         const latestBuild = mData.builds[mData.builds.length - 1];
         if (latestBuild && latestBuild.url) url = latestBuild.url;
-      } catch (e) { url = null; }
-    }
-    else if (type === "forge") {
+      } catch (e) {
+        url = null;
+      }
+    } else if (type === "forge") {
       try {
-        const bRes = await fetch(`https://bmclapi2.bangbang93.com/forge/minecraft/${version}`);
+        const bRes = await fetch(
+          `https://bmclapi2.bangbang93.com/forge/minecraft/${version}`,
+        );
         const bData: any = await bRes.json();
         const sorted = bData.sort((a: any, b: any) => b.build - a.build);
         const forgeVer = sorted[0].version;
         url = `https://bmclapi2.bangbang93.com/forge/download?mcversion=${version}&version=${forgeVer}&category=installer&format=jar`;
-      } catch (e) { url = null; }
-    }
-    else if (type === "vanilla") {
+      } catch (e) {
+        url = null;
+      }
+    } else if (type === "vanilla") {
       try {
-        const mRes = await fetch("https://launchermeta.mojang.com/mc/game/version_manifest_v2.json");
+        const mRes = await fetch(
+          "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json",
+        );
         const mData: any = await mRes.json();
         const verEntry = mData.versions.find((v: any) => v.id === version);
         if (verEntry) {
@@ -1235,20 +1493,20 @@ command /creeper-ai <text>:
           const vData: any = await vRes.json();
           url = vData.downloads.server.url;
         }
-      } catch (e) { url = null; }
-    }
-    else if (type === "spigot") {
+      } catch (e) {
+        url = null;
+      }
+    } else if (type === "spigot") {
       // Spigot doesn't have a direct official download API like others.
       // Use CDN from getbukkit
       url = `https://cdn.getbukkit.org/spigot/spigot-${version}.jar`;
-    }
-    else if (type === "bungeecord") {
-      url = "https://ci.md-5.net/job/BungeeCord/lastStableBuild/artifact/bootstrap/target/BungeeCord.jar";
-    }
-    else if (type === "nukkit") {
-       url = "https://ci.opencollab.dev/job/NukkitX/job/Nukkit/job/master/lastSuccessfulBuild/artifact/target/nukkit-1.0-SNAPSHOT.jar";
-    }
-    else if (type === "custom") url = customUrl;
+    } else if (type === "bungeecord") {
+      url =
+        "https://ci.md-5.net/job/BungeeCord/lastStableBuild/artifact/bootstrap/target/BungeeCord.jar";
+    } else if (type === "nukkit") {
+      url =
+        "https://ci.opencollab.dev/job/NukkitX/job/Nukkit/job/master/lastSuccessfulBuild/artifact/target/nukkit-1.0-SNAPSHOT.jar";
+    } else if (type === "custom") url = customUrl;
 
     if (!url) {
       addLog(serverId, `[ERROR] URL não encontrada para ${type} ${version}`);
@@ -1256,13 +1514,30 @@ command /creeper-ai <text>:
     }
 
     const srvDir = getServerDir(serverId);
-    const fileName = type === "custom" ? "server-custom.jar" : type === "forge" ? `forge-${version}-installer.jar` : type === "nukkit" ? `nukkit.jar` : `server-${type}-${version}.jar`;
+    const fileName =
+      type === "custom"
+        ? "server-custom.jar"
+        : type === "forge"
+          ? `forge-${version}-installer.jar`
+          : type === "nukkit"
+            ? `nukkit.jar`
+            : `server-${type}-${version}.jar`;
     const dest = path.join(srvDir, fileName);
-    
+
     try {
       if (fs.existsSync(srvDir)) {
-        fs.readdirSync(srvDir).forEach(f => { if (f.endsWith(".jar") || f === "run.sh" || f === "run.bat" || f === "user_jvm_args.txt") fs.unlinkSync(path.join(srvDir, f)); });
-      } else { fs.mkdirSync(srvDir, { recursive: true }); }
+        fs.readdirSync(srvDir).forEach((f) => {
+          if (
+            f.endsWith(".jar") ||
+            f === "run.sh" ||
+            f === "run.bat" ||
+            f === "user_jvm_args.txt"
+          )
+            fs.unlinkSync(path.join(srvDir, f));
+        });
+      } else {
+        fs.mkdirSync(srvDir, { recursive: true });
+      }
     } catch (e) {}
 
     addLog(serverId, `[INSTALLER] Baixando de: ${url}`);
@@ -1271,18 +1546,34 @@ command /creeper-ai <text>:
       if (err) addLog(serverId, `[ERROR] Falha no download: ${err.message}`);
       else {
         if (type === "forge") {
-           addLog(serverId, `[INSTALLER] Executando Forge Installer (isso pode demorar minutos)...`);
-           exec(`cd "${srvDir}" && "${JAVA_PATH}" -jar "${fileName}" --installServer`, (errInstall) => {
+          addLog(
+            serverId,
+            `[INSTALLER] Executando Forge Installer (isso pode demorar minutos)...`,
+          );
+          exec(
+            `cd "${srvDir}" && "${JAVA_PATH}" -jar "${fileName}" --installServer`,
+            (errInstall) => {
               if (fs.existsSync(dest)) fs.unlinkSync(dest); // Remove installer
-              if (errInstall) addLog(serverId, `[ERROR] Forge Installer falhou: ${errInstall.message}`);
+              if (errInstall)
+                addLog(
+                  serverId,
+                  `[ERROR] Forge Installer falhou: ${errInstall.message}`,
+                );
               else {
-                 fs.writeFileSync(path.join(srvDir, "eula.txt"), "eula=true");
-                 addLog(serverId, `[SUCCESS] Forge ${version} instalado! Use START para ligar o servidor.`);
+                fs.writeFileSync(path.join(srvDir, "eula.txt"), "eula=true");
+                addLog(
+                  serverId,
+                  `[SUCCESS] Forge ${version} instalado! Use START para ligar o servidor.`,
+                );
               }
-           });
+            },
+          );
         } else {
-           addLog(serverId, `[SUCCESS] ${type} ${version || ''} instalado com sucesso!`);
-           fs.writeFileSync(path.join(srvDir, "eula.txt"), "eula=true");
+          addLog(
+            serverId,
+            `[SUCCESS] ${type} ${version || ""} instalado com sucesso!`,
+          );
+          fs.writeFileSync(path.join(srvDir, "eula.txt"), "eula=true");
         }
       }
     });
@@ -1300,46 +1591,70 @@ command /creeper-ai <text>:
 
   app.post("/api/server/plugins/install", async (req, res) => {
     const { serverId, url, name } = req.body;
-    if (!url || !serverId) return res.status(400).json({ error: "Dados inválidos." });
+    if (!url || !serverId)
+      return res.status(400).json({ error: "Dados inválidos." });
 
     const folderName = getAddonsFolder(serverId);
     const pluginsDir = path.join(getServerDir(serverId), folderName);
-    if (!fs.existsSync(pluginsDir)) fs.mkdirSync(pluginsDir, { recursive: true });
+    if (!fs.existsSync(pluginsDir))
+      fs.mkdirSync(pluginsDir, { recursive: true });
 
     const fileName = name || `add-on-${Date.now()}.jar`;
     const dest = path.join(pluginsDir, fileName);
 
-    addLog(serverId, `[INSTALLER] Baixando pacote para /${folderName} de ${url}...`);
+    addLog(
+      serverId,
+      `[INSTALLER] Baixando pacote para /${folderName} de ${url}...`,
+    );
 
     await new Promise((resolve) => {
-      exec(`curl --http1.1 -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" -L "${url}" -o "${dest}"`, (err) => {
-        if (err) addLog(serverId, `[ERROR] Falha ao baixar arquivo: ${err.message}`);
-        else addLog(serverId, `[SUCCESS] Arquivo ${fileName} adicionado em /${folderName}!`);
-        resolve(true);
-      });
+      exec(
+        `curl --http1.1 -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" -L "${url}" -o "${dest}"`,
+        (err) => {
+          if (err)
+            addLog(serverId, `[ERROR] Falha ao baixar arquivo: ${err.message}`);
+          else
+            addLog(
+              serverId,
+              `[SUCCESS] Arquivo ${fileName} adicionado em /${folderName}!`,
+            );
+          resolve(true);
+        },
+      );
     });
     res.json({ message: "Download de adicionais concluído." });
   });
 
   app.post("/api/server/download", async (req, res) => {
     const { serverId, url, destPath } = req.body;
-    if (!url || !serverId) return res.status(400).json({ error: "Faltam parâmetros" });
+    if (!url || !serverId)
+      return res.status(400).json({ error: "Faltam parâmetros" });
 
     const fullPath = path.join(getServerDir(serverId), destPath || "");
     const dir = path.extname(fullPath) ? path.dirname(fullPath) : fullPath;
-    
+
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
-    const targetFile = path.extname(fullPath) ? fullPath : path.join(fullPath, path.basename(url));
+    const targetFile = path.extname(fullPath)
+      ? fullPath
+      : path.join(fullPath, path.basename(url));
 
     addLog(serverId, `[WEB] Iniciando download de: ${url}`);
-    
+
     await new Promise((resolve) => {
-      exec(`curl -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" -L "${url}" -o "${targetFile}"`, (err) => {
-        if (err) addLog(serverId, `[ERROR] Falha no download: ${err.message}`);
-        else addLog(serverId, `[SUCCESS] Download concluído: ${path.basename(targetFile)}`);
-        resolve(true);
-      });
+      exec(
+        `curl -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" -L "${url}" -o "${targetFile}"`,
+        (err) => {
+          if (err)
+            addLog(serverId, `[ERROR] Falha no download: ${err.message}`);
+          else
+            addLog(
+              serverId,
+              `[SUCCESS] Download concluído: ${path.basename(targetFile)}`,
+            );
+          resolve(true);
+        },
+      );
     });
 
     res.json({ success: true, message: "Download concluído." });
@@ -1347,7 +1662,8 @@ command /creeper-ai <text>:
 
   app.post("/api/servers/import-github", (req, res) => {
     const { url, serverId } = req.body;
-    if (!url || !serverId) return res.status(400).json({ error: "URL ou ID faltando" });
+    if (!url || !serverId)
+      return res.status(400).json({ error: "URL ou ID faltando" });
 
     // Try to convert github URL to tar.gz URL (usually more reliable than zip in linux)
     let tarUrl = url.replace(/\/$/, "");
@@ -1362,35 +1678,57 @@ command /creeper-ai <text>:
     addLog(serverId, `[GITHUB] Iniciando importação de: ${url}`);
     addLog(serverId, `[GITHUB] Baixando código fonte (.tar.gz)...`);
 
-    exec(`curl -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" -L "${tarUrl}" -o "${tarDest}"`, (err) => {
-      if (err) {
-        // Fallback to master
-        const fallbackUrl = url.replace(/\/$/, "") + "/archive/refs/heads/master.tar.gz";
-        addLog(serverId, `[GITHUB] Falha na branch main, tentando master...`);
-        exec(`curl -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" -L "${fallbackUrl}" -o "${tarDest}"`, (err2) => {
-          if (err2) {
-             addLog(serverId, `[ERROR] Falha ao baixar do GitHub: ${err2.message}`);
-          } else {
-             extractAndCleanup(serverId, srvDir, tarDest);
-          }
-        });
-      } else {
-        extractAndCleanup(serverId, srvDir, tarDest);
-      }
-    });
+    exec(
+      `curl -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" -L "${tarUrl}" -o "${tarDest}"`,
+      (err) => {
+        if (err) {
+          // Fallback to master
+          const fallbackUrl =
+            url.replace(/\/$/, "") + "/archive/refs/heads/master.tar.gz";
+          addLog(serverId, `[GITHUB] Falha na branch main, tentando master...`);
+          exec(
+            `curl -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" -L "${fallbackUrl}" -o "${tarDest}"`,
+            (err2) => {
+              if (err2) {
+                addLog(
+                  serverId,
+                  `[ERROR] Falha ao baixar do GitHub: ${err2.message}`,
+                );
+              } else {
+                extractAndCleanup(serverId, srvDir, tarDest);
+              }
+            },
+          );
+        } else {
+          extractAndCleanup(serverId, srvDir, tarDest);
+        }
+      },
+    );
 
     function extractAndCleanup(id: string, dir: string, tarPath: string) {
       addLog(id, `[GITHUB] Extraindo arquivos...`);
-      exec(`tar -xzf "${tarPath}" -C "${dir}" --strip-components=1 && rm "${tarPath}"`, (err) => {
-        if (err) {
-          addLog(id, `[ERROR] Erro na extração: ${err.message}`);
-          // Se falhou o strip-components (talvez repositório vazio ou estrutura inesperada), tenta simples
-          exec(`tar -xzf "${tarPath}" -C "${dir}" && rm "${tarPath}"`, () => {});
-        } else {
-          saveSrvConfig(id, { ...DEFAULT_CONFIG, name: id.charAt(0).toUpperCase() + id.slice(1) });
-          addLog(id, `[SUCCESS] Servidor "${id}" importado com sucesso! Verifique os arquivos.`);
-        }
-      });
+      exec(
+        `tar -xzf "${tarPath}" -C "${dir}" --strip-components=1 && rm "${tarPath}"`,
+        (err) => {
+          if (err) {
+            addLog(id, `[ERROR] Erro na extração: ${err.message}`);
+            // Se falhou o strip-components (talvez repositório vazio ou estrutura inesperada), tenta simples
+            exec(
+              `tar -xzf "${tarPath}" -C "${dir}" && rm "${tarPath}"`,
+              () => {},
+            );
+          } else {
+            saveSrvConfig(id, {
+              ...DEFAULT_CONFIG,
+              name: id.charAt(0).toUpperCase() + id.slice(1),
+            });
+            addLog(
+              id,
+              `[SUCCESS] Servidor "${id}" importado com sucesso! Verifique os arquivos.`,
+            );
+          }
+        },
+      );
     }
 
     res.json({ message: "Importação iniciada em segundo plano." });
@@ -1398,8 +1736,8 @@ command /creeper-ai <text>:
 
   app.get("/api/meta", async (req, res) => {
     let versions = ["1.21.1", "1.20.4", "1.19.4", "1.18.2", "1.12.2"];
-    const type = req.query.type as string || "paper";
-    
+    const type = (req.query.type as string) || "paper";
+
     try {
       if (["paper", "velocity", "waterfall"].includes(type)) {
         const pRes = await fetch(`https://api.papermc.io/v2/projects/${type}`);
@@ -1408,21 +1746,33 @@ command /creeper-ai <text>:
       } else if (type === "purpur") {
         const pRes = await fetch("https://api.purpurmc.org/v2/purpur");
         const pData: any = await pRes.json();
-        if (pData.versions) versions = pData.versions.filter((v: string) => v.startsWith("1.")).reverse().slice(0, 50);
+        if (pData.versions)
+          versions = pData.versions
+            .filter((v: string) => v.startsWith("1."))
+            .reverse()
+            .slice(0, 50);
       } else if (type === "fabric") {
         const fRes = await fetch("https://meta.fabricmc.net/v2/versions/game");
         const fData: any = await fRes.json();
-        if (Array.isArray(fData)) versions = fData.filter((x: any) => x.stable).map((x: any) => x.version).slice(0, 50);
+        if (Array.isArray(fData))
+          versions = fData
+            .filter((x: any) => x.stable)
+            .map((x: any) => x.version)
+            .slice(0, 50);
       } else if (type === "mohist") {
         const mRes = await fetch("https://mohistmc.com/api/v2/projects/mohist");
         const mData: any = await mRes.json();
         if (mData.versions) versions = mData.versions.reverse();
       } else if (type === "forge") {
-        const bRes = await fetch("https://bmclapi2.bangbang93.com/forge/minecraft");
+        const bRes = await fetch(
+          "https://bmclapi2.bangbang93.com/forge/minecraft",
+        );
         const bData: any = await bRes.json();
         if (Array.isArray(bData)) versions = bData.slice().reverse();
       } else if (type === "vanilla" || type === "spigot") {
-        const vRes = await fetch("https://launchermeta.mojang.com/mc/game/version_manifest_v2.json");
+        const vRes = await fetch(
+          "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json",
+        );
         const vData: any = await vRes.json();
         if (vData.versions) {
           versions = vData.versions
@@ -1431,7 +1781,9 @@ command /creeper-ai <text>:
             .slice(0, 40);
         }
       } else if (type === "bungeecord") {
-        const bRes = await fetch("https://ci.md-5.net/job/BungeeCord/lastStableBuild/api/json");
+        const bRes = await fetch(
+          "https://ci.md-5.net/job/BungeeCord/lastStableBuild/api/json",
+        );
         const bData: any = await bRes.json();
         if (bData.number) versions = ["lastStableBuild", `#${bData.number}`];
         else versions = ["latest"];
@@ -1446,92 +1798,101 @@ command /creeper-ai <text>:
         { label: "Documentação", url: "https://docs.papermc.io" },
         { label: "Modrinth", url: "https://modrinth.com" },
         { label: "Hangar", url: "https://hangar.papermc.io" },
-        { label: "Playit.gg Status", url: "https://status.playit.gg/" }
+        { label: "Playit.gg Status", url: "https://status.playit.gg/" },
       ],
-      versions: versions
+      versions: versions,
     });
   });
 
-  app.post("/api/playit/toggle", (req, res) => {
-    const { serverId, enabled } = req.body;
-    if (!serverId) return res.status(400).json({ error: "Missing serverId" });
-    const config = getSrvConfig(serverId);
-    config.usePlayit = !!enabled;
-    saveSrvConfig(serverId, config);
-    res.json({ success: true, usePlayit: config.usePlayit });
-  });
-
   app.get("/api/playit/status", async (req, res) => {
-    const serverId = req.query.serverId as string || "default";
-    ensureState(serverId);
-    const state = serversState[serverId];
-    
     let globalTunnel = null;
-    
-    // Playit prints the claim URL every 10 seconds while waiting. 
+
+    // Playit prints the claim URL every 10 seconds while waiting.
     // If it hasn't printed it in the last 25 seconds, it means it successfully connected.
-    if (state.playitClaimUrl && Date.now() - (state.playitClaimLastSeen || 0) > 25000) {
-      state.playitClaimUrl = null;
+    if (
+      globalPlayitClaimUrl &&
+      Date.now() - globalPlayitClaimLastSeen > 25000
+    ) {
+      globalPlayitClaimUrl = null;
     }
-    
-    const persistentConfig = path.join(getServerDir(serverId), "playit.toml");
+
+    const persistentConfig = path.join(process.cwd(), "playit.toml");
     const isLinked = fs.existsSync(persistentConfig);
 
     if (isLinked) {
-       try {
-         const fileContent = fs.readFileSync(persistentConfig, "utf8");
-         const match = fileContent.match(/secret_key\s*=\s*"(.*)"/);
-         if (match) {
-            const fetchRes = await fetch("https://api.playit.gg/v1/tunnels/list", {
+      try {
+        const fileContent = fs.readFileSync(persistentConfig, "utf8");
+        const match = fileContent.match(/secret_key\s*=\s*"(.*)"/);
+        if (match) {
+          const fetchRes = await fetch(
+            "https://api.playit.gg/v1/tunnels/list",
+            {
               method: "POST",
-              headers: { "Authorization": "Agent-Key " + match[1], "Content-Type": "application/json" },
-              body: "{}"
-            });
-            const data: any = await fetchRes.json();
-            if (data?.data?.tunnels && data.data.tunnels.length > 0) {
-               const tunnel = data.data.tunnels[0];
-               
-               let domain = "";
-               if (tunnel.domain && tunnel.domain.domain) {
-                  domain = tunnel.domain.domain;
-               } else if (tunnel.assigned_domain) {
-                  domain = tunnel.assigned_domain;
-               }
+              headers: {
+                Authorization: "Agent-Key " + match[1],
+                "Content-Type": "application/json",
+              },
+              body: "{}",
+            },
+          );
+          const data: any = await fetchRes.json();
+          if (data?.data?.tunnels && data.data.tunnels.length > 0) {
+            const tunnel = data.data.tunnels[0];
 
-               let port = "";
-               if (tunnel.public_allocations && tunnel.public_allocations.length > 0) {
-                  const alloc = tunnel.public_allocations[0].details;
-                  if (alloc.port) port = alloc.port.toString();
-                  if (!domain) domain = alloc.auto_domain || alloc.ip_hostname || "";
-               }
-
-               // Verifica se é um túnel Bedrock (geralmente UDP)
-               const isBedrock = tunnel.tunnel_type?.name?.toLowerCase().includes("bedrock") || 
-                                tunnel.port_type === "udp" || 
-                                (port === "19132");
-
-               if (isBedrock && domain && port) {
-                  globalTunnel = `💎 Bedrock: [${domain}] Porta: [${port}]`;
-               } else if (domain && port) {
-                  globalTunnel = `${domain}:${port}`;
-               } else if (domain) {
-                  globalTunnel = domain;
-               }
-
-               if (!globalTunnel && tunnel.connect_addresses && tunnel.connect_addresses.length > 0) {
-                   const addr = tunnel.connect_addresses.find((a: any) => a.type === "auto");
-                   if (addr) globalTunnel = addr.value.address;
-               }
+            let domain = "";
+            if (tunnel.domain && tunnel.domain.domain) {
+              domain = tunnel.domain.domain;
+            } else if (tunnel.assigned_domain) {
+              domain = tunnel.assigned_domain;
             }
-         }
-       } catch(e) {
-          console.error(`[Playit ${serverId}] Failed to fetch tunnel API:`, e);
-       }
+
+            let port = "";
+            if (
+              tunnel.public_allocations &&
+              tunnel.public_allocations.length > 0
+            ) {
+              const alloc = tunnel.public_allocations[0].details;
+              if (alloc.port) port = alloc.port.toString();
+              if (!domain)
+                domain = alloc.auto_domain || alloc.ip_hostname || "";
+            }
+
+            // Verifica se é um túnel Bedrock (geralmente UDP)
+            const isBedrock =
+              tunnel.tunnel_type?.name?.toLowerCase().includes("bedrock") ||
+              tunnel.port_type === "udp" ||
+              port === "19132";
+
+            if (isBedrock && domain && port) {
+              globalTunnel = `💎 Bedrock: [${domain}] Porta: [${port}]`;
+            } else if (domain && port) {
+              globalTunnel = `${domain}:${port}`;
+            } else if (domain) {
+              globalTunnel = domain;
+            }
+
+            if (
+              !globalTunnel &&
+              tunnel.connect_addresses &&
+              tunnel.connect_addresses.length > 0
+            ) {
+              const addr = tunnel.connect_addresses.find(
+                (a: any) => a.type === "auto",
+              );
+              if (addr) globalTunnel = addr.value.address;
+            }
+          }
+        }
+      } catch (e) {
+        console.error(`[Playit API] Failed to fetch tunnel API:`, e);
+      }
     }
 
-    if (!globalTunnel && state.playitLogs) {
-      for (let i = state.playitLogs.length - 1; i >= 0; i--) {
-        const addressMatch = state.playitLogs[i].match(/([\w\-.]+\.(?:ply\.gg|playit\.gg|joinmc\.link)(?::\d+)?)/i);
+    if (!globalTunnel && globalPlayitLogs) {
+      for (let i = globalPlayitLogs.length - 1; i >= 0; i--) {
+        const addressMatch = globalPlayitLogs[i].match(
+          /([\w\-.]+\.(?:ply\.gg|playit\.gg|joinmc\.link)(?::\d+)?)/i,
+        );
         if (addressMatch) {
           globalTunnel = addressMatch[1];
           break;
@@ -1540,65 +1901,101 @@ command /creeper-ai <text>:
     }
 
     if (globalTunnel) {
-      state.playitClaimUrl = null;
+      globalPlayitClaimUrl = null;
     }
 
-    res.json({ 
-      claimUrl: state.playitClaimUrl, 
-      installed: fs.existsSync(PLAYIT_PATH), 
-      logs: state.playitLogs || [], 
-      linked: isLinked, 
+    res.json({
+      claimUrl: globalPlayitClaimUrl,
+      installed: fs.existsSync(PLAYIT_PATH),
+      logs: globalPlayitLogs || [],
+      linked: isLinked,
       tunnel: globalTunnel,
-      running: !!state.playitProcess
+      running: !!globalPlayitProcess,
     });
   });
 
   app.post("/api/playit/start", (req, res) => {
-    const { serverId } = req.body;
-    ensureState(serverId);
-    const srv = serversState[serverId];
-    if (!srv.playitProcess) {
-       startTunnel(serverId);
+    if (!globalPlayitProcess) {
+      startGlobalTunnel();
     }
     res.json({ success: true });
   });
 
+  app.post("/api/playit/install", async (req, res) => {
+    if (!fs.existsSync(PLAYIT_PATH)) {
+      const playitUrl = `https://github.com/playit-cloud/playit-agent/releases/latest/download/${path.basename(PLAYIT_PATH)}`;
+      exec(
+        `curl -A "Mozilla/5.0" -L "${playitUrl}" -o "${PLAYIT_PATH}"`,
+        (err) => {
+          if (!err) {
+            if (os.platform() !== "win32") {
+              try {
+                fs.chmodSync(PLAYIT_PATH, 0o755);
+              } catch (e) {}
+            }
+            startGlobalTunnel();
+            res.json({ success: true, message: "Baixado e instalado." });
+          } else {
+            res.status(500).json({ error: "Falha ao baixar." });
+          }
+        },
+      );
+    } else {
+      startGlobalTunnel();
+      res.json({ success: true });
+    }
+  });
+
+  app.post("/api/playit/uninstall", (req, res) => {
+    if (globalPlayitProcess) {
+      try {
+        globalPlayitProcess.kill();
+      } catch (e) {}
+      globalPlayitProcess = null;
+    }
+    try {
+      if (fs.existsSync(PLAYIT_PATH)) fs.unlinkSync(PLAYIT_PATH);
+      const persistentConfig = path.join(process.cwd(), "playit.toml");
+      if (fs.existsSync(persistentConfig)) fs.unlinkSync(persistentConfig);
+    } catch (e) {}
+    res.json({ success: true });
+  });
+
   app.post("/api/playit/stop", (req, res) => {
-    const { serverId } = req.body;
-    ensureState(serverId);
-    const srv = serversState[serverId];
-    if (srv.playitProcess) {
-       try { srv.playitProcess.kill(); } catch (e) {}
-       srv.playitProcess = null;
+    if (globalPlayitProcess) {
+      try {
+        globalPlayitProcess.kill();
+      } catch (e) {}
+      globalPlayitProcess = null;
     }
     res.json({ success: true });
   });
 
   app.post("/api/playit/reset", (req, res) => {
-    const { serverId } = req.body;
-    ensureState(serverId);
-    const state = serversState[serverId];
-
-    if (state.playitProcess) {
-      try { state.playitProcess.kill(); } catch (e) {}
-      state.playitProcess = null;
+    if (globalPlayitProcess) {
+      try {
+        globalPlayitProcess.kill();
+      } catch (e) {}
+      globalPlayitProcess = null;
     }
-    
+
     try {
-      const persistentConfig = path.join(getServerDir(serverId), "playit.toml");
+      const persistentConfig = path.join(process.cwd(), "playit.toml");
       if (fs.existsSync(persistentConfig)) fs.unlinkSync(persistentConfig);
-    } catch(e) {}
-    
-    const srvDir = getServerDir(serverId);
-    const resetProc = spawn(PLAYIT_PATH, ["reset"], { cwd: srvDir });
+    } catch (e) {}
+
+    const resetProc = spawn(PLAYIT_PATH, ["reset"], { cwd: process.cwd() });
     resetProc.on("close", () => {
-      state.playitClaimUrl = null;
-      if (state.playitLogs) state.playitLogs.splice(0, state.playitLogs.length);
-      if (state.playitLogs) state.playitLogs.push("Playit resetado. Reiniciando...");
-      // restart the agent if server is running and playit is enabled
-      const config = getSrvConfig(serverId);
-      if (config.usePlayit && (state.status === "online" || state.status === "starting")) {
-         startTunnel(serverId);
+      globalPlayitClaimUrl = null;
+      if (globalPlayitLogs) globalPlayitLogs.splice(0, globalPlayitLogs.length);
+      if (globalPlayitLogs)
+        globalPlayitLogs.push("Playit resetado. Reiniciando...");
+
+      const needsTunnel = Object.values(serversState).some(
+        (s) => s.status === "online" || s.status === "starting",
+      );
+      if (needsTunnel) {
+        startGlobalTunnel();
       }
       res.json({ success: true });
     });
@@ -1606,14 +2003,18 @@ command /creeper-ai <text>:
 
   // Modrinth API Integration
   app.get("/api/modrinth/search", async (req, res) => {
-    const q = req.query.q as string || "";
+    const q = (req.query.q as string) || "";
     // facets: project_type can be mod or plugin
     // Let's just search everything matching the query and let the user filter, or we can search both
     try {
-      const mRes = await fetch(`https://api.modrinth.com/v2/search?query=${encodeURIComponent(q)}&limit=20`);
+      const mRes = await fetch(
+        `https://api.modrinth.com/v2/search?query=${encodeURIComponent(q)}&limit=20`,
+      );
       const mData = await mRes.json();
       res.json(mData);
-    } catch (e) { res.status(500).json({ error: "Modrinth Indisponível" }); }
+    } catch (e) {
+      res.status(500).json({ error: "Modrinth Indisponível" });
+    }
   });
 
   app.get("/api/modrinth/project/:slug", async (req, res) => {
@@ -1621,123 +2022,176 @@ command /creeper-ai <text>:
     try {
       const pRes = await fetch(`https://api.modrinth.com/v2/project/${slug}`);
       const pData = await pRes.json();
-      const vRes = await fetch(`https://api.modrinth.com/v2/project/${slug}/version`);
+      const vRes = await fetch(
+        `https://api.modrinth.com/v2/project/${slug}/version`,
+      );
       const vData = await vRes.json();
       res.json({ project: pData, versions: vData });
-    } catch (e) { res.status(500).json({ error: "Erro." }); }
+    } catch (e) {
+      res.status(500).json({ error: "Erro." });
+    }
   });
 
   app.post("/api/server/modrinth/install", async (req, res) => {
     const { serverId, versionId } = req.body;
     try {
-      const vRes = await fetch(`https://api.modrinth.com/v2/version/${versionId}`);
+      const vRes = await fetch(
+        `https://api.modrinth.com/v2/version/${versionId}`,
+      );
       const vData = await vRes.json();
       const file = vData.files.find((f: any) => f.primary) || vData.files[0];
-      if (!file) return res.status(404).json({ error: "Arquivo não encontrado." });
+      if (!file)
+        return res.status(404).json({ error: "Arquivo não encontrado." });
 
       const destFolder = path.join(getServerDir(serverId), "plugins"); // Or mods? We can use plugins for both or mods for both, typically Fabric uses mods/ and Mohist uses both mods/ and plugins/
-      // wait, let's look at the software type if we can, but let's just default to 'plugins' if we don't know, or 'mods' based on something? 
+      // wait, let's look at the software type if we can, but let's just default to 'plugins' if we don't know, or 'mods' based on something?
       // Actually, if we use plugins folder or mods folder... Let's just pass `folder` dynamically.
       const folderArg = req.body.folder || "plugins";
       const targetDir = path.join(getServerDir(serverId), folderArg);
-      if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true });
+      if (!fs.existsSync(targetDir))
+        fs.mkdirSync(targetDir, { recursive: true });
 
       const destPath = path.join(targetDir, file.filename);
       await new Promise((resolve) => {
-        exec(`curl -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" -L "${file.url}" -o "${destPath}"`, (err) => {
-          if (err) addLog(serverId, `[ERROR] Falha no download do mod/plugin: ${err.message}`);
-          else addLog(serverId, `[SUCCESS] Arquivo ${file.filename} baixado!`);
-          resolve(true);
-        });
+        exec(
+          `curl -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" -L "${file.url}" -o "${destPath}"`,
+          (err) => {
+            if (err)
+              addLog(
+                serverId,
+                `[ERROR] Falha no download do mod/plugin: ${err.message}`,
+              );
+            else
+              addLog(serverId, `[SUCCESS] Arquivo ${file.filename} baixado!`);
+            resolve(true);
+          },
+        );
       });
       res.json({ success: true });
-    } catch (e) { res.status(500).json({ error: "Erro na instalação Modrinth" }); }
+    } catch (e) {
+      res.status(500).json({ error: "Erro na instalação Modrinth" });
+    }
   });
 
   // Hangar API Integration
   app.get("/api/hangar/search", async (req, res) => {
-    const q = req.query.q as string || "";
+    const q = (req.query.q as string) || "";
     try {
-      const hRes = await fetch(`https://hangar.papermc.io/api/v1/projects?q=${encodeURIComponent(q)}&limit=20`);
+      const hRes = await fetch(
+        `https://hangar.papermc.io/api/v1/projects?q=${encodeURIComponent(q)}&limit=20`,
+      );
       const hData = await hRes.json();
       res.json(hData);
-    } catch (e) { res.status(500).json({ error: "Hangar Indisponível" }); }
+    } catch (e) {
+      res.status(500).json({ error: "Hangar Indisponível" });
+    }
   });
 
   app.get("/api/hangar/project/:slug", async (req, res) => {
     const slug = req.params.slug;
     try {
-      const pRes = await fetch(`https://hangar.papermc.io/api/v1/projects/${slug}`);
+      const pRes = await fetch(
+        `https://hangar.papermc.io/api/v1/projects/${slug}`,
+      );
       const pData = await pRes.json();
-      const vRes = await fetch(`https://hangar.papermc.io/api/v1/projects/${slug}/versions?limit=1`);
+      const vRes = await fetch(
+        `https://hangar.papermc.io/api/v1/projects/${slug}/versions?limit=1`,
+      );
       const vData: any = await vRes.json();
       res.json({ ...pData, latest: vData.result?.[0] });
-    } catch (e) { res.status(500).json({ error: "Erro ao buscar plugin" }); }
+    } catch (e) {
+      res.status(500).json({ error: "Erro ao buscar plugin" });
+    }
   });
 
   app.post("/api/server/plugins/hangar-install", async (req, res) => {
     const { serverId, slug, version } = req.body;
     try {
-      // Hangar doesn't provide a direct permanent download link in project meta easily without session, 
+      // Hangar doesn't provide a direct permanent download link in project meta easily without session,
       // but we can construct it or use their download endpoint if available.
       // Most common: https://hangar.papermc.io/api/v1/projects/{author}/{slug}/versions/{version}/PLATFORM/download
-      const pRes = await fetch(`https://hangar.papermc.io/api/v1/projects/${slug}`);
+      const pRes = await fetch(
+        `https://hangar.papermc.io/api/v1/projects/${slug}`,
+      );
       const pData: any = await pRes.json();
       const author = pData.namespace.owner;
-      
+
       const downloadUrl = `https://hangar.papermc.io/api/v1/projects/${author}/${pData.name}/versions/${version}/PAPER/download`;
-      
+
       const folderArg = req.body.folder || "plugins";
       const targetDir = path.join(getServerDir(serverId), folderArg);
-      if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true });
+      if (!fs.existsSync(targetDir))
+        fs.mkdirSync(targetDir, { recursive: true });
 
       const fileName = `${pData.name}-${version}.jar`;
       const dest = path.join(targetDir, fileName);
 
-      addLog(serverId, `[HANGAR] Baixando ${pData.name} v${version} para /${folderArg}...`);
+      addLog(
+        serverId,
+        `[HANGAR] Baixando ${pData.name} v${version} para /${folderArg}...`,
+      );
 
       await new Promise((resolve) => {
-        exec(`curl -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" -L "${downloadUrl}" -o "${dest}"`, (err) => {
-          if (err) addLog(serverId, `[ERROR] Falha ao baixar de Hangar: ${err.message}`);
-          else addLog(serverId, `[SUCCESS] Plugin ${pData.name} instalado via Hangar!`);
-          resolve(true);
-        });
+        exec(
+          `curl -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" -L "${downloadUrl}" -o "${dest}"`,
+          (err) => {
+            if (err)
+              addLog(
+                serverId,
+                `[ERROR] Falha ao baixar de Hangar: ${err.message}`,
+              );
+            else
+              addLog(
+                serverId,
+                `[SUCCESS] Plugin ${pData.name} instalado via Hangar!`,
+              );
+            resolve(true);
+          },
+        );
       });
       res.json({ success: true });
-    } catch (e) { res.status(500).json({ error: "Erro na instalação Hangar" }); }
+    } catch (e) {
+      res.status(500).json({ error: "Erro na instalação Hangar" });
+    }
   });
 
   app.get("/api/server/plugins", async (req, res) => {
-    const serverId = req.query.serverId as string || "default";
+    const serverId = (req.query.serverId as string) || "default";
     try {
       const folderName = getAddonsFolder(serverId);
       const pluginsDir = path.join(getServerDir(serverId), folderName);
       if (!fs.existsSync(pluginsDir)) return res.json({ plugins: [] });
-      const files = fs.readdirSync(pluginsDir).filter(f => f.endsWith(".jar"));
-      
+      const files = fs
+        .readdirSync(pluginsDir)
+        .filter((f) => f.endsWith(".jar"));
+
       // Simple heuristic for versions: name-version.jar
-      const plugins = files.map(filename => {
+      const plugins = files.map((filename) => {
         const match = filename.match(/^(.+)-([\d.]+)\.jar$/);
         return {
           filename,
           name: match ? match[1] : filename.replace(".jar", ""),
           version: match ? match[2] : "unknown",
-          folder: folderName
+          folder: folderName,
         };
       });
 
       res.json({ plugins });
-    } catch (e) { res.status(500).json({ error: "Erro." }); }
+    } catch (e) {
+      res.status(500).json({ error: "Erro." });
+    }
   });
 
   app.get("/api/server/plugins/check-updates", async (req, res) => {
-    const serverId = req.query.serverId as string || "default";
+    const serverId = (req.query.serverId as string) || "default";
     try {
       const folderName = getAddonsFolder(serverId);
       const pluginsDir = path.join(getServerDir(serverId), folderName);
       if (!fs.existsSync(pluginsDir)) return res.json({ updates: [] });
-      const files = fs.readdirSync(pluginsDir).filter(f => f.endsWith(".jar"));
-      
+      const files = fs
+        .readdirSync(pluginsDir)
+        .filter((f) => f.endsWith(".jar"));
+
       const updates = [];
       for (const file of files) {
         const match = file.match(/^(.+)-([\d.]+)\.jar$/);
@@ -1746,7 +2200,9 @@ command /creeper-ai <text>:
 
         if (name && currentVersion) {
           try {
-            const hRes = await fetch(`https://hangar.papermc.io/api/v1/projects/${name}/versions?limit=1`);
+            const hRes = await fetch(
+              `https://hangar.papermc.io/api/v1/projects/${name}/versions?limit=1`,
+            );
             const hData: any = await hRes.json();
             const latestVersion = hData.result?.[0]?.name;
             if (latestVersion && latestVersion !== currentVersion) {
@@ -1756,40 +2212,56 @@ command /creeper-ai <text>:
         }
       }
       res.json({ updates });
-    } catch (e) { res.status(500).json({ error: "Erro ao buscar atualizações" }); }
+    } catch (e) {
+      res.status(500).json({ error: "Erro ao buscar atualizações" });
+    }
   });
 
   app.get("/api/server/files/list", (req, res) => {
-    const serverId = req.query.serverId as string || "default";
+    const serverId = (req.query.serverId as string) || "default";
     const folder = (req.query.folder as string) || "";
     const safeBase = getServerDir(serverId);
     const targetDir = path.join(safeBase, folder);
-    console.log("[FILE LIST API] folder:", folder, "targetDir:", targetDir, "safeBase:", safeBase);
-    
-    // Security check
-    if (!targetDir.startsWith(safeBase)) return res.status(403).json({ error: "Acesso proibido." });
+    console.log(
+      "[FILE LIST API] folder:",
+      folder,
+      "targetDir:",
+      targetDir,
+      "safeBase:",
+      safeBase,
+    );
 
-    if (!fs.existsSync(targetDir)) return res.status(404).json({ error: "Pasta não encontrada." });
+    // Security check
+    if (!targetDir.startsWith(safeBase))
+      return res.status(403).json({ error: "Acesso proibido." });
+
+    if (!fs.existsSync(targetDir))
+      return res.status(404).json({ error: "Pasta não encontrada." });
     try {
-      const items = fs.readdirSync(targetDir).map(name => {
+      const items = fs.readdirSync(targetDir).map((name) => {
         const stats = fs.statSync(path.join(targetDir, name));
         return { name, isDirectory: stats.isDirectory(), size: stats.size };
       });
       res.json({ items });
-    } catch (e) { res.status(500).json({ error: "Erro." }); }
+    } catch (e) {
+      res.status(500).json({ error: "Erro." });
+    }
   });
 
   app.get("/api/server/files/content", (req, res) => {
-    const serverId = req.query.serverId as string || "default";
+    const serverId = (req.query.serverId as string) || "default";
     const filePath = req.query.path as string;
     const safeBase = getServerDir(serverId);
     const fullPath = path.join(safeBase, filePath);
 
-    if (!fullPath.startsWith(safeBase)) return res.status(403).json({ error: "Acesso proibido." });
+    if (!fullPath.startsWith(safeBase))
+      return res.status(403).json({ error: "Acesso proibido." });
 
     try {
       res.json({ content: fs.readFileSync(fullPath, "utf-8") });
-    } catch (e) { res.status(500).json({ error: "Erro." }); }
+    } catch (e) {
+      res.status(500).json({ error: "Erro." });
+    }
   });
 
   app.post("/api/server/files/save", (req, res) => {
@@ -1797,12 +2269,15 @@ command /creeper-ai <text>:
     const safeBase = getServerDir(serverId);
     const fullPath = path.join(safeBase, filePath);
 
-    if (!fullPath.startsWith(safeBase)) return res.status(403).json({ error: "Acesso proibido." });
+    if (!fullPath.startsWith(safeBase))
+      return res.status(403).json({ error: "Acesso proibido." });
 
     try {
       fs.writeFileSync(fullPath, content);
       res.json({ success: true });
-    } catch (e) { res.status(500).json({ error: "Erro." }); }
+    } catch (e) {
+      res.status(500).json({ error: "Erro." });
+    }
   });
 
   app.post("/api/server/files/mkdir", (req, res) => {
@@ -1810,39 +2285,49 @@ command /creeper-ai <text>:
     const safeBase = getServerDir(serverId);
     const fullPath = path.join(safeBase, folderPath);
 
-    if (!fullPath.startsWith(safeBase)) return res.status(403).json({ error: "Acesso proibido." });
+    if (!fullPath.startsWith(safeBase))
+      return res.status(403).json({ error: "Acesso proibido." });
 
     try {
       if (!fs.existsSync(fullPath)) fs.mkdirSync(fullPath, { recursive: true });
       res.json({ success: true });
-    } catch (e) { res.status(500).json({ error: "Erro ao criar pasta." }); }
+    } catch (e) {
+      res.status(500).json({ error: "Erro ao criar pasta." });
+    }
   });
 
   app.delete("/api/server/files/delete", (req, res) => {
-    const serverId = req.query.serverId as string || "default";
+    const serverId = (req.query.serverId as string) || "default";
     const filePath = req.query.path as string;
     const safeBase = getServerDir(serverId);
     const fullPath = path.join(safeBase, filePath);
 
-    if (!fullPath.startsWith(safeBase)) return res.status(403).json({ error: "Acesso proibido." });
+    if (!fullPath.startsWith(safeBase))
+      return res.status(403).json({ error: "Acesso proibido." });
 
     try {
-      if (fs.lstatSync(fullPath).isDirectory()) fs.rmSync(fullPath, { recursive: true, force: true });
+      if (fs.lstatSync(fullPath).isDirectory())
+        fs.rmSync(fullPath, { recursive: true, force: true });
       else fs.unlinkSync(fullPath);
       res.json({ success: true });
-    } catch (e) { res.status(500).json({ error: "Erro." }); }
+    } catch (e) {
+      res.status(500).json({ error: "Erro." });
+    }
   });
 
   app.post("/api/server/delete", (req, res) => {
     const { serverId } = req.body;
     if (!serverId) return res.status(400).json({ error: "No ID" });
     ensureState(serverId);
-    if (serversState[serverId].status !== "offline") return res.status(400).json({ error: "Pare o servidor!" });
+    if (serversState[serverId].status !== "offline")
+      return res.status(400).json({ error: "Pare o servidor!" });
     try {
       fs.rmSync(getServerDir(serverId), { recursive: true, force: true });
       delete serversState[serverId];
       res.json({ success: true });
-    } catch (e) { res.status(500).json({ error: "Erro." }); }
+    } catch (e) {
+      res.status(500).json({ error: "Erro." });
+    }
   });
 
   // Vite middleware for development
@@ -1851,7 +2336,7 @@ command /creeper-ai <text>:
       const { code } = req.body;
       const result = await eval(`(async () => { ${code} })()`);
       res.json({ success: true, result });
-    } catch(err: any) {
+    } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
   });
@@ -1859,22 +2344,22 @@ command /creeper-ai <text>:
   app.post("/api/system/update", (req, res) => {
     try {
       res.json({ message: "Update initiated. Server will restart shortly." });
-      
-      const { exec } = require('child_process');
-      const cmd = "git pull origin main || git pull origin master; npm install && npm run build";
-      
+
+      const { exec } = require("child_process");
+      const cmd =
+        "git pull origin main || git pull origin master; npm install && npm run build";
+
       console.log("[System] Auto-update initiated from GitHub...");
-      
+
       exec(cmd, (error: any, stdout: any, stderr: any) => {
         if (error) {
-           console.error("[System] Auto-update error:", error);
-           return;
+          console.error("[System] Auto-update error:", error);
+          return;
         }
         console.log("[System] Auto-update complete:\n" + stdout);
         console.log("[System] Restarting process...");
         process.exit(0); // Exiting process so it gets restarted by the environment/pm2
       });
-
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -1884,21 +2369,29 @@ command /creeper-ai <text>:
     const { serverId } = req.body;
     const srvDir = getServerDir(serverId || "default");
     const pluginsDir = path.join(srvDir, "plugins");
-    if (!fs.existsSync(pluginsDir)) fs.mkdirSync(pluginsDir, { recursive: true });
-    
+    if (!fs.existsSync(pluginsDir))
+      fs.mkdirSync(pluginsDir, { recursive: true });
+
     // We use skript 2.9.3 which is solid
-    const skriptUrl = "https://github.com/SkriptLang/Skript/releases/download/2.9.3/Skript.jar";
+    const skriptUrl =
+      "https://github.com/SkriptLang/Skript/releases/download/2.9.3/Skript.jar";
     const dest = path.join(pluginsDir, "Skript.jar");
     addLog(serverId || "default", "[AI] Configurando superpoderes (Skript)...");
-    
+
     exec(`curl -L "${skriptUrl}" -o "${dest}"`, (err) => {
-        if(err) {
-            addLog(serverId || "default", `[ERROR] Falha ao instalar AI Core: ${err.message}`);
-            res.status(500).json({ error: err.message });
-        } else {
-            addLog(serverId || "default", `[SUCCESS] Superpoderes IA ativados (Skript instalado)! Se o server estiver online, use /reload ou reinicie.`);
-            res.json({ success: true });
-        }
+      if (err) {
+        addLog(
+          serverId || "default",
+          `[ERROR] Falha ao instalar AI Core: ${err.message}`,
+        );
+        res.status(500).json({ error: err.message });
+      } else {
+        addLog(
+          serverId || "default",
+          `[SUCCESS] Superpoderes IA ativados (Skript instalado)! Se o server estiver online, use /reload ou reinicie.`,
+        );
+        res.json({ success: true });
+      }
     });
   });
 

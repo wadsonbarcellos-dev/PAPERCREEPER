@@ -18,8 +18,8 @@ export const askAI = async (prompt: string, context?: string, serverId?: string)
   } catch (error: any) {
     console.error("AI Bridge Error:", error);
     return { 
-      text: `Erro ao conectar com meu cérebro digital: ${error.message}. 
-             Dica: Certifique-se de que a variável GEMINI_API_KEY está configurada no ambiente do servidor! 🔌` 
+      text: `Erro ao conectar com a IA: ${error.message}. 
+             Dica: Certifique-se de que a Chave de API está configurada na aba de Configurações! 🔌` 
     };
   }
 };
