@@ -23,7 +23,7 @@ To install on a clean Ubuntu/Debian server or container:
 sudo apt update && sudo apt install -y curl git nodejs npm
 
 # 2. Clone the Repository
-git clone https://github.com/wadsonbarcellos/papercreeper.git
+git clone https://github.com/wadbar/papercreeper.git
 cd papercreeper
 
 # 3. Setup Project
