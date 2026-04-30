@@ -24,7 +24,7 @@ sudo apt update && sudo apt install -y curl git nodejs npm
 
 # 2. Clone the Repository
 git clone https://github.com/wadsonbarcellos-dev/PAPERCREEPER.git
-cd papercreeper
+cd PAPERCREEPER
 
 # 3. Setup Project
 chmod +x setup.sh && ./setup.sh
