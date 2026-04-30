@@ -63,7 +63,7 @@ Yes, you can run PaperCreeper and your Minecraft Server directly from your smart
    ```
 3. Clone the panel and install dependencies:
    ```bash
-   git clone https://github.com/wadsonbarcellos/papercreeper.git
+   git clone https://github.com/wadbar/papercreeper.git
    cd papercreeper
    npm install && npm run build
    npm run start
