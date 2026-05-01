@@ -2598,35 +2598,6 @@ export default function App({
                 />
               </nav>
             </div>
-
-            <div
-              className={`hidden lg:block border-2 rounded-3xl p-6 shadow-sm space-y-4 ${theme === "dark" ? "bg-[#0b251a]/80 border-emerald-900" : "bg-white border-zinc-200"}`}
-            >
-              <div className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.25em] flex items-center gap-2">
-                <Database size={12} fill="currentColor" /> {t("useful_links")}
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {metadata.links.map((link, i) => (
-                  <a
-                    key={i}
-                    href={link.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-[10px] font-black bg-emerald-900/50 text-emerald-400 px-3 py-1.5 rounded-full hover:bg-emerald-800 transition-colors border border-emerald-500/20"
-                  >
-                    {link.label === "Documentação"
-                      ? t("doc_label")
-                      : link.label === "Modrinth"
-                        ? t("modrinth_label")
-                        : link.label === "Hangar"
-                          ? t("hangar_label")
-                          : link.label === "Playit.gg Status"
-                            ? t("playit_status_label")
-                            : link.label}
-                  </a>
-                ))}
-              </div>
-            </div>
           </div>
 
           {/* Main Display Area */}
@@ -2867,19 +2838,13 @@ export default function App({
                         disabled={!!playitLoading}
                         onClick={async (e) => {
                           e.stopPropagation();
-                          if (
-                            confirm(
-                              "Resetar Configuração Playit.gg da máquina?",
-                            )
-                          ) {
-                            setPlayitLoading("reset");
-                            await fetch("/api/playit/reset", {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({}),
-                            });
-                            setPlayitLoading(null);
-                          }
+                          setPlayitLoading("reset");
+                          await fetch("/api/playit/reset", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({}),
+                          });
+                          setPlayitLoading(null);
                         }}
                         className={`flex-1 py-3 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 font-bold text-xs uppercase rounded-xl transition-all border border-zinc-800 shadow-md ${playitLoading ? "opacity-50 cursor-not-allowed" : ""}`}
                       >
@@ -2908,22 +2873,16 @@ export default function App({
                             disabled={!!playitLoading}
                             onClick={async (e) => {
                               e.stopPropagation();
-                              if (
-                                confirm(
-                                  "Tem certeza que deseja desinstalar o Playit.gg?",
-                                )
-                              ) {
-                                setPlayitLoading("uninstall");
-                                await fetch("/api/playit/uninstall", {
-                                  method: "POST",
-                                });
-                                setPlayitStatus((prev) => ({
-                                  ...prev,
-                                  installed: false,
-                                  running: false,
-                                }));
-                                setPlayitLoading(null);
-                              }
+                              setPlayitLoading("uninstall");
+                              await fetch("/api/playit/uninstall", {
+                                method: "POST",
+                              });
+                              setPlayitStatus((prev) => ({
+                                ...prev,
+                                installed: false,
+                                running: false,
+                              }));
+                              setPlayitLoading(null);
                             }}
                             className={`flex-1 py-3 bg-rose-900/50 hover:bg-rose-800 text-rose-400 font-bold text-xs uppercase rounded-xl transition-all border border-rose-900 shadow-md ${playitLoading ? "opacity-50 cursor-not-allowed" : ""}`}
                           >

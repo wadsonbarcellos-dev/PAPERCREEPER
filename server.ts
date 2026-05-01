@@ -170,117 +170,114 @@ async function startServer() {
   let JAVA_PATH = "java";
   let PLAYIT_PATH = "playit";
 
-  const resolveBinaries = async () => {
-    const javaDir = path.join(BIN_DIR, "java_runtime");
-    const localJava = path.join(javaDir, "bin/java");
-    const localPlayit = path.join(BIN_DIR, "playit");
+  // === DYNAMIC JAVA EXTRACTOR ===
+  const getRequiredJavaMajor = (mcVersion: string) => {
+    if (!mcVersion) return 21;
+    const match = mcVersion.match(/1\.(\d+)(?:\.(\d+))?/);
+    if (!match) return 21;
+    const minor = parseInt(match[1], 10);
+    if (minor <= 16) return 8; 
+    if (minor === 17) return 17; 
+    if (minor <= 20) return 17;
+    return 21;
+  };
 
-    let javaIsValid = false;
-
-    // Helper to check if java binary runs properly
-    const checkJava = (javaExec: string) => {
-      try {
-        if (javaExec !== "java" && !fs.existsSync(javaExec)) return false;
-        try {
-          if (javaExec !== "java")
-            execSync(`chmod -R +x "${path.dirname(javaExec)}"`);
-        } catch (e) {}
-        const res = execSync(`"${javaExec}" -version`, { stdio: "pipe" });
-        return true;
-      } catch (e) {
-        return false;
-      }
-    };
-
-    if (checkJava(localJava)) {
-      JAVA_PATH = localJava;
-      javaIsValid = true;
-      console.log("Using local Java Runtime:", JAVA_PATH);
-    } else {
-      console.log(
-        "Local Java is missing or invalid. Will try system java next.",
-      );
+  const getJavaPath = (major: number) => {
+    const javaDir = path.join(BIN_DIR, `java_runtime_${major}`);
+    const osPlatform = os.platform();
+    if (osPlatform === "win32") {
+      return path.join(javaDir, "bin/java.exe");
     }
+    return path.join(javaDir, "bin/java");
+  };
 
-    if (!javaIsValid) {
-      if (checkJava("java")) {
-        JAVA_PATH = "java";
-        javaIsValid = true;
-        console.log("Using system java");
-      }
-    }
-
-    if (!javaIsValid) {
-      console.log("Downloading Java 21 Runtime...");
-      const osPlatform = os.platform();
-      const osArch = os.arch();
-
-      let jreFile = "OpenJDK21U-jre_x64_linux_hotspot_21.0.6_7.tar.gz";
-      if (osPlatform === "win32") {
-        jreFile =
-          osArch === "arm64"
-            ? "OpenJDK21U-jre_aarch64_windows_hotspot_21.0.6_7.zip"
-            : "OpenJDK21U-jre_x64_windows_hotspot_21.0.6_7.zip";
-      } else if (osPlatform === "darwin") {
-        jreFile =
-          osArch === "arm64"
-            ? "OpenJDK21U-jre_aarch64_mac_hotspot_21.0.6_7.tar.gz"
-            : "OpenJDK21U-jre_x64_mac_hotspot_21.0.6_7.tar.gz";
-      } else if (osPlatform === "linux") {
-        jreFile =
-          osArch === "arm64"
-            ? "OpenJDK21U-jre_aarch64_linux_hotspot_21.0.6_7.tar.gz"
-            : "OpenJDK21U-jre_x64_linux_hotspot_21.0.6_7.tar.gz";
-      }
-
-      const tempTar = path.join(BIN_DIR, jreFile);
-      const jreUrl = `https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.6%2B7/${jreFile}`;
-
+  const downloadJavaIfNeeded = (major: number, onLog: (msg: string) => void): Promise<string> => {
+    return new Promise((resolve) => {
+      const javaExec = getJavaPath(major);
       try {
-        // Clean up broken
-        if (fs.existsSync(javaDir))
-          fs.rmSync(javaDir, { recursive: true, force: true });
-        fs.mkdirSync(javaDir, { recursive: true });
-
-        execSync(
-          `curl -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" -L "${jreUrl}" -o "${tempTar}"`,
-          { stdio: "inherit" },
-        );
-
-        // Extract and strip first directory. Note on Windows tar might require different args, but windows 10+ has tar
-        execSync(`tar -xf "${tempTar}" -C "${javaDir}" --strip-components=1`, {
-          stdio: "inherit",
-        });
-        fs.rmSync(tempTar, { force: true });
-
-        // If windows, java executable ends in .exe
-        if (osPlatform === "win32") {
-          const localJavaExe = path.join(javaDir, "bin/java.exe");
-          if (checkJava(localJavaExe)) {
-            JAVA_PATH = localJavaExe;
-            console.log(
-              "Successfully downloaded and installed Local Java 21:",
-              JAVA_PATH,
-            );
-          } else {
-            console.error("Failed to validate Java after download!");
-          }
-        } else {
-          if (checkJava(localJava)) {
-            JAVA_PATH = localJava;
-            console.log(
-              "Successfully downloaded and installed Local Java 21:",
-              JAVA_PATH,
-            );
-          } else {
-            console.error("Failed to validate Java after download!");
-          }
+        if (fs.existsSync(javaExec)) {
+          execSync(`"${javaExec}" -version`, { stdio: "ignore" });
+          return resolve(javaExec);
         }
-      } catch (e: any) {
-        console.error("Failed to download Java:", e.message);
-      }
-    }
+      } catch(e) {}
+      
+      const osPlatform = os.platform();
+      let sysJava = osPlatform === "win32" ? "java.exe" : "java";
+      try {
+        const sysVer = execSync(`"${sysJava}" -version 2>&1`, { encoding: "utf-8" });
+        const match = sysVer.match(/version "(\d+)\./);
+        if (match && parseInt(match[1], 10) === major) {
+          onLog(`[INFO] Usando Java ${major} do sistema.`);
+          return resolve(sysJava);
+        }
+      } catch (e) {}
 
+      const javaDir = path.join(BIN_DIR, `java_runtime_${major}`);
+      onLog(`[INSTALLER] Instalando Java ${major} Otimizado para esta versao... aguarde.`);
+      
+      let file = "";
+      const osArch = os.arch();
+      if (major === 8) {
+          if (osPlatform === "win32") file = "OpenJDK8U-jre_x64_windows_hotspot_8u442b06.zip";
+          else if (osPlatform === "darwin") file = osArch === "arm64" ? "OpenJDK8U-jre_aarch64_mac_hotspot_8u442b06.tar.gz" : "OpenJDK8U-jre_x64_mac_hotspot_8u442b06.tar.gz";
+          else file = osArch === "arm64" ? "OpenJDK8U-jre_aarch64_linux_hotspot_8u442b06.tar.gz" : "OpenJDK8U-jre_x64_linux_hotspot_8u442b06.tar.gz";
+      } else if (major === 17) {
+          if (osPlatform === "win32") file = "OpenJDK17U-jre_x64_windows_hotspot_17.0.14_7.zip";
+          else if (osPlatform === "darwin") file = osArch === "arm64" ? "OpenJDK17U-jre_aarch64_mac_hotspot_17.0.14_7.tar.gz" : "OpenJDK17U-jre_x64_mac_hotspot_17.0.14_7.tar.gz";
+          else file = osArch === "arm64" ? "OpenJDK17U-jre_aarch64_linux_hotspot_17.0.14_7.tar.gz" : "OpenJDK17U-jre_x64_linux_hotspot_17.0.14_7.tar.gz";
+      } else {
+          if (osPlatform === "win32") file = "OpenJDK21U-jre_x64_windows_hotspot_21.0.6_7.zip";
+          else if (osPlatform === "darwin") file = osArch === "arm64" ? "OpenJDK21U-jre_aarch64_mac_hotspot_21.0.6_7.tar.gz" : "OpenJDK21U-jre_x64_mac_hotspot_21.0.6_7.tar.gz";
+          else file = osArch === "arm64" ? "OpenJDK21U-jre_aarch64_linux_hotspot_21.0.6_7.tar.gz" : "OpenJDK21U-jre_x64_linux_hotspot_21.0.6_7.tar.gz";
+      }
+
+      let url = "";
+      if (major === 8) url = `https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u442-b06/${file}`;
+      else if (major === 17) url = `https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.14%2B7/${file}`;
+      else url = `https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.6%2B7/${file}`;
+
+      const tempTar = path.join(BIN_DIR, file);
+
+      try {
+          if (fs.existsSync(javaDir)) fs.rmSync(javaDir, { recursive: true, force: true });
+          fs.mkdirSync(javaDir, { recursive: true });
+
+          exec(`curl -A "Mozilla/5.0" -L "${url}" -o "${tempTar}"`, (err) => {
+             if (err) {
+                 onLog(`[ERROR] Falha ao baixar Java: ${err.message}`);
+                 return resolve("java");
+             }
+             try {
+                if (file.endsWith(".zip")) {
+                  execSync(`unzip -q -o "${tempTar}" -d "${javaDir}"`);
+                  const items = fs.readdirSync(javaDir);
+                  if (items.length === 1 && fs.lstatSync(path.join(javaDir, items[0])).isDirectory()) {
+                     const inner = path.join(javaDir, items[0]);
+                     fs.cpSync(inner, javaDir, { recursive: true });
+                     fs.rmSync(inner, { recursive: true });
+                  }
+                } else {
+                  execSync(`tar -xf "${tempTar}" -C "${javaDir}" --strip-components=1`);
+                }
+                fs.rmSync(tempTar, { force: true });
+                if (osPlatform !== "win32") {
+                  execSync(`chmod -R +x "${path.join(javaDir, "bin")}"`);
+                }
+                onLog(`[SUCCESS] Java ${major} instalado e pronto.`);
+                resolve(getJavaPath(major));
+             } catch(extErr: any) {
+                onLog(`[ERROR] Falha ao extrair Java: ${extErr.message}`);
+                resolve("java");
+             }
+          });
+      } catch (e: any) {
+          onLog(`[ERROR] Erro no script de Java: ${e.message}`);
+          resolve("java");
+      }
+    });
+  };
+
+  const resolveBinaries = async () => {
     const osPlatform = os.platform();
     let playitFile = "playit-linux-amd64";
     if (osPlatform === "win32") playitFile = "playit-windows-x86_64.exe";
@@ -1141,7 +1138,7 @@ command /creeper-ai <text>:
     );
   });
 
-  app.post("/api/server/start", (req, res) => {
+  app.post("/api/server/start", async (req, res) => {
     const { serverId } = req.body;
     if (!serverId) return res.status(400).json({ error: "No ID" });
     ensureState(serverId);
@@ -1170,19 +1167,28 @@ command /creeper-ai <text>:
 
     const config = getSrvConfig(serverId);
 
-    if (JAVA_PATH.includes("bin/") && !fs.existsSync(JAVA_PATH)) {
-      return res
-        .status(400)
-        .json({ error: "O Java Runtime ainda não está pronto." });
-    }
-
     serversState[serverId].status = "starting";
     serversState[serverId].logs = []; // Limpa logs anteriores
     addLog(serverId, `🚀 Iniciando Minecraft...`);
-    addLog(serverId, `⚙️ RAM: ${config.ram}GB | Java: ${JAVA_PATH}`);
 
+    // DYNAMIC JAVA SELECTION
+    let assumedVersion = config.mcVersion || "";
+    if (!assumedVersion && jarFile) {
+        const match = jarFile.match(/1\.\d+(?:\.\d+)?/);
+        if (match) assumedVersion = match[0];
+    }
+    let reqMajor = getRequiredJavaMajor(assumedVersion);
+    if (config.javaVersion) reqMajor = parseInt(config.javaVersion, 10);
+    
+    // Resolve dynamic java Path
+    res.json({ message: "Iniciando..." }); // Envia resposta cedo para evitar timeout do front
+    
     try {
-      let command = JAVA_PATH;
+      const dynamicJavaPath = await downloadJavaIfNeeded(reqMajor, (msg) => addLog(serverId, msg));
+
+      addLog(serverId, `⚙️ RAM: ${config.ram}GB | Java: ${dynamicJavaPath} | Server: ${assumedVersion}`);
+
+      let command = dynamicJavaPath;
       const type = (config.type || "").toLowerCase();
       let args = [
         "-Xmx" + config.ram + "G",
@@ -1335,7 +1341,6 @@ command /creeper-ai <text>:
       addLog(serverId, ` [ERROR] Crash fatal: ${err.message}`);
       serversState[serverId].status = "offline";
     }
-    res.json({ message: "Iniciando..." });
   });
 
   app.post("/api/server/stop", (req, res) => {
@@ -2043,12 +2048,7 @@ command /creeper-ai <text>:
       if (globalPlayitLogs)
         globalPlayitLogs.push("Playit resetado. Reiniciando...");
 
-      const needsTunnel = Object.values(serversState).some(
-        (s) => s.status === "online" || s.status === "starting",
-      );
-      if (needsTunnel) {
-        startGlobalTunnel();
-      }
+      startGlobalTunnel();
       res.json({ success: true });
     });
   });
