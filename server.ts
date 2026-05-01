@@ -1581,6 +1581,32 @@ command /creeper-ai <text>:
     res.json({ message: "Download iniciado em segundo plano." });
   });
 
+  // Helper to reliably download files using native Node fetch
+  const downloadFile = async (url: string, dest: string, onLog?: (msg: string) => void): Promise<boolean> => {
+    try {
+      if (onLog) onLog(`[DOWNLOAD] Fetching from: ${url}`);
+      const res = await fetch(url, { redirect: "follow" });
+      if (!res.ok) {
+        if (onLog) onLog(`[ERROR] HTTP ${res.status} ${res.statusText}`);
+        return false;
+      }
+      
+      const fileStream = fs.createWriteStream(dest);
+      if (res.body) {
+        // Node 18+ Web ReadableStream to Node stream
+        // We can do it arrayBuffer for smaller files, or pipeline
+        const ab = await res.arrayBuffer();
+        fs.writeFileSync(dest, Buffer.from(ab));
+        if (onLog) onLog(`[SUCCESS] Saved to ${path.basename(dest)}`);
+        return true;
+      }
+      return false;
+    } catch (e: any) {
+      if (onLog) onLog(`[ERROR] Download falhou: ${e.message}`);
+      return false;
+    }
+  };
+
   const getAddonsFolder = (serverId: string) => {
     const config = getSrvConfig(serverId);
     const type = (config.type || "paper").toLowerCase();
@@ -1603,26 +1629,8 @@ command /creeper-ai <text>:
     const fileName = name || `add-on-${Date.now()}.jar`;
     const dest = path.join(pluginsDir, fileName);
 
-    addLog(
-      serverId,
-      `[INSTALLER] Baixando pacote para /${folderName} de ${url}...`,
-    );
+    await downloadFile(url, dest, (msg) => addLog(serverId, msg));
 
-    await new Promise((resolve) => {
-      exec(
-        `curl --http1.1 -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" -L "${url}" -o "${dest}"`,
-        (err) => {
-          if (err)
-            addLog(serverId, `[ERROR] Falha ao baixar arquivo: ${err.message}`);
-          else
-            addLog(
-              serverId,
-              `[SUCCESS] Arquivo ${fileName} adicionado em /${folderName}!`,
-            );
-          resolve(true);
-        },
-      );
-    });
     res.json({ message: "Download de adicionais concluído." });
   });
 
@@ -1642,21 +1650,7 @@ command /creeper-ai <text>:
 
     addLog(serverId, `[WEB] Iniciando download de: ${url}`);
 
-    await new Promise((resolve) => {
-      exec(
-        `curl -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" -L "${url}" -o "${targetFile}"`,
-        (err) => {
-          if (err)
-            addLog(serverId, `[ERROR] Falha no download: ${err.message}`);
-          else
-            addLog(
-              serverId,
-              `[SUCCESS] Download concluído: ${path.basename(targetFile)}`,
-            );
-          resolve(true);
-        },
-      );
-    });
+    await downloadFile(url, targetFile, (msg) => addLog(serverId, msg));
 
     res.json({ success: true, message: "Download concluído." });
   });
@@ -2104,21 +2098,7 @@ command /creeper-ai <text>:
         fs.mkdirSync(targetDir, { recursive: true });
 
       const destPath = path.join(targetDir, file.filename);
-      await new Promise((resolve) => {
-        exec(
-          `curl -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" -L "${file.url}" -o "${destPath}"`,
-          (err) => {
-            if (err)
-              addLog(
-                serverId,
-                `[ERROR] Falha no download do mod/plugin: ${err.message}`,
-              );
-            else
-              addLog(serverId, `[SUCCESS] Arquivo ${file.filename} baixado!`);
-            resolve(true);
-          },
-        );
-      });
+      await downloadFile(file.url, destPath, (msg) => addLog(serverId, msg));
       res.json({ success: true });
     } catch (e) {
       res.status(500).json({ error: "Erro na instalação Modrinth" });
@@ -2183,24 +2163,7 @@ command /creeper-ai <text>:
         `[HANGAR] Baixando ${pData.name} v${version} para /${folderArg}...`,
       );
 
-      await new Promise((resolve) => {
-        exec(
-          `curl -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" -L "${downloadUrl}" -o "${dest}"`,
-          (err) => {
-            if (err)
-              addLog(
-                serverId,
-                `[ERROR] Falha ao baixar de Hangar: ${err.message}`,
-              );
-            else
-              addLog(
-                serverId,
-                `[SUCCESS] Plugin ${pData.name} instalado via Hangar!`,
-              );
-            resolve(true);
-          },
-        );
-      });
+      await downloadFile(downloadUrl, dest, (msg) => addLog(serverId, msg));
       res.json({ success: true });
     } catch (e) {
       res.status(500).json({ error: "Erro na instalação Hangar" });
@@ -2316,6 +2279,18 @@ command /creeper-ai <text>:
     }
   });
 
+  app.get("/api/server/files/download", (req, res) => {
+    const serverId = (req.query.serverId as string) || "default";
+    const filePath = req.query.path as string;
+    const safeBase = getServerDir(serverId);
+    const fullPath = path.join(safeBase, filePath);
+
+    if (!fullPath.startsWith(safeBase) || !fs.existsSync(fullPath))
+      return res.status(403).json({ error: "Acesso proibido ou arquivo não localizado." });
+
+    res.download(fullPath);
+  });
+
   app.post("/api/server/files/save", (req, res) => {
     const { serverId, path: filePath, content } = req.body;
     const safeBase = getServerDir(serverId);
@@ -2367,6 +2342,23 @@ command /creeper-ai <text>:
     }
   });
 
+  app.post("/api/server/files/rename", (req, res) => {
+    const { serverId, oldPath, newPath } = req.body;
+    const safeBase = getServerDir(serverId);
+    const fullOldPath = path.join(safeBase, oldPath);
+    const fullNewPath = path.join(safeBase, newPath);
+
+    if (!fullOldPath.startsWith(safeBase) || !fullNewPath.startsWith(safeBase))
+      return res.status(403).json({ error: "Acesso proibido." });
+
+    try {
+      fs.renameSync(fullOldPath, fullNewPath);
+      res.json({ success: true });
+    } catch (e) {
+      res.status(500).json({ error: "Erro ao renomear." });
+    }
+  });
+
   app.post("/api/server/delete", (req, res) => {
     const { serverId } = req.body;
     if (!serverId) return res.status(400).json({ error: "No ID" });
@@ -2393,9 +2385,18 @@ command /creeper-ai <text>:
     }
   });
 
+  app.get("/api/system/version", (req, res) => {
+    try {
+      const pkg = JSON.parse(fs.readFileSync(path.join(process.cwd(), "package.json"), "utf8"));
+      res.json({ version: pkg.version });
+    } catch {
+      res.json({ version: "Desconhecida" });
+    }
+  });
+
   app.post("/api/system/update", (req, res) => {
     try {
-      res.json({ message: "Update initiated. Server will restart shortly." });
+      res.json({ message: "Atualização iniciada. Reiniciando o servidor..." });
 
       const { exec } = require("child_process");
       const cmd =
@@ -2409,7 +2410,7 @@ command /creeper-ai <text>:
           return;
         }
         console.log("[System] Auto-update complete:\n" + stdout);
-        console.log("[System] Restarting process...");
+        console.log("[System] Atualização concluída. Se não voltar, use 'staper'.");
         process.exit(0); // Exiting process so it gets restarted by the environment/pm2
       });
     } catch (err: any) {

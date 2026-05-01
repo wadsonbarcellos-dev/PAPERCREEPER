@@ -48,3 +48,26 @@ else
 fi
 
 echo "🚀 Setup concluído! Use 'npm run dev' para iniciar."
+
+# 5. Configurar aliases (staper e stoper)
+BASHRC="$HOME/.bashrc"
+if [ -f "$BASHRC" ]; then
+    echo "⚙️ Configurando atalhos 'staper' e 'stoper' no .bashrc..."
+    # Remove old aliases if exist
+    sed -i '/alias staper/d' "$BASHRC"
+    sed -i '/alias stoper/d' "$BASHRC"
+    
+    # Grava o diretório real e absoluto no alias para evitar bugs com * ou ~
+    CURRENT_DIR=$(pwd)
+    echo "alias staper='cd \"$CURRENT_DIR\" && npm run dev'" >> "$BASHRC"
+    echo "alias stoper='pkill -f \"tsx server.ts\"'" >> "$BASHRC"
+    
+    echo "✅ Atalhos configurados!"
+    echo ""
+    echo "⚠️ IMPORTANTE: Para ativar os atalhos AGORA, digite:"
+    echo "👉 source ~/.bashrc"
+    echo ""
+    echo "✨ Depois de ativado, você poderá usar de qualquer lugar:"
+    echo "  - staper: Abre a pasta e inicia o painel"
+    echo "  - stoper: Para o painel rodando em segundo plano"
+fi

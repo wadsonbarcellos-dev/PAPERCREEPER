@@ -2,7 +2,7 @@
 
 export const askAI = async (prompt: string, context?: string, serverId?: string) => {
   try {
-    const response = await fetch("/api/ai/chat", {
+    const response = await fetch("/api/ai", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ prompt, context, serverId })

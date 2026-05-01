@@ -29,11 +29,13 @@ cd papercreeper
 # 3. Setup Project
 chmod +x setup.sh && ./setup.sh
 
-# 4. Start (Production Mode)
-npm run build
-npm start
+# 4. Ative os novos comandos mágicos no terminal
+source ~/.bashrc
+
+# 5. Inicie o servidor / painel!
+staper
 ```
-The panel will securely expose itself on port **3000** (e.g., `http://YOUR_SERVER_IP:3000`).
+A partir de agora, você nunca mais precisa procurar pastas. De qualquer lugar no terminal, digite `staper`! Para fechar em 2º plano, digite `stoper`. O painel roda na porta **3000** (ex: `http://SEU_IP:3000`).
 
 ### Method B: Windows Server via WSL2 (Highly Recommended)
 Running a Minecraft Server natively on the Windows CMD/PowerShell can lead to poor performance and file-locking issues. We highly recommend using Windows Subsystem for Linux (WSL2).

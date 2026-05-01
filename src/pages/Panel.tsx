@@ -48,6 +48,8 @@ import {
   Skull,
   Hand,
   UploadCloud,
+  Edit2,
+  Download,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { askAI } from "../services/geminiService";
@@ -365,7 +367,15 @@ export default function App({
   const [showApiKeyInput, setShowApiKeyInput] = useState(false);
   const [apiKeyValue, setApiKeyValue] = useState("");
   const [isSystemUpdating, setIsSystemUpdating] = useState(false);
+  const [appVersion, setAppVersion] = useState("Carregando versão...");
   const t = (key: string) => translations[language][key] || key;
+
+  useEffect(() => {
+    fetch("/api/system/version")
+      .then((res) => res.json())
+      .then((data) => setAppVersion(data.version))
+      .catch(() => setAppVersion("Desconhecida"));
+  }, []);
 
   const [serverState, setServerState] = useState<ServerState>({
     status: "offline",
@@ -1034,6 +1044,29 @@ export default function App({
 
   const openFile = async (path: string) => {
     if (!currentServerId) return;
+
+    const extMatch = path.match(/\.([^.]+)$/);
+    if (extMatch) {
+      const ext = extMatch[1].toLowerCase();
+      if (['dat', 'mca', 'nbt', 'schem', 'schematic', 'png', 'jpg', 'jpeg', 'jar', 'zip', 'gz', 'tar', 'sqlite', 'db'].includes(ext)) {
+        if (ext === "dat" || ext === "mca") {
+          alert("⚠️ Aviso de Performance: Este é um arquivo de mapa 3D bruto!\n\n💡 VISUALIZAR: Instale o plugin 'BlueMap' na Loja para navegar pelo mundo 3D no navegador.\n\n🛠️ EDITAR: Um editor completo estilo 'MCEdit' faria o navegador explodir (muito pesado). Para editar montanhas ou schemas, FAÇA O DOWNLOAD do mundo e use o 'Amulet Editor' no PC, ou use 'WorldEdit' de dentro do próprio jogo.");
+          setActiveTab("map");
+          return;
+        } else if (ext === "schem" || ext === "schematic") {
+           alert("Este é um Schematic (construção 3D). Para colá-lo no mapa, use //schem load e //paste com o WorldEdit, diretamente de dentro do jogo!");
+           setActiveTab("map");
+           return;
+        } else if (ext === "jar" || ext === "zip") {
+           alert("Esse é um arquivo compilado ou compactado. Faça o download para acessar o conteúdo na sua máquina.");
+           return;
+        } else {
+           alert(`O formato .${ext} é binário e não pode ser editado como texto.`);
+           return;
+        }
+      }
+    }
+
     try {
       const res = await fetch(
         `/api/server/files/content?serverId=${currentServerId}&path=${encodeURIComponent(path)}`,
@@ -1072,6 +1105,46 @@ export default function App({
         { method: "DELETE" },
       );
       if (res.ok) fetchFiles(currentFolder);
+    } catch (e) {}
+  };
+
+  const renameFile = async (oldPath: string) => {
+    if (!currentServerId) return;
+    const newName = prompt(`Digite o novo nome para ${oldPath.split('/').pop()}:`);
+    if (!newName) return;
+    
+    // Extrai o caminho sem o arquivo
+    const parts = oldPath.split('/');
+    parts.pop(); // Remove o antigo nome
+    const basePath = parts.join('/');
+    const newPath = basePath ? `${basePath}/${newName}` : newName;
+
+    try {
+      const res = await fetch("/api/server/files/rename", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ serverId: currentServerId, oldPath, newPath }),
+      });
+      if (res.ok) fetchFiles(currentFolder);
+      else alert("Erro ao renomear arquivo.");
+    } catch (e) {}
+  };
+
+  const createFolder = async () => {
+    if (!currentServerId) return;
+    const folderName = prompt(`Digite o nome da nova pasta:`);
+    if (!folderName) return;
+
+    const newPath = currentFolder ? `${currentFolder}/${folderName}` : folderName;
+
+    try {
+      const res = await fetch("/api/server/files/mkdir", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ serverId: currentServerId, path: newPath }),
+      });
+      if (res.ok) fetchFiles(currentFolder);
+      else alert("Erro ao criar pasta.");
     } catch (e) {}
   };
 
@@ -3044,14 +3117,17 @@ export default function App({
 
                       <button
                         onClick={() => {
-                          window.open(
-                            "https://www.minecraft-schematics.com/",
-                            "_blank",
-                          );
+                          setActiveTab("settings");
+                          setStoreProvider("hangar");
+                          setEditTab("plugins");
+                          setStoreFolder("plugins");
+                          setStoreSearch("bluemap");
+                          searchStore("bluemap");
+                          setEditingServer(servers.find(s => s.id === currentServerId) || null);
                         }}
-                        className="w-full py-4 rounded-xl flex items-center justify-center gap-2 font-black text-[10px] uppercase shadow-lg transition-transform active:scale-95 border-b-4 bg-zinc-800 hover:bg-zinc-700 text-emerald-400 border-zinc-950"
+                        className="w-full py-4 rounded-xl flex items-center justify-center gap-2 font-black text-[10px] uppercase shadow-lg transition-transform active:scale-95 border-b-4 bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-800"
                       >
-                        <Search size={16} /> {t("map_download_web")}
+                        <Globe size={16} /> Mapa 3D no Navegador (BlueMap)
                       </button>
 
                       <button
@@ -3422,7 +3498,7 @@ export default function App({
                       {!showApiKeyInput ? (
                         <button
                           onClick={() => setShowApiKeyInput(true)}
-                          className="font-black text-xs uppercase bg-emerald-500 text-white px-4 py-2 rounded-xl border-b-2 border-emerald-700 hover:-translate-y-1 hover:shadow-lg transition-all"
+                          className="font-black text-xs uppercase bg-emerald-500 text-white px-4 py-2 rounded-xl border-b-2 border-emerald-700 hover:-translate-y-1 hover:shadow-lg transition-all active:scale-95"
                         >
                           {t("ai_api_key_btn")}
                         </button>
@@ -3455,7 +3531,7 @@ export default function App({
                                 alert(t("ai_api_key_invalid"));
                               }
                             }}
-                            className="font-black text-xs uppercase bg-emerald-500 text-white px-4 py-2 rounded-xl border-b-2 border-emerald-700 hover:-translate-y-1 hover:shadow-lg transition-all"
+                            className="font-black text-xs uppercase bg-emerald-500 text-white px-4 py-2 rounded-xl border-b-2 border-emerald-700 hover:-translate-y-1 hover:shadow-lg transition-all active:scale-95"
                           >
                             {t("ai_api_key_save")}
                           </button>
@@ -3482,7 +3558,7 @@ export default function App({
                             {t("system_update_title")}
                           </h5>
                           <p className="text-[10px] font-black text-blue-900/60 uppercase tracking-widest">
-                            {t("system_update_desc")}
+                            {t("system_update_desc")} - Versão Atual: {appVersion}
                           </p>
                         </div>
                       </div>
@@ -3511,7 +3587,7 @@ export default function App({
                           }
                         }}
                         disabled={isSystemUpdating}
-                        className={`font-black text-xs uppercase text-white px-4 py-2 rounded-xl border-b-2 transition-all ${isSystemUpdating ? "bg-blue-800 border-blue-900 opacity-50 cursor-not-allowed" : "bg-blue-500 border-blue-700 hover:-translate-y-1 hover:shadow-lg"}`}
+                        className={`font-black text-xs uppercase text-white px-4 py-2 rounded-xl border-b-2 transition-all active:scale-95 ${isSystemUpdating ? "bg-blue-800 border-blue-900 opacity-50 cursor-not-allowed" : "bg-blue-500 border-blue-700 hover:-translate-y-1 hover:shadow-lg"}`}
                       >
                         {isSystemUpdating
                           ? t("system_update_running")
@@ -3938,6 +4014,14 @@ export default function App({
                               onChange={handleFileUpload}
                             />
                           </label>
+                          <button
+                            onClick={createFolder}
+                            className="px-6 py-4 bg-emerald-900/50 hover:bg-emerald-900 text-emerald-400 rounded-2xl font-black text-xs shadow-lg shadow-emerald-950/20 transition-all active:scale-95 border-b-4 border-emerald-950 flex items-center gap-2"
+                            title="Nova Pasta"
+                          >
+                            <Folder size={16} />
+                            NOVA PASTA
+                          </button>
                         </div>
                       </div>
 
@@ -4059,7 +4143,33 @@ export default function App({
                                     )}
                                   </div>
                                 </div>
-                                {!item.isDirectory && (
+                                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                                  {!item.isDirectory && (
+                                    <a
+                                      href={`/api/server/files/download?serverId=${currentServerId}&path=${encodeURIComponent(currentFolder ? `${currentFolder}/${item.name}` : item.name)}`}
+                                      onClick={(e) => e.stopPropagation()}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="p-3 text-emerald-900 hover:text-emerald-400 font-black"
+                                      title="Baixar Arquivo"
+                                    >
+                                      <Download size={18} />
+                                    </a>
+                                  )}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      renameFile(
+                                        currentFolder
+                                          ? `${currentFolder}/${item.name}`
+                                          : item.name,
+                                      );
+                                    }}
+                                    className="p-3 text-emerald-900 hover:text-emerald-400 font-black"
+                                    title="Renomear"
+                                  >
+                                    <Edit2 size={18} />
+                                  </button>
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -4069,12 +4179,12 @@ export default function App({
                                           : item.name,
                                       );
                                     }}
-                                    className="p-3 text-emerald-900 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all font-black"
-                                    title="Deletar Arquivo"
+                                    className="p-3 text-emerald-900 hover:text-red-500 font-black"
+                                    title="Deletar"
                                   >
                                     <Trash2 size={18} />
                                   </button>
-                                )}
+                                </div>
                               </div>
                             ))}
 

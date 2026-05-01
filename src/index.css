@@ -10,6 +10,10 @@
     @apply bg-[#F0F4F8] text-slate-800 antialiased;
     overflow-x: hidden;
   }
+  
+  button {
+    @apply transition-transform active:scale-95;
+  }
 }
 
 /* Performance Mode resets */
