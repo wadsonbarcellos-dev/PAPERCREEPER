@@ -407,8 +407,11 @@ export default function App({
   >([]);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiInput, setAiInput] = useState("");
-  const [aiProvider, setAiProvider] = useState<"gemini" | "openai" | "local">(
-    () => (localStorage.getItem("creeper_ai_provider") as any) || "gemini"
+  const [aiProvider, setAiProvider] = useState<"remote" | "local">(
+    () => {
+      const saved = localStorage.getItem("creeper_ai_provider");
+      return saved === "local" ? "local" : "remote";
+    }
   );
   const [aiEndpoint, setAiEndpoint] = useState<string>(
     () => localStorage.getItem("creeper_ai_endpoint") || "http://127.0.0.1:1234/v1/chat/completions"
@@ -3634,76 +3637,6 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                       </div>
                     </section>
 
-                    <section className="md:col-span-2 p-8 bg-black/20 rounded-[2rem] border border-emerald-500/10 flex items-center justify-between flex-wrap gap-4">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-zinc-900 rounded-2xl flex items-center justify-center text-emerald-500 shadow-lg border-b-4 border-emerald-950">
-                          <Bot size={24} />
-                        </div>
-                        <div>
-                          <h5 className="font-black text-emerald-700 text-xs uppercase tracking-tighter">
-                            {t("ai_api_key_title")}
-                          </h5>
-                          <a
-                            href="https://aistudio.google.com/app/apikey"
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-[10px] font-black text-emerald-900/60 uppercase tracking-widest hover:text-emerald-500 transition-colors underline-offset-4 hover:underline block cursor-pointer"
-                          >
-                            {t("ai_api_key_sub")}
-                          </a>
-                        </div>
-                      </div>
-
-                      {!showApiKeyInput ? (
-                        <button
-                          onClick={() => setShowApiKeyInput(true)}
-                          className="font-black text-xs uppercase bg-emerald-500 text-white px-4 py-2 rounded-xl border-b-2 border-emerald-700 hover:-translate-y-1 hover:shadow-lg transition-all active:scale-95"
-                        >
-                          {t("ai_api_key_btn")}
-                        </button>
-                      ) : (
-                        <div className="flex items-center gap-2 w-full md:w-auto mt-4 md:mt-0">
-                          <input
-                            type="password"
-                            placeholder={t("ai_api_key_placeholder")}
-                            value={apiKeyValue}
-                            onChange={(e) => setApiKeyValue(e.target.value)}
-                            className="bg-black/40 border-2 border-emerald-900/50 rounded-xl px-4 py-2 outline-none focus:border-emerald-500 text-sm text-emerald-100 flex-1 min-w-[250px]"
-                          />
-                          <button
-                            onClick={async () => {
-                              const key = apiKeyValue.trim();
-                              if (key && key.length > 5) {
-                                const res = await fetch("/api/config/env", {
-                                  method: "POST",
-                                  headers: {
-                                    "Content-Type": "application/json",
-                                  },
-                                  body: JSON.stringify({ key }),
-                                });
-                                if (res.ok) {
-                                  alert(t("ai_api_key_success"));
-                                  setShowApiKeyInput(false);
-                                  setApiKeyValue("");
-                                } else alert(t("ai_api_key_error"));
-                              } else {
-                                alert(t("ai_api_key_invalid"));
-                              }
-                            }}
-                            className="font-black text-xs uppercase bg-emerald-500 text-white px-4 py-2 rounded-xl border-b-2 border-emerald-700 hover:-translate-y-1 hover:shadow-lg transition-all active:scale-95"
-                          >
-                            {t("ai_api_key_save")}
-                          </button>
-                          <button
-                            onClick={() => setShowApiKeyInput(false)}
-                            className="p-2 text-zinc-500 hover:text-emerald-500 transition-colors"
-                          >
-                            <X size={20} />
-                          </button>
-                        </div>
-                      )}
-                    </section>
-
                     <section className="md:col-span-2 p-8 bg-black/20 rounded-[2rem] border border-blue-500/10 flex items-center justify-between flex-wrap gap-4">
                       <div className="flex items-center gap-4">
                         <div className="w-12 h-12 bg-zinc-900 rounded-2xl flex items-center justify-center text-blue-500 shadow-lg border-b-4 border-blue-950">
@@ -3888,45 +3821,90 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                     </div>
                   </div>
 
-                  <div
-                    className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-4"
-                  >
-                    <div className="flex gap-2 bg-emerald-950/50 p-1 rounded-xl">
+                  <div className="flex flex-col gap-4 mb-4">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-black/20 p-4 rounded-2xl border border-emerald-900/50">
+                      <div className="flex gap-2 bg-emerald-950/50 p-1 rounded-xl">
+                        <button
+                          onClick={() => { setAiProvider("remote"); setAiChat([]); }}
+                          className={`px-4 py-2 rounded-lg text-xs font-bold uppercase transition-all ${aiProvider === "remote" ? "bg-emerald-600 text-white shadow-md" : "text-emerald-500 hover:text-emerald-400"}`}
+                        >
+                          I.A Remota (Cloud)
+                        </button>
+                        <button
+                          onClick={() => { setAiProvider("local"); setAiChat([]); }}
+                          className={`px-4 py-2 rounded-lg text-xs font-bold uppercase transition-all ${aiProvider === "local" ? "bg-emerald-600 text-white shadow-md" : "text-emerald-500 hover:text-emerald-400"}`}
+                        >
+                          I.A Local (PC)
+                        </button>
+                      </div>
+
+                      {aiProvider === "remote" ? (
+                        <div className="flex items-center gap-2 flex-1 w-full sm:w-auto">
+                          {!showApiKeyInput ? (
+                            <button
+                              onClick={() => setShowApiKeyInput(true)}
+                              className="font-black text-xs uppercase bg-emerald-900/60 text-emerald-300 px-4 py-2 rounded-xl border border-emerald-800 hover:bg-emerald-800 transition-all flex-1 sm:flex-none"
+                            >
+                              {t("ai_api_key_btn")} (Gemini / OpenAI)
+                            </button>
+                          ) : (
+                            <div className="flex items-center gap-2 flex-1 w-full sm:w-auto">
+                              <input
+                                type="password"
+                                placeholder={t("ai_api_key_placeholder")}
+                                value={apiKeyValue}
+                                onChange={(e) => setApiKeyValue(e.target.value)}
+                                className="bg-black/60 border border-emerald-900 rounded-xl px-4 py-2 outline-none focus:border-emerald-500 text-xs text-emerald-100 flex-1 min-w-[200px]"
+                              />
+                              <button
+                                onClick={async () => {
+                                  const key = apiKeyValue.trim();
+                                  if (key && key.length > 5) {
+                                    const res = await fetch("/api/config/env", {
+                                      method: "POST",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({ key }),
+                                    });
+                                    if (res.ok) {
+                                      alert(t("ai_api_key_success"));
+                                      setShowApiKeyInput(false);
+                                      setApiKeyValue("");
+                                    } else alert(t("ai_api_key_error"));
+                                  } else {
+                                    alert(t("ai_api_key_invalid"));
+                                  }
+                                }}
+                                className="font-black text-[10px] uppercase bg-emerald-600 text-white px-3 py-2 rounded-xl hover:bg-emerald-500 transition-all"
+                              >
+                                {t("save")}
+                              </button>
+                              <button
+                                onClick={() => setShowApiKeyInput(false)}
+                                className="p-2 text-zinc-500 hover:text-emerald-500 transition-colors"
+                              >
+                                <X size={16} />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <input
+                          type="text"
+                          value={aiEndpoint}
+                          onChange={(e) => setAiEndpoint(e.target.value)}
+                          placeholder="http://127.0.0.1:1234/v1/chat/completions"
+                          className="bg-black/60 border border-emerald-900 rounded-xl px-4 py-2 text-xs text-emerald-100 outline-none focus:border-emerald-500 flex-1 min-w-[200px] w-full sm:w-auto"
+                        />
+                      )}
+
                       <button
-                        onClick={() => { setAiProvider("gemini"); setAiChat([]); }}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase transition-all ${aiProvider === "gemini" ? "bg-emerald-600 text-white" : "text-emerald-500 hover:text-emerald-400"}`}
+                        onClick={() => setAiChat([])}
+                        className="px-4 py-2 bg-red-900/50 hover:bg-red-800 text-red-400 rounded-xl text-xs font-bold uppercase transition-all flex items-center justify-center gap-2 ml-auto w-full sm:w-auto mt-2 sm:mt-0"
+                        title="Apagar Memória do Chat"
                       >
-                        Gemini
-                      </button>
-                      <button
-                        onClick={() => { setAiProvider("openai"); setAiChat([]); }}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase transition-all ${aiProvider === "openai" ? "bg-emerald-600 text-white" : "text-emerald-500 hover:text-emerald-400"}`}
-                      >
-                        Outros
-                      </button>
-                      <button
-                        onClick={() => { setAiProvider("local"); setAiChat([]); }}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase transition-all ${aiProvider === "local" ? "bg-emerald-600 text-white" : "text-emerald-500 hover:text-emerald-400"}`}
-                      >
-                        Local AI
+                        <RefreshCw size={14} /> Memória
                       </button>
                     </div>
-                    {aiProvider === "local" && (
-                      <input
-                        type="text"
-                        value={aiEndpoint}
-                        onChange={(e) => setAiEndpoint(e.target.value)}
-                        placeholder="http://127.0.0.1:1234/v1/chat/completions"
-                        className="bg-emerald-950/50 border border-emerald-900 rounded-xl px-3 py-1.5 text-xs text-emerald-200 outline-none focus:border-emerald-500 flex-1 min-w-[200px]"
-                      />
-                    )}
-                    <button
-                      onClick={() => setAiChat([])}
-                      className="px-3 py-1.5 bg-red-900/50 hover:bg-red-800 text-red-400 rounded-lg text-xs font-bold uppercase transition-all flex items-center gap-2 ml-auto"
-                      title="Apagar Memória do Chat"
-                    >
-                      <RefreshCw size={14} /> Memória
-                    </button>
                   </div>
 
                   <div

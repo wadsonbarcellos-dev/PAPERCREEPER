@@ -1131,10 +1131,17 @@ command /creeper-ai <text>:
         throw new Error(`Comando de boot não encontrado em: ${command}`);
       }
 
+      const env = { ...process.env, MALLOC_ARENA_MAX: "2" };
+      if (dynamicJavaPath !== "java" && dynamicJavaPath !== "java.exe") {
+        const javaBinDir = path.dirname(dynamicJavaPath);
+        env.PATH = `${javaBinDir}${path.delimiter}${env.PATH || ""}`;
+        env.JAVA_HOME = path.dirname(javaBinDir); // Set JAVA_HOME to the jdk root
+      }
+
       const child = spawn(command, args, {
         cwd: srvDir,
         stdio: ["pipe", "pipe", "pipe"],
-        env: { ...process.env, MALLOC_ARENA_MAX: "2" },
+        env: env,
         shell: false,
       });
 
