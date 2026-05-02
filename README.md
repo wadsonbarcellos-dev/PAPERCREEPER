@@ -79,18 +79,29 @@ Running full-scale Node.js and Java servers isn't natively supported on iOS due 
 - Jailbroken devices or using virtual machines (like UTM) can run Linux, but it's not recommended for production servers.
 - The best way to use iOS is as a remote management tool: access your VPS-hosted PaperCreeper panel from your iPhone's Safari browser. The panel is 100% responsive!
 
-## ⚙️ How to get your AI API Key
+## ⚙️ How to configure your AI (Cloud & Local)
 
-PaperCreeper features a universal AI engine (supports Gemini, OpenAI, Groq, xAI). 
+PaperCreeper features a universal AI engine that supports Gemini, OpenAI, Groq, xAI, and **Local AI** (via LM Studio, Ollama, etc). 
 
-**If you are running this app inside Google AI Studio (as a generated applet):**
-You might see the key named `AI Studio Free Tier` injected into the environment. You **DO NOT** need to change this! Google AI Studio automatically provides a seamless key to the container. It's a generic environment token that works right out of the box in the preview without you having to hunt for API keys.
-
-**If you are hosting this on your own VPS, PC, or WSL:**
-1. Go to [Google AI Studio](https://aistudio.google.com/app/apikey) (or your preferred AI provider like Groq).
+### ☁️ Cloud AI (Gemini, Groq, etc)
+1. Go to [Google AI Studio](https://aistudio.google.com/app/apikey) (or your preferred provider like Groq).
 2. Generate a new API Key (Gemini keys start with `AIza...`).
-3. Open the PaperCreeper Panel, click on the **Settings** (⚙️) menu.
-4. Scroll down to the AI API section, paste your key, and click **Salvar/Save**. The panel will automatically detect if it's Gemini, OpenAI, or Groq and activate the assistant!
+3. Open the PaperCreeper Panel, click on the **Settings** (⚙️) or **AI** tab.
+4. Select your provider, paste your key, and save. The panel automatically detects the engine!
+
+### 🖥️ Local AI (LM Studio / Ollama)
+If you have a dedicated GPU, you can run the AI 100% locally and free!
+1. Download and install [LM Studio](https://lmstudio.ai/).
+2. Start the **Local Server** in LM Studio (usually runs on `http://127.0.0.1:1234/v1/chat/completions`).
+3. In the PaperCreeper **AI/Settings** menu, set the provider to **"Local AI"**.
+4. Enter your LM Studio endpoint URL.
+5. Hit save, and your local AI will now manage your server!
+
+#### 🧠 Recommended Models for 8GB VRAM (Local AI)
+If your GPU has 8GB VRAM (e.g., RTX 3060 Ti, 4060, RX 6600), you should use **7B or 8B parameter models** with **Q4_K_M** or **Q5_K_M** GGUF quantizations. They use about 4.5GB to 6GB of VRAM, leaving space for context.
+- **Qwen 2.5 Coder 7B Instruct**: *(Highly Recommended)* The absolute best 7B model for coding, file editing, and technical commands. Incredibly smart and fast.
+- **Llama 3.1 8B Instruct**: Great general-purpose reasoning and conversation.
+- **DeepSeek Coder V2 Lite**: Excellent context handling and coding capabilities.
 
 ## ⚡ Our Ultimate Power & Capabilities
 
@@ -121,11 +132,19 @@ We support **Per-Server Tunnels**. You can have multiple Minecraft servers runni
 
 ### ❓ Troubleshooting
 - **Problem:** "Download of Paper/Purpur fails or returns 0 bytes".
-  **Solution:** Ensure you are not being rate-limited by `api.papermc.io` or that your DNS isn't blocking `.jar` extensions.
+  **Solution:** Ensure you are not being rate-limited by `api.papermc.io` or that your DNS isn't blocking `.jar` extensions (Try changing DNS to 8.8.8.8).
 - **Problem:** "Java Runtime not found / Could not boot the jar". 
-  **Solution:** The panel automatically downloads the Adoptium JRE 21. If it gets corrupted, simply delete `bin/java_runtime` and restart the panel.
+  **Solution:** The panel automatically downloads the Adoptium JRE 21. If it gets corrupted or fails to extract on your Linux distribution, delete `bin/java_runtime` and restart the panel. If you are on Debian/WSL and the automatic download fails due to `tar`/`unzip` missing, install Java manually (`sudo apt install openjdk-21-jre-headless`) and set `const javaPath = "java";` in `server.ts`.
 - **Problem:** "AI Assistant does not answer or gives 'API Key' error".
-  **Solution:** Click the AI icon (or Settings) in the panel and input a valid Google Gemini API Key (`AIza...`).
+  **Solution:** Click the AI icon (or Settings) in the panel and input a valid API Key or check if your Local AI (LM Studio) endpoint `http://127.0.0.1:1234...` is reachable.
+- **Problem:** "Plugin not installing from Hangar/Modrinth".
+  **Solution:** If the store auto-installer fails to parse the download link, go to the plugin page natively, copy the `.jar` URL, and use the "Direct URL" install method in the papercreeper panel.
+
+### 💡 Tips & Tricks (Aliases)
+When you run the setup script, it automatically adds shortcuts to your `~/.bashrc`:
+- `staper`: Instantly navigates to the PaperCreeper folder, boots the panel, and attaches it to your terminal.
+- `stoper`: Kills the PaperCreeper panel background process.
+Always ensure you run `source ~/.bashrc` after installation so the terminal recognizes the new commands!
 
 ## 🧠 AI Real-Time Agent
 

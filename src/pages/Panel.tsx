@@ -1550,7 +1550,7 @@ export default function App({
 
     try {
       const context = `Servidor Selecionado: ${currentServerId}. Status: ${serverState.status}. Logs recentes:\n${serverState.logs.slice(-10).join("\n")}`;
-      const firstResult = await askAI(userMsg, context, currentServerId, aiProvider, aiEndpoint);
+      const firstResult = await askAI(userMsg, context, currentServerId, aiProvider, aiEndpoint, aiChat.slice(-10));
 
       if (firstResult.call) {
         setAiChat((prev) => [
@@ -1568,7 +1568,8 @@ export default function App({
           context,
           currentServerId,
           aiProvider,
-          aiEndpoint
+          aiEndpoint,
+          aiChat.slice(-10)
         );
         setAiChat((prev) => [
           ...prev.slice(0, -1),

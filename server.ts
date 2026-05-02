@@ -427,7 +427,7 @@ async function startServer() {
   // --- API IA (UNIVERSAL) ---
   app.post("/api/ai", async (req, res) => {
     try {
-      const { prompt, context, serverId, provider, endpoint } = req.body;
+      const { prompt, context, serverId, provider, endpoint, history } = req.body;
       const sId = serverId || "default";
 
       const currentKey =
@@ -465,13 +465,19 @@ Exemplo: "Vou deixar de dia! [ACTION:{"name": "sendTerminalCommand", "args": {"c
         // Local AI (LM Studio, Ollama, etc) via OpenAI API compatible endpoint
         const targetEndpoint = endpoint || "http://127.0.0.1:1234/v1/chat/completions";
         const messages = [{ role: "system", content: systemInstruction }];
-        if (context) messages.push({ role: "system", content: `CONTEXTO:\n${context}` });
+        if (context) messages.push({ role: "system", content: `CONTEXTO ATUAL DO SERVIDOR:\n${context}` });
+        
+        if (history && Array.isArray(history)) {
+          history.forEach(msg => messages.push({ role: msg.role === "assistant" ? "assistant" : "user", content: msg.text }));
+        }
+        
         messages.push({ role: "user", content: prompt });
 
         const oaiRes = await fetch(targetEndpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messages, temperature: 0.7 })
+          // A adição de 'model' dummy previne erros em algumas instâncias do LM Studio que requerem o campo
+          body: JSON.stringify({ model: "local-model", messages, temperature: 0.7 })
         });
         
         if (!oaiRes.ok) throw new Error(`Http error ${oaiRes.status}`);
@@ -481,15 +487,25 @@ Exemplo: "Vou deixar de dia! [ACTION:{"name": "sendTerminalCommand", "args": {"c
       } else if (currentKey.startsWith("AIza") && provider !== "openai") {
         // Gemini API via @google/genai
         const localAi = new GoogleGenAI({ apiKey: currentKey });
-        const result = await localAi.models.generateContent({
+        
+        const formattedHistory = (history || []).map((msg: any) => ({
+          role: msg.role === "assistant" ? "model" : "user",
+          parts: [{ text: msg.text }]
+        }));
+
+        const chat = localAi.chats.create({
           model: "gemini-2.5-flash",
-          contents: `${context ? `CONTEXTO:\n${context}\n\n` : ""}${prompt}`,
           config: {
             systemInstruction,
             temperature: 0.8,
             topP: 0.95,
             topK: 64,
           },
+          history: formattedHistory
+        });
+        
+        const result = await chat.sendMessage({ 
+          message: `${context ? `CONTEXTO ATUAL DO SERVIDOR:\n${context}\n\n` : ""}${prompt}` 
         });
         text = result.text;
       } else {
@@ -506,8 +522,12 @@ Exemplo: "Vou deixar de dia! [ACTION:{"name": "sendTerminalCommand", "args": {"c
         }
 
         const messages = [{ role: "system", content: systemInstruction }];
-        if (context)
-          messages.push({ role: "system", content: `CONTEXTO:\n${context}` });
+        if (context) messages.push({ role: "system", content: `CONTEXTO ATUAL DO SERVIDOR:\n${context}` });
+        
+        if (history && Array.isArray(history)) {
+          history.forEach(msg => messages.push({ role: msg.role === "assistant" ? "assistant" : "user", content: msg.text }));
+        }
+
         messages.push({ role: "user", content: prompt });
 
         const oaiRes = await fetch(targetEndpoint, {
@@ -534,16 +554,23 @@ Exemplo: "Vou deixar de dia! [ACTION:{"name": "sendTerminalCommand", "args": {"c
         text = oaiData.choices?.[0]?.message?.content || "";
       }
 
-      // Tenta extrair ações do texto (Simulação simples para manter compatibilidade)
+      // Tenta extrair ações do texto de forma resiliente
       let call = null;
-      const actionMatch = text.match(/\[ACTION:(.+?)\]/s);
-      if (actionMatch) {
-         try {
-           call = JSON.parse(actionMatch[1].trim());
-           text = text.replace(actionMatch[0], "").trim();
-         } catch(e) {
-           console.log("Failed to parse action json", actionMatch[1]);
-         }
+      let actionStart = text.indexOf("[ACTION:");
+      
+      if (actionStart !== -1) {
+        let actionEnd = text.lastIndexOf("]");
+        if (actionEnd > actionStart) {
+           let jsonStr = text.substring(actionStart + 8, actionEnd).trim();
+           // Remove possíveis wrappers de markdown gerados pela IA
+           jsonStr = jsonStr.replace(/```json/gi, "").replace(/```/g, "").trim();
+           try {
+             call = JSON.parse(jsonStr);
+             text = text.substring(0, actionStart).trim();
+           } catch(e) {
+             console.log("Failed to parse action json", jsonStr);
+           }
+        }
       }
 
       res.json({ text, call });
