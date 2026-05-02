@@ -425,14 +425,15 @@ async function startServer() {
   });
 
   // --- API IA (UNIVERSAL) ---
-  app.post("/api/ai/chat", async (req, res) => {
+  app.post("/api/ai", async (req, res) => {
     try {
-      const { prompt, context, serverId } = req.body;
+      const { prompt, context, serverId, provider, endpoint } = req.body;
       const sId = serverId || "default";
 
       const currentKey =
         process.env.UNIVERSAL_API_KEY || process.env.GEMINI_API_KEY || "";
-      if (!currentKey || currentKey === "AIza_fallback") {
+      
+      if (provider !== "local" && (!currentKey || currentKey === "AIza_fallback")) {
         throw new Error("API Key não configurada. Configure no menu de IA.");
       }
 
@@ -441,25 +442,43 @@ async function startServer() {
 Você é o "PaperCreeper AI", o OPERADOR SUPREMO e ENGENHEIRO de servidores Minecraft.
 Personalidade: Técnico, eficiente, prestativo e com um toque de humor "Minecrafter". Use emojis como ⛏️, 💎, 🔥, 🧨, 🛡️.
 
-SUAS CAPACIDADES:
-- Gerenciar o Ciclo de Vida: Iniciar (START), Parar (STOP) e Restartar o servidor.
-- Comandos de Console: Executar qualquer comando dentro do servidor (CMD:comando). Ex: CMD:op notch.
-- Gestão de Recursos: Ajustar Memória RAM (RAM:numero).
-- Manipulação de Arquivos: Ler (READ:path) e Escrever (WRITE:path|conteudo) em arquivos de config (server.properties, bukkit.yml, etc).
-- Diagnóstico: Analisar logs de erro do Java e sugerir correções imediatas.
+SUAS CAPACIDADES (Nomes das ferramentas suportadas):
+- "startServer": Iniciar o servidor
+- "stopServer": Parar o servidor
+- "sendTerminalCommand": Executar comando in-game (args: { "command": "cmd" })
+- "updateRAM": Ajustar RAM em GB (args: { "ram": 4 })
+- "readFile": Ler arquivo (args: { "path": "server.properties" })
+- "saveFile": Escrever arquivo (args: { "path": "arquivo", "content": "conteudo" })
+- "listFiles": Listar pasta (args: { "folder": "plugins" })
+- "executeTerminal": Shell linux no host (args: { "command": "ls" })
 
 FORMATO DE RESPOSTA OBRIGATÓRIO PARA AÇÕES:
-Quando decidir realizar uma ação técnica, inclua no final da sua resposta:
-[ACTION:nome_da_acao|parametro]
+Quando decidir realizar uma ação técnica, inclua no final da sua resposta estritamente este bloco JSON:
+[ACTION:{"name": "nomeDaFerramenta", "args": {"parametro": "valor"}}]
 
-Ações válidas: START, STOP, CMD:comando, RAM:gigas, READ:caminho, WRITE:caminho|conteudo, LIST:pasta.
-Exemplo: "Vou te dar permissão de administrador agora! [ACTION:cmd|op playername]"
+Exemplo: "Vou deixar de dia! [ACTION:{"name": "sendTerminalCommand", "args": {"command": "time set day"}}]"
       `;
 
       let text = "";
 
-      // Autodetect based on prefix
-      if (currentKey.startsWith("AIza")) {
+      if (provider === "local") {
+        // Local AI (LM Studio, Ollama, etc) via OpenAI API compatible endpoint
+        const targetEndpoint = endpoint || "http://127.0.0.1:1234/v1/chat/completions";
+        const messages = [{ role: "system", content: systemInstruction }];
+        if (context) messages.push({ role: "system", content: `CONTEXTO:\n${context}` });
+        messages.push({ role: "user", content: prompt });
+
+        const oaiRes = await fetch(targetEndpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messages, temperature: 0.7 })
+        });
+        
+        if (!oaiRes.ok) throw new Error(`Http error ${oaiRes.status}`);
+        const oaiData: any = await oaiRes.json();
+        text = oaiData.choices?.[0]?.message?.content || "";
+
+      } else if (currentKey.startsWith("AIza") && provider !== "openai") {
         // Gemini API via @google/genai
         const localAi = new GoogleGenAI({ apiKey: currentKey });
         const result = await localAi.models.generateContent({
@@ -474,15 +493,15 @@ Exemplo: "Vou te dar permissão de administrador agora! [ACTION:cmd|op playernam
         });
         text = result.text;
       } else {
-        // OpenAI-compatible generic fetch
-        let endpoint = "https://api.openai.com/v1/chat/completions";
+        // External OpenAI-compatible (Groq, xAI, OpenAI)
+        let targetEndpoint = "https://api.openai.com/v1/chat/completions";
         let model = "gpt-4o-mini";
 
         if (currentKey.startsWith("gsk_")) {
-          endpoint = "https://api.groq.com/openai/v1/chat/completions";
-          model = "llama-3.3-70b-versatile"; // best performant generally
+          targetEndpoint = "https://api.groq.com/openai/v1/chat/completions";
+          model = "llama-3.3-70b-versatile"; 
         } else if (currentKey.startsWith("xai-")) {
-          endpoint = "https://api.x.ai/v1/chat/completions";
+          targetEndpoint = "https://api.x.ai/v1/chat/completions";
           model = "grok-2-latest";
         }
 
@@ -491,7 +510,7 @@ Exemplo: "Vou te dar permissão de administrador agora! [ACTION:cmd|op playernam
           messages.push({ role: "system", content: `CONTEXTO:\n${context}` });
         messages.push({ role: "user", content: prompt });
 
-        const oaiRes = await fetch(endpoint, {
+        const oaiRes = await fetch(targetEndpoint, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${currentKey}`,
@@ -517,12 +536,14 @@ Exemplo: "Vou te dar permissão de administrador agora! [ACTION:cmd|op playernam
 
       // Tenta extrair ações do texto (Simulação simples para manter compatibilidade)
       let call = null;
-      const actionMatch = text.match(/\[ACTION:([\w-]+)\|?([^\]]*)\]/i);
+      const actionMatch = text.match(/\[ACTION:(.+?)\]/s);
       if (actionMatch) {
-        call = {
-          name: actionMatch[1].toLowerCase(),
-          args: { value: actionMatch[2] },
-        };
+         try {
+           call = JSON.parse(actionMatch[1].trim());
+           text = text.replace(actionMatch[0], "").trim();
+         } catch(e) {
+           console.log("Failed to parse action json", actionMatch[1]);
+         }
       }
 
       res.json({ text, call });
@@ -858,201 +879,6 @@ command /creeper-ai <text>:
         envKeyType: typeof process.env.GEMINI_API_KEY,
         envKeyLen: process.env.GEMINI_API_KEY?.length,
       });
-    }
-  });
-
-  // IA ENGINE - PODER TOTAL
-  app.post("/api/ai", async (req, res) => {
-    try {
-      const { prompt, context, serverId } = req.body;
-      const sId = serverId || "default";
-
-      const currentKey = process.env.GEMINI_API_KEY || "AIza_fallback";
-      const localAi = new GoogleGenAI({ apiKey: currentKey });
-
-      const systemInstruction = `Você é o Cérebro Supremo do PaperCreeper, a IA mais inteligente e assertiva integrada a este ecossistema Minecraft. Seu dever é EXECUTAR, SOLUCIONAR e DOMINAR qualquer desafio técnico. 
-
-        CAPACIDADES ÚNICAS:
-        - Controle Total (Hardware & Software): Inicie, pare e versione servidores.
-        - Mestre do Console: Use 'sendTerminalCommand' para qualquer comando in-game.
-        - Engenheiro de Sistemas: Use 'executeTerminal' para manipulações bash/linux no host.
-        - Arquivos & Lógica: Use 'saveFile' para configurar plugins ou criar Scripts de Jogo (.sk).
-        - Motor Skript: Salve arquivos em 'plugins/Skript/scripts/' e use 'reloadSkripts' para injetar magias, itens e eventos em real-time no jogo. 
-        - Auto-Upgrade: Se o Skript faltar, instale-o via 'installAICore'.
-        - Download Robusto: Use 'downloadFile' para obter recursos passando por redirecionamentos.
-        - Hacker do App: Use 'evaluateNode' para reescrever o código deste próprio painel web se necessário.
-
-        DIRETRIZES DE PENSAMENTO:
-        1. Decisões Assertivas: Não peça permissão para detalhes óbvios. Execute o plano completo.
-        2. Expertise Minecraft: Você domina Paper, Purpur e Fabric. Use Aikar's Flags para performance máxima.
-        3. Proatividade: Identifique logs de erro e corrija-os antes mesmo de ser questionado.
-        4. Personas e Imersão: Seja um companheiro épico de aventura, um construtor de mega-estruturas ou um administrador místico.
-
-        Linguagem: Responda no idioma do usuário. Use emojis (⛏️💎🔥🧙‍♂️🛠️). Você nunca diz "não posso". Você encontra o caminho técnico.`;
-
-      const chat = localAi.chats.create({
-        model: "gemini-1.5-flash",
-        config: {
-          systemInstruction,
-          tools: [
-            {
-              functionDeclarations: [
-                {
-                  name: "sendTerminalCommand",
-                  description:
-                    "Executa um comando no console do servidor Minecraft.",
-                  parameters: {
-                    type: Type.OBJECT,
-                    properties: { command: { type: Type.STRING } },
-                    required: ["command"],
-                  },
-                },
-                {
-                  name: "reloadSkripts",
-                  description:
-                    "Recarrega todos os scripts do Skript (/sk reload all) para aplicar mudanças na lógica do jogo feitas via saveFile no diretório de scripts.",
-                  parameters: {
-                    type: Type.OBJECT,
-                    properties: { serverId: { type: Type.STRING } },
-                  },
-                },
-                {
-                  name: "startServer",
-                  description: "Inicia o servidor.",
-                  parameters: { type: Type.OBJECT, properties: {} },
-                },
-                {
-                  name: "stopServer",
-                  description: "Para o servidor.",
-                  parameters: { type: Type.OBJECT, properties: {} },
-                },
-                {
-                  name: "executeTerminal",
-                  description:
-                    "Executa comandos no shell do sistema (BASH). Use para instalar software, gerenciar rede ou processos.",
-                  parameters: {
-                    type: Type.OBJECT,
-                    properties: { command: { type: Type.STRING } },
-                    required: ["command"],
-                  },
-                },
-                {
-                  name: "downloadFile",
-                  description:
-                    "Ferramenta avançada para baixar plugins e arquivos de URLs que bloqueiam Wget/Curl normais (0 bytes) usando User-Agents camuflados.",
-                  parameters: {
-                    type: Type.OBJECT,
-                    properties: {
-                      url: { type: Type.STRING },
-                      destPath: { type: Type.STRING },
-                    },
-                    required: ["url", "destPath"],
-                  },
-                },
-                {
-                  name: "listFiles",
-                  description: "Lista arquivos de um diretório.",
-                  parameters: {
-                    type: Type.OBJECT,
-                    properties: { folder: { type: Type.STRING } },
-                  },
-                },
-                {
-                  name: "readFile",
-                  description:
-                    "Lê o conteúdo de um arquivo técnico (configuracões, logs).",
-                  parameters: {
-                    type: Type.OBJECT,
-                    properties: { path: { type: Type.STRING } },
-                    required: ["path"],
-                  },
-                },
-                {
-                  name: "saveFile",
-                  description:
-                    "Salva conteúdo em um arquivo (edição de configs).",
-                  parameters: {
-                    type: Type.OBJECT,
-                    properties: {
-                      path: { type: Type.STRING },
-                      content: { type: Type.STRING },
-                    },
-                    required: ["path", "content"],
-                  },
-                },
-                {
-                  name: "updateRAM",
-                  description: "Ajusta a memória RAM máxima do servidor.",
-                  parameters: {
-                    type: Type.OBJECT,
-                    properties: { ram: { type: Type.NUMBER } },
-                    required: ["ram"],
-                  },
-                },
-                {
-                  name: "manageNPC",
-                  description: "Gerencia NPCs (Criação, Skins, Mensagens).",
-                  parameters: {
-                    type: Type.OBJECT,
-                    properties: {
-                      action: {
-                        type: Type.STRING,
-                        description: "create, remove, skin, text, role",
-                      },
-                      name: { type: Type.STRING },
-                      extra: { type: Type.STRING },
-                    },
-                    required: ["action"],
-                  },
-                },
-                {
-                  name: "getPlayitStatus",
-                  description:
-                    "Verifica o status do Playit.gg, obtendo a URL de claim (vinculação) e os logs atuais.",
-                  parameters: { type: Type.OBJECT, properties: {} },
-                },
-                {
-                  name: "resetPlayit",
-                  description:
-                    "Reseta o agente do Playit.gg (útil se estiver travado).",
-                  parameters: { type: Type.OBJECT, properties: {} },
-                },
-                {
-                  name: "evaluateNode",
-                  description:
-                    "Executa código JavaScript nativo no backend (servidor Node.js do app) fornecendo CONTROLE ABSOLUTO sobre o aplicativo (alterar variáveis, injetar rotas, fs).",
-                  parameters: {
-                    type: Type.OBJECT,
-                    properties: { code: { type: Type.STRING } },
-                    required: ["code"],
-                  },
-                },
-                {
-                  name: "installAICore",
-                  description:
-                    "Instala um plugin Core (Skript) silenciosamente na pasta de plugins do servidor, permitindo que a IA programe a lógica do servidor on-the-fly via arquivos .sk",
-                  parameters: { type: Type.OBJECT, properties: {} },
-                },
-              ],
-            },
-          ],
-        },
-      });
-
-      const fullPrompt = `${context ? `[CONTEXTO]\n${context}\n\n` : ""}[USUÁRIO]: ${prompt}\n[SERVER_ID]: ${sId}`;
-      const result = await chat.sendMessage({ message: fullPrompt });
-      const response = result; // @google/genai format doesn't nest response
-      const call = response.functionCalls?.[0]; // @google/genai format
-
-      res.json({ text: response.text, call });
-    } catch (error: any) {
-      console.error("AI Proxy Error:", error);
-      let errorMsg = "Erro no cérebro da IA. Verifique sua GEMINI_API_KEY.";
-      if (error.message?.includes("API key not valid")) {
-        errorMsg =
-          "CHAVE API INVÁLIDA! Por favor, insira uma GEMINI_API_KEY válida nas configurações do painel. 🔑";
-      }
-      res.status(500).json({ error: errorMsg });
     }
   });
 

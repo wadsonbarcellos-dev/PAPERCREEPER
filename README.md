@@ -28,7 +28,6 @@ cd papercreeper
 
 # 3. Setup Project
 chmod +x setup.sh && ./setup.sh
-npm install
 
 # 4. Ative os novos comandos mágicos no terminal
 source ~/.bashrc

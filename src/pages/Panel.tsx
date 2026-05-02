@@ -407,6 +407,18 @@ export default function App({
   >([]);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiInput, setAiInput] = useState("");
+  const [aiProvider, setAiProvider] = useState<"gemini" | "openai" | "local">(
+    () => (localStorage.getItem("creeper_ai_provider") as any) || "gemini"
+  );
+  const [aiEndpoint, setAiEndpoint] = useState<string>(
+    () => localStorage.getItem("creeper_ai_endpoint") || "http://127.0.0.1:1234/v1/chat/completions"
+  );
+  
+  useEffect(() => {
+    localStorage.setItem("creeper_ai_provider", aiProvider);
+    localStorage.setItem("creeper_ai_endpoint", aiEndpoint);
+  }, [aiProvider, aiEndpoint]);
+
   const [isVpsOptimized, setIsVpsOptimized] = useState(true);
   const [storeSearch, setStoreSearch] = useState("");
   const [storeResults, setStoreResults] = useState<any[]>([]);
@@ -1538,7 +1550,7 @@ export default function App({
 
     try {
       const context = `Servidor Selecionado: ${currentServerId}. Status: ${serverState.status}. Logs recentes:\n${serverState.logs.slice(-10).join("\n")}`;
-      const firstResult = await askAI(userMsg, context, currentServerId);
+      const firstResult = await askAI(userMsg, context, currentServerId, aiProvider, aiEndpoint);
 
       if (firstResult.call) {
         setAiChat((prev) => [
@@ -1555,6 +1567,8 @@ export default function App({
           `O sistema retornou: ${toolResult}. Comunique isso ao usuário.`,
           context,
           currentServerId,
+          aiProvider,
+          aiEndpoint
         );
         setAiChat((prev) => [
           ...prev.slice(0, -1),
@@ -3727,6 +3741,47 @@ export default function App({
                         </p>
                       </div>
                     </div>
+                  </div>
+
+                  <div
+                    className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-4"
+                  >
+                    <div className="flex gap-2 bg-emerald-950/50 p-1 rounded-xl">
+                      <button
+                        onClick={() => { setAiProvider("gemini"); setAiChat([]); }}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase transition-all ${aiProvider === "gemini" ? "bg-emerald-600 text-white" : "text-emerald-500 hover:text-emerald-400"}`}
+                      >
+                        Gemini
+                      </button>
+                      <button
+                        onClick={() => { setAiProvider("openai"); setAiChat([]); }}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase transition-all ${aiProvider === "openai" ? "bg-emerald-600 text-white" : "text-emerald-500 hover:text-emerald-400"}`}
+                      >
+                        Outros
+                      </button>
+                      <button
+                        onClick={() => { setAiProvider("local"); setAiChat([]); }}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase transition-all ${aiProvider === "local" ? "bg-emerald-600 text-white" : "text-emerald-500 hover:text-emerald-400"}`}
+                      >
+                        Local AI
+                      </button>
+                    </div>
+                    {aiProvider === "local" && (
+                      <input
+                        type="text"
+                        value={aiEndpoint}
+                        onChange={(e) => setAiEndpoint(e.target.value)}
+                        placeholder="http://127.0.0.1:1234/v1/chat/completions"
+                        className="bg-emerald-950/50 border border-emerald-900 rounded-xl px-3 py-1.5 text-xs text-emerald-200 outline-none focus:border-emerald-500 flex-1 min-w-[200px]"
+                      />
+                    )}
+                    <button
+                      onClick={() => setAiChat([])}
+                      className="px-3 py-1.5 bg-red-900/50 hover:bg-red-800 text-red-400 rounded-lg text-xs font-bold uppercase transition-all flex items-center gap-2 ml-auto"
+                      title="Apagar Memória do Chat"
+                    >
+                      <RefreshCw size={14} /> Memória
+                    </button>
                   </div>
 
                   <div
