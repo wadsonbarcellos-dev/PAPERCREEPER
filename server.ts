@@ -17,6 +17,32 @@ const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY || "AIza_fallback",
 });
 
+import { pipeline } from "stream/promises";
+
+// Helper to reliably download files using native Node
+async function downloadFile(url: string, dest: string, onLog?: (msg: string) => void): Promise<boolean> {
+  try {
+    if (onLog) onLog(`[DOWNLOAD] Fetching from: ${url}`);
+    const res = await fetch(url, { redirect: "follow", headers: { "User-Agent": "Mozilla/5.0" } });
+    if (!res.ok) {
+      if (onLog) onLog(`[ERROR] HTTP ${res.status} ${res.statusText}`);
+      return false;
+    }
+    
+    if (res.body) {
+      const { Readable } = require("stream");
+      const fileStream = fs.createWriteStream(dest);
+      // @ts-ignore
+      await pipeline(Readable.fromWeb(res.body), fileStream);
+      return true;
+    }
+    return false;
+  } catch (e: any) {
+    if (onLog) onLog(`[ERROR] Download exception: ${e.message}`);
+    return false;
+  }
+}
+
 async function startServer() {
   const app = express();
   const PORT = 3000;
@@ -243,9 +269,8 @@ async function startServer() {
           if (fs.existsSync(javaDir)) fs.rmSync(javaDir, { recursive: true, force: true });
           fs.mkdirSync(javaDir, { recursive: true });
 
-          exec(`curl -f -A "Mozilla/5.0" -L "${url}" -o "${tempTar}"`, (err) => {
-             if (err) {
-                 onLog(`[ERROR] Falha ao baixar Java: ${err.message}`);
+          downloadFile(url, tempTar, onLog).then((success) => {
+             if (!success) {
                  return resolve("java");
              }
              try {
@@ -307,25 +332,20 @@ async function startServer() {
     if (!fs.existsSync(PLAYIT_PATH)) {
       addLog("system", " [SETUP] Playit não encontrado, baixando...");
       const playitUrl = `https://github.com/playit-cloud/playit-agent/releases/latest/download/${path.basename(PLAYIT_PATH)}`;
-      exec(
-        `curl -A "Mozilla/5.0" -L "${playitUrl}" -o "${PLAYIT_PATH}"`,
-        (err) => {
-          if (!err) {
-            if (os.platform() !== "win32") {
-              try {
-                fs.chmodSync(PLAYIT_PATH, 0o755);
-              } catch (e) {}
-            }
-            addLog("system", " [SUCCESS] Playit.gg pronto!");
-            // Ensure binary is usable
-            exec(`"${PLAYIT_PATH}" version`, (vErr, vOut) => {
-              if (!vErr) console.log("[PLAYIT VERSION]", vOut.trim());
-            });
-          } else {
-            addLog("system", " [ERROR] Erro ao baixar Playit: " + err.message);
-          }
-        },
-      );
+      const success = await downloadFile(playitUrl, PLAYIT_PATH);
+      if (success) {
+        if (os.platform() !== "win32") {
+          try {
+            fs.chmodSync(PLAYIT_PATH, 0o755);
+          } catch (e) {}
+        }
+        addLog("system", " [SUCCESS] Playit.gg pronto!");
+        exec(`"${PLAYIT_PATH}" version`, (vErr, vOut) => {
+          if (!vErr) console.log("[PLAYIT VERSION]", vOut.trim());
+        });
+      } else {
+        addLog("system", " [ERROR] Erro ao baixar Playit");
+      }
     }
   };
 
@@ -855,17 +875,13 @@ command /creeper-ai <text>:
 
     if (!fs.existsSync(dest)) {
       addLog(serverId, "[AI] Injetando motor de poder (Skript)...");
-      exec(`curl -L "${skriptUrl}" -o "${dest}"`, (err) => {
-        if (err)
-          console.error(
-            `[AI ERROR] Failed to auto-inject Skript to ${serverId}:`,
-            err,
-          );
-        else {
-          addLog(serverId, "[AI] Motor de poder injetado com sucesso! 💎");
-          finishInjection();
-        }
-      });
+      const success = await downloadFile(skriptUrl, dest);
+      if (!success) {
+        console.error(`[AI ERROR] Failed to auto-inject Skript to ${serverId}`);
+      } else {
+        addLog(serverId, "[AI] Motor de poder injetado com sucesso! 💎");
+        finishInjection();
+      }
     } else {
       finishInjection();
     }
@@ -1413,8 +1429,8 @@ command /creeper-ai <text>:
 
     addLog(serverId, `[INSTALLER] Baixando de: ${url}`);
 
-    exec(`curl --http1.1 -A "Mozilla/5.0" -L -f "${url}" -o "${dest}"`, async (err) => {
-      if (err) addLog(serverId, `[ERROR] Falha no download ou versão não encontrada: ${err.message}`);
+    downloadFile(url, dest, (msg) => addLog(serverId, msg)).then(async (success) => {
+      if (!success) addLog(serverId, `[ERROR] Falha no download ou versão não encontrada.`);
       else {
         if (type === "forge") {
           addLog(
@@ -1454,32 +1470,6 @@ command /creeper-ai <text>:
     });
     res.json({ message: "Download iniciado em segundo plano." });
   });
-
-  // Helper to reliably download files using native Node fetch
-  const downloadFile = async (url: string, dest: string, onLog?: (msg: string) => void): Promise<boolean> => {
-    try {
-      if (onLog) onLog(`[DOWNLOAD] Fetching from: ${url}`);
-      const res = await fetch(url, { redirect: "follow" });
-      if (!res.ok) {
-        if (onLog) onLog(`[ERROR] HTTP ${res.status} ${res.statusText}`);
-        return false;
-      }
-      
-      const fileStream = fs.createWriteStream(dest);
-      if (res.body) {
-        // Node 18+ Web ReadableStream to Node stream
-        // We can do it arrayBuffer for smaller files, or pipeline
-        const ab = await res.arrayBuffer();
-        fs.writeFileSync(dest, Buffer.from(ab));
-        if (onLog) onLog(`[SUCCESS] Saved to ${path.basename(dest)}`);
-        return true;
-      }
-      return false;
-    } catch (e: any) {
-      if (onLog) onLog(`[ERROR] Download falhou: ${e.message}`);
-      return false;
-    }
-  };
 
   const getAddonsFolder = (serverId: string) => {
     const config = getSrvConfig(serverId);
@@ -1547,32 +1537,26 @@ command /creeper-ai <text>:
     addLog(serverId, `[GITHUB] Iniciando importação de: ${url}`);
     addLog(serverId, `[GITHUB] Baixando código fonte (.tar.gz)...`);
 
-    exec(
-      `curl -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" -L "${tarUrl}" -o "${tarDest}"`,
-      (err) => {
-        if (err) {
-          // Fallback to master
-          const fallbackUrl =
-            url.replace(/\/$/, "") + "/archive/refs/heads/master.tar.gz";
-          addLog(serverId, `[GITHUB] Falha na branch main, tentando master...`);
-          exec(
-            `curl -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" -L "${fallbackUrl}" -o "${tarDest}"`,
-            (err2) => {
-              if (err2) {
-                addLog(
-                  serverId,
-                  `[ERROR] Falha ao baixar do GitHub: ${err2.message}`,
-                );
-              } else {
-                extractAndCleanup(serverId, srvDir, tarDest);
-              }
-            },
-          );
-        } else {
-          extractAndCleanup(serverId, srvDir, tarDest);
-        }
-      },
-    );
+    downloadFile(tarUrl, tarDest, (msg) => addLog(serverId, msg)).then((success) => {
+      if (!success) {
+        // Fallback to master
+        const fallbackUrl =
+          url.replace(/\/$/, "") + "/archive/refs/heads/master.tar.gz";
+        addLog(serverId, `[GITHUB] Falha na branch main, tentando master...`);
+        downloadFile(fallbackUrl, tarDest, (msg) => addLog(serverId, msg)).then((success2) => {
+          if (!success2) {
+            addLog(
+              serverId,
+              `[ERROR] Falha ao baixar do GitHub`
+            );
+          } else {
+            extractAndCleanup(serverId, srvDir, tarDest);
+          }
+        });
+      } else {
+        extractAndCleanup(serverId, srvDir, tarDest);
+      }
+    });
 
     function extractAndCleanup(id: string, dir: string, tarPath: string) {
       addLog(id, `[GITHUB] Extraindo arquivos...`);
@@ -1819,22 +1803,18 @@ command /creeper-ai <text>:
   app.post("/api/playit/install", async (req, res) => {
     if (!fs.existsSync(PLAYIT_PATH)) {
       const playitUrl = `https://github.com/playit-cloud/playit-agent/releases/latest/download/${path.basename(PLAYIT_PATH)}`;
-      exec(
-        `curl -A "Mozilla/5.0" -L "${playitUrl}" -o "${PLAYIT_PATH}"`,
-        (err) => {
-          if (!err) {
-            if (os.platform() !== "win32") {
-              try {
-                fs.chmodSync(PLAYIT_PATH, 0o755);
-              } catch (e) {}
-            }
-            startGlobalTunnel();
-            res.json({ success: true, message: "Baixado e instalado." });
-          } else {
-            res.status(500).json({ error: "Falha ao baixar." });
-          }
-        },
-      );
+      const success = await downloadFile(playitUrl, PLAYIT_PATH);
+      if (success) {
+        if (os.platform() !== "win32") {
+          try {
+            fs.chmodSync(PLAYIT_PATH, 0o755);
+          } catch (e) {}
+        }
+        startGlobalTunnel();
+        res.json({ success: true, message: "Baixado e instalado." });
+      } else {
+        res.status(500).json({ error: "Falha ao baixar." });
+      }
     } else {
       startGlobalTunnel();
       res.json({ success: true });
@@ -1853,22 +1833,18 @@ command /creeper-ai <text>:
     } catch (e) {}
 
     const playitUrl = `https://github.com/playit-cloud/playit-agent/releases/latest/download/${path.basename(PLAYIT_PATH)}`;
-    exec(
-      `curl -A "Mozilla/5.0" -L "${playitUrl}" -o "${PLAYIT_PATH}"`,
-      (err) => {
-        if (!err) {
-          if (os.platform() !== "win32") {
-            try {
-              fs.chmodSync(PLAYIT_PATH, 0o755);
-            } catch (e) {}
-          }
-          startGlobalTunnel();
-          res.json({ success: true, message: "Atualizado com sucesso." });
-        } else {
-          res.status(500).json({ error: "Falha ao baixar atualização." });
-        }
-      },
-    );
+    const success = await downloadFile(playitUrl, PLAYIT_PATH);
+    if (success) {
+      if (os.platform() !== "win32") {
+        try {
+          fs.chmodSync(PLAYIT_PATH, 0o755);
+        } catch (e) {}
+      }
+      startGlobalTunnel();
+      res.json({ success: true, message: "Atualizado com sucesso." });
+    } else {
+      res.status(500).json({ error: "Falha ao baixar atualização." });
+    }
   });
 
   app.post("/api/playit/uninstall", (req, res) => {
@@ -2274,17 +2250,18 @@ command /creeper-ai <text>:
 
       const { exec } = require("child_process");
       const cmd =
-        "git pull origin main || git pull origin master; npm install && npm run build";
+        "(git pull origin main || git pull origin master || echo '[System] Not a git repo, skipping pull') && npm install && npm run build";
 
-      console.log("[System] Auto-update initiated from GitHub...");
+      console.log("[System] Auto-update initiated...");
 
       exec(cmd, (error: any, stdout: any, stderr: any) => {
         if (error) {
           console.error("[System] Auto-update error:", error);
-          return;
+          console.error("[System] Stderr:", stderr);
+          // Don't fail completely, try to restart anyway
         }
         console.log("[System] Auto-update complete:\n" + stdout);
-        console.log("[System] Atualização concluída. Se não voltar, use 'staper'.");
+        console.log("[System] Atualização concluída. Reiniciando...");
         process.exit(0); // Exiting process so it gets restarted by the environment/pm2
       });
     } catch (err: any) {
@@ -2305,13 +2282,13 @@ command /creeper-ai <text>:
     const dest = path.join(pluginsDir, "Skript.jar");
     addLog(serverId || "default", "[AI] Configurando superpoderes (Skript)...");
 
-    exec(`curl -L "${skriptUrl}" -o "${dest}"`, (err) => {
-      if (err) {
+    downloadFile(skriptUrl, dest).then((success) => {
+      if (!success) {
         addLog(
           serverId || "default",
-          `[ERROR] Falha ao instalar AI Core: ${err.message}`,
+          `[ERROR] Falha ao instalar AI Core`
         );
-        res.status(500).json({ error: err.message });
+        res.status(500).json({ error: "Download failed" });
       } else {
         addLog(
           serverId || "default",
