@@ -50,6 +50,8 @@ import {
   UploadCloud,
   Edit2,
   Download,
+  Code,
+  Save,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { askAI } from "../services/geminiService";
@@ -392,9 +394,7 @@ export default function App({
     }[]
   >([]);
   const [currentServerId, setCurrentServerId] = useState<string>("");
-  const [activeTab, setActiveTab] = useState<
-    "servers" | "console" | "files" | "ai" | "settings"
-  >("servers");
+  const [activeTab, setActiveTab] = useState<string>("servers");
 
   useEffect(() => {
     localStorage.setItem("creeper_lang", language);
@@ -413,6 +413,11 @@ export default function App({
   const [aiEndpoint, setAiEndpoint] = useState<string>(
     () => localStorage.getItem("creeper_ai_endpoint") || "http://127.0.0.1:1234/v1/chat/completions"
   );
+  
+  const [pluginDescription, setPluginDescription] = useState("");
+  const [isGeneratingPlugin, setIsGeneratingPlugin] = useState(false);
+  const [pluginCode, setPluginCode] = useState("");
+  const [pluginGenStatus, setPluginGenStatus] = useState("Aguardando ideia...");
   
   useEffect(() => {
     localStorage.setItem("creeper_ai_provider", aiProvider);
@@ -1602,6 +1607,58 @@ export default function App({
     setTimeout(fetchStatus, 500);
   };
 
+  const handleGeneratePlugin = async () => {
+    if (!pluginDescription.trim() || isGeneratingPlugin) return;
+    setIsGeneratingPlugin(true);
+    setPluginGenStatus("Consultando IA (Pode demorar alguns segundos)...");
+    setPluginCode("");
+
+    try {
+      const prompt = `Atue como um desenvolvedor Skript (Minecraft). O usuário quer o seguinte plugin/sistema:
+"${pluginDescription}"
+
+Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Retorne APENAS o código encapsulado num bloco \`\`\`skript ... \`\`\`. Use blocos de command, on event, etc conforme necessário e não utilize ferramentas [ACTION:...] aqui! Só envie o código, sem explicações extras.`;
+      
+      const result = await askAI(prompt, "Skript Plugin Generation Mode", currentServerId, aiProvider, aiEndpoint, []);
+      
+      const rawText = result.text || "";
+      const codeMatch = rawText.match(/```(?:skript|sk|yaml)?\n([\s\S]*?)```/);
+      const code = codeMatch ? codeMatch[1].trim() : rawText.trim();
+
+      setPluginCode(code);
+      setPluginGenStatus("Plugin gerado com sucesso! Salve para aplicar.");
+    } catch (err) {
+      console.error(err);
+      setPluginGenStatus("Erro ao gerar plugin. Verifique a API Key ou o servidor Local AI.");
+    }
+    setIsGeneratingPlugin(false);
+  };
+
+  const handleSavePlugin = async () => {
+    if (!pluginCode || !currentServerId) return;
+    setPluginGenStatus("Salvando Arquivo...");
+    try {
+      const fileName = `plugin_${Date.now()}_aigen.sk`;
+      const res = await fetch("/api/server/file/write", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          serverId: currentServerId,
+          path: `plugins/Skript/scripts/${fileName}`,
+          content: pluginCode
+        })
+      });
+      if (res.ok) {
+        setPluginGenStatus("Plugin Injetado e Salvo com Sucesso!");
+        await executeAITool({ name: "reloadSkripts", args: { serverId: currentServerId } });
+      } else {
+        setPluginGenStatus("Erro ao salvar plugin.");
+      }
+    } catch (e) {
+      setPluginGenStatus("Erro na requisição. Verifique o console.");
+    }
+  };
+
   const sendCommand = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!command.trim() || !currentServerId) return;
@@ -2655,12 +2712,20 @@ export default function App({
                   onClick={() => setActiveTab("console")}
                 />
                 {modules.ai && (
-                  <MenuLink
-                    icon={<Bot size={20} />}
-                    label={t("ai_assistant")}
-                    active={activeTab === "ai"}
-                    onClick={() => setActiveTab("ai")}
-                  />
+                  <>
+                    <MenuLink
+                      icon={<Bot size={20} />}
+                      label={t("ai_assistant")}
+                      active={activeTab === "ai"}
+                      onClick={() => setActiveTab("ai")}
+                    />
+                    <MenuLink
+                      icon={<Code size={20} />}
+                      label="Criador de Plugins"
+                      active={activeTab === "plugin-factory"}
+                      onClick={() => setActiveTab("plugin-factory")}
+                    />
+                  </>
                 )}
                 {modules.map && (
                   <MenuLink
@@ -3366,6 +3431,73 @@ export default function App({
                         {t("store_help_desc")}
                       </div>
                     </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {activeTab === "plugin-factory" && (
+                <motion.div
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="bg-[#0b251a]/80 backdrop-blur-md rounded-[2.5rem] border-2 border-emerald-900 shadow-sm p-4 lg:p-8 min-h-[600px] lg:min-h-0 h-full flex flex-col relative overflow-hidden"
+                >
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="p-4 bg-emerald-900/50 rounded-2xl border-2 border-emerald-500/30 text-emerald-400">
+                      <Code size={32} />
+                    </div>
+                    <div>
+                      <h2 className="text-3xl font-black text-white tracking-tighter italic uppercase">
+                        Fábrica de Plugins
+                      </h2>
+                      <p className="text-emerald-500 text-[10px] font-black uppercase tracking-widest mt-1">
+                        I.A. SKRIPT BUILDER (•◡•)
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex-1 flex flex-col gap-4 min-h-0">
+                    <div className="flex flex-col gap-2">
+                       <label className="text-xs font-bold text-emerald-400 uppercase tracking-widest pl-2">Descreva a ideia do Plugin</label>
+                       <textarea
+                         value={pluginDescription}
+                         onChange={(e) => setPluginDescription(e.target.value)}
+                         placeholder="Ex: Quero um sistema onde se o jogador quebrar terra, ele tem 5% de chance de ganhar um dima..."
+                         className="w-full bg-black/40 border border-emerald-900 rounded-2xl p-4 text-emerald-100 placeholder:text-emerald-900/50 font-medium resize-none focus:outline-none focus:border-emerald-500 min-h-[120px]"
+                       />
+                    </div>
+                    <div className="flex items-center justify-between">
+                       <p className="text-xs font-mono text-emerald-500/70">{pluginGenStatus}</p>
+                       <button
+                         onClick={handleGeneratePlugin}
+                         disabled={isGeneratingPlugin || !pluginDescription.trim()}
+                         className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:grayscale text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all flex hidden-sm items-center gap-2"
+                       >
+                         {isGeneratingPlugin ? (
+                           <><RefreshCw size={16} className="animate-spin" /> Gerando...</>
+                         ) : (
+                           <><Sparkles size={16} /> Criar Plugin Mágico</>
+                         )}
+                       </button>
+                    </div>
+
+                    {pluginCode && (
+                      <div className="flex-1 flex flex-col gap-2 min-h-0 mt-4 border-t border-emerald-900/50 pt-4">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-bold text-emerald-400 uppercase tracking-widest pl-2">Código Gerado</label>
+                          <button
+                            onClick={handleSavePlugin}
+                            className="px-4 py-2 bg-emerald-900/50 hover:bg-emerald-800 text-emerald-300 font-bold text-[10px] uppercase tracking-widest rounded-lg transition-all flex items-center gap-2 border border-emerald-800"
+                          >
+                            <Save size={14} /> Salvar e Injetar no Servidor
+                          </button>
+                        </div>
+                        <textarea
+                          value={pluginCode}
+                          onChange={(e) => setPluginCode(e.target.value)}
+                          className="flex-1 w-full bg-black/60 border border-emerald-900 rounded-2xl p-4 text-emerald-50 font-mono text-xs resize-none focus:outline-none focus:border-emerald-500 custom-scrollbar"
+                        />
+                      </div>
+                    )}
                   </div>
                 </motion.div>
               )}
