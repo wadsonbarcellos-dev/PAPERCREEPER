@@ -1,156 +1,73 @@
-# ⛏️ PaperCreeper Panel
+# PaperCreeper - O Painel Mágico de Minecraft (IA + Skript + Servidores Locais)
 
-The ultimate, lightweight, AI-powered control panel for Minecraft Servers. Optimized for **Linux VPS**, **Bare Metal**, and containerized environments.
+O **PaperCreeper** não é apenas um painel de hospedagem. É o seu companheiro Minecraft construído com Inteligência Artificial e foco extremo em performance.  
+Crie servidores (Paper, Forge, Fabric, etc.), gerencie plugins, edite mapas, modifique configurações, injete Skripts Mágicos nativos, e exporte seu mundo de jogo em minutos, tudo com ajuda da nossa "Inteligência Creeper".
 
-![PaperCreeper Panel](https://img.shields.io/badge/Minecraft-PaperMC-emerald.svg) ![Node.js](https://img.shields.io/badge/Node.js-21+-blue.svg) ![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows-lightgrey.svg)
+---
 
-## ✨ Core Features
+## 🚀 Como Iniciar (Setup & Configuração)
 
-- **Built-in AI Assistant & AI Engine:** Diagnoses Java errors in real-time, writes configurations, auto-fixes issues, and can even write `.sk` scripts (Skript) out-of-the-box to add live game elements instantly.
-- **Auto-Optimized "Aikar's Flags":** Built-in automatic deployment of extreme-performance GC cycle parameters when you use Paper, Forge, or Purpur.
-- **Plugin/Mod Smart Installer:** Searches Modrinth and Hangar for plugins/mods. Automatically places downloads into `/plugins` or `/mods` depending on the selected server engine (Fabric/Forge vs Paper/Spigot).
-- **Playit.gg Zero-Config Tunneling:** No port forwarding required. Creates global access IPs in one click.
-- **Robust Dependency Handling**: Automatically downloads and maps Java 21, Skript engine, and other background tools securely without system clutter.
+A configuração foi desenhada para ser simples e rápida. Você pode rodar de duas formas principais: Usando a nossa IA Embutida gratuitamente, ou se conectando ao seu provedor local pra rodar o painel off-grid (sem custos na cloud).
 
-## 🚀 Installation & Deployment
+### 1. Inicializando o Servidor Web (NodeJS)
 
-### Method A: Fully Automated VPS/Linux (Recommended)
-
-To install on a clean Ubuntu/Debian server or container:
-
+Certifique-se de que o NPM e Node (v18+) estão instalados no seu computador.
+No terminal, execute:
 ```bash
-# 1. Update and install basic dependencies
-sudo apt update && sudo apt install -y curl git nodejs npm
-
-# 2. Clone the Repository
-git clone https://github.com/wadbar/papercreeper.git
-cd papercreeper
-
-# 3. Setup Project
-chmod +x setup.sh && ./setup.sh
-
-# 4. Ative os novos comandos mágicos no terminal
-source ~/.bashrc
-
-# 5. Inicie o servidor / painel!
-staper
+npm install
+npm run build
+npm start
 ```
-A partir de agora, você nunca mais precisa procurar pastas. De qualquer lugar no terminal, digite `staper`! Para fechar em 2º plano, digite `stoper`. O painel roda na porta **3000** (ex: `http://SEU_IP:3000`).
+O painel iniciará na porta `3000`. Acesse `http://localhost:3000` ou a URL providenciada do deploy na Cloud, e o **Menu Mágico** lhe dará boas vindas!
 
-### Method B: Windows Server via WSL2 (Highly Recommended)
-Running a Minecraft Server natively on the Windows CMD/PowerShell can lead to poor performance and file-locking issues. We highly recommend using Windows Subsystem for Linux (WSL2).
+### 2. Configuração do Assistente IA
 
-1. Open PowerShell as Administrator and run: `wsl --install`
-2. Restart your PC, and open the new Ubuntu terminal.
-3. Inside the Ubuntu terminal, follow **Method A** exactly as if you were on a Linux VPS.
-4. Access the panel at `http://localhost:3000`.
+O painel já vem com integração total da IA nas abas e um botão voador onipresente (`I.A Assist`). Como conectar:
 
-*Tip: If you absolutely must run natively on Windows without WSL, ensure you have Node.js 18+ installed, run `npm install`, then `npm run build` and `npm start` natively via PowerShell.*
+1. Clique na engrenagem de **Configurações** no menu lateral.
+2. Na seção **API IA (Universal)** clique em `Configurar`.
+3. Selecione o seu provedor:
+   * **Local AI**: Se você roda [LM Studio](https://lmstudio.ai/) ou Ollama, selecione essa aba. Para o LM Studio, ligue o *Local Server* e cole o Endpoint (geralmente `http://127.0.0.1:1234/v1/chat/completions`). Aperte Salvar.
+   * **Gemini / OpenAI**: Se você for conectar à Nuvem (Google Gemini, Groq, xAI), cole sua respectiva `API_KEY` na caixa respectiva e aperte Salvar.
 
-### Method C: GitHub Codespaces (For Developers & Testing)
-1. Go to your GitHub repository and click **Code** > **Codespaces** > **Create Codespace**.
-2. It will automatically install `Java 21`, download dependencies, and spin up.
-3. Access the web interface on the forwarded port 3000.
+O Assistente agora está "Acordado" e ajudará em toda a jornada.
 
-### Method D: Android & iOS (Mobile Devices)
+### 3. Criando seu Primeiro Servidor Minecraft
 
-Yes, you can run PaperCreeper and your Minecraft Server directly from your smartphone!
+1. Vá na aba **Servidores (Servers)**.
+2. Clique em "CRIAR NOVO SERVIDOR".
+3. Dê um nome mágico, aloque a quantidade de RAM e selecione a versão que quiser da lista suspensa (desde o Nostálgico 1.12.2 até o 1.21.1+).  
+   *Nota: O painel automaticamente faz o download da versão exata de Java requisitada pela versão e instala o Forja (Forge / Fabric / Paper / Purpur / Vanilla) na hora pra você.*
+4. Clique em **Salvar e Iniciar!**
+5. Abra seu jogo no IP listado (ex: `localhost:25565`) ou pelo link do Playit.gg que será gerado!
 
-**On Android:**
-1. Install **Termux** from F-Droid (do not use the Google Play version, it is outdated).
-2. Open Termux and run:
-   ```bash
-   pkg update && pkg upgrade
-   pkg install python git nodejs openjdk-17 -y
-   ```
-3. Clone the panel and install dependencies:
-   ```bash
-   git clone https://github.com/wadbar/papercreeper.git
-   cd papercreeper
-   npm install && npm run build
-   npm run start
-   ```
-4. Access `http://localhost:3000` directly in your phone's browser, or from another device on the same Wi-Fi using your phone's local IP!
-*(Note: Android aggressively kills background apps. Keep Termux open, disable battery optimization for it, and use server software like Paper or Purpur for optimal performance on ARM CPUs. Also note that your phone's processor and RAM will be heavily tested!)*
+---
 
-**On iOS:**
-Running full-scale Node.js and Java servers isn't natively supported on iOS due to Apple's sandbox restrictions.
-- You can use apps like **iSH Shell** (a Linux emulator), but performance will be severely degraded (too slow for a playable server).
-- Jailbroken devices or using virtual machines (like UTM) can run Linux, but it's not recommended for production servers.
-- The best way to use iOS is as a remote management tool: access your VPS-hosted PaperCreeper panel from your iPhone's Safari browser. The panel is 100% responsive!
+## 🛠 Recursos Opcionais: "Rode Leve, Rode Livre"
 
-## ⚙️ How to configure your AI (Cloud & Local)
+Quer focar apenas na performance do Minecraft sem gastar recursos do painel? Nosso sistema foi feito para consumir 0% de uso até você clicar.
 
-PaperCreeper features a universal AI engine that supports Gemini, OpenAI, Groq, xAI, and **Local AI** (via LM Studio, Ollama, etc). 
+### 🔌 Desligando Módulos Desnecessários
+Nas **Configurações**, procure pelos interruptores modulares:
+* **EDITOR DE MAPA:** Desligue para focar apenas nos arquivos (Desativando a aba Map)
+* **LOJA IN-GAME:** Oculta a área de configuração de lojinhas NPC.
+* **ASSISTENTE IA:** Desliga globalmente o companheiro virtual, poupando processamento de I/O em máquinas pesadas (VPS Optimistic).
 
-### ☁️ Cloud AI (Gemini, Groq, etc)
-1. Go to [Google AI Studio](https://aistudio.google.com/app/apikey) (or your preferred provider like Groq).
-2. Generate a new API Key (Gemini keys start with `AIza...`).
-3. Open the PaperCreeper Panel, click on the **Settings** (⚙️) or **AI** tab.
-4. Select your provider, paste your key, and save. The panel automatically detects the engine!
+---
 
-### 🖥️ Local AI (LM Studio / Ollama)
-If you have a dedicated GPU, you can run the AI 100% locally and free!
-1. Download and install [LM Studio](https://lmstudio.ai/).
-2. Start the **Local Server** in LM Studio (usually runs on `http://127.0.0.1:1234/v1/chat/completions`).
-3. In the PaperCreeper **AI/Settings** menu, set the provider to **"Local AI"**.
-4. Enter your LM Studio endpoint URL.
-5. Hit save, and your local AI will now manage your server!
+## 🔧 Fábrica de Plugins (Skript)
 
-#### 🧠 Recommended Models for 8GB VRAM (Local AI)
-If your GPU has 8GB VRAM (e.g., RTX 3060 Ti, 4060, RX 6600), you should use **7B or 8B parameter models** with **Q4_K_M** or **Q5_K_M** GGUF quantizations. They use about 4.5GB to 6GB of VRAM, leaving space for context.
-- **Qwen 2.5 Coder 7B Instruct**: *(Highly Recommended)* The absolute best 7B model for coding, file editing, and technical commands. Incredibly smart and fast.
-- **Llama 3.1 8B Instruct**: Great general-purpose reasoning and conversation.
-- **DeepSeek Coder V2 Lite**: Excellent context handling and coding capabilities.
+O painel possui um integrador Native Skript acoplado nativamente na IA. 
+1. Clique no Menu de **Criador de Plugins**.
+2. Descreva sua ideia. Exemplo: *"Quero que toda vez que um jogador entre no servidor toquem fogos de artifício!"*
+3. Confirme. Ao receber a reposta da IA, clique em **Salvar e Injetar**. O painel auto-injeta o arquivo `.sk` direto na pasta, e recarrega os plugins instantaneamente no servidor aberto. Vualá.
 
-## ⚡ Our Ultimate Power & Capabilities
+---
 
-PaperCreeper is not just a dashboard; it's a fully integrated ecosystem designed to give you superpower-like control over your server environment:
+## 🗺 Funcionalidade de Mapa Embutido
 
-- **AI-Powered Diagnostics:** The integrated AI constantly analyzes stack traces, error codes, and server lag spikes behind the scenes, giving you instant, actionable fixes directly in the console. It even generates complete Skript (.sk) code in real-time.
-- **Integrated Web Ecosystem:** Spin up an instant site/store that seamlessly syncs with your server. Features multi-language support (English/Portuguese), family-friendly toggles, and performance modes to guarantee it runs everywhere smoothly.
-- **Universal Cross-Platform Agility:** Runs on High-End bare metal Linux, Windows Desktop, inside GitHub Codespaces, and even a spare Android phone. 
-- **Zero-Friction Tunneling:** We bypassed NAT and CGNAT restrictions. Our one-click Playit.gg integration creates a public `auto-named.playit.gg` IP without ever touching your router settings.
-- **Containerization & Auto-Downloads:** No more manual Java version matching. The panel pulls the EXACT binaries (Java 17, Java 21, Paper, Fabric, Forge) into sandboxed directories to keep your system perfectly clean.
-- **Dynamic Module Management:** Native, lightweight APIs index the latest plugins from Modrinth and Hangar, deploying them instantly based on your exact server software.
+Na aba **Mapa** (quando ativada usando a Loja de Extensões internas ou usando BlueMap), a IA explica claramente o que esperar da manipulação de Schematic (construções MCEdit). Devido à pesada renderização de grafos web tridimensionais, é recomendado rodar via BlueMap para pre-view, mas colar grandes schemas _sempre de dentro do jogo_ com as orientações do próprio botão `Ver Schematics`.
 
-### 🛒 Auto-Generated Websites & In-Game Stores
-Instantly spin up a beautifully designed, lightweight web application for your server out of the box! Without needing external websites like Tebex, you can configure VIP Ranks, Items, and Perks inside PaperCreeper. The system automatically creates a responsive HTML site using TailwindCSS natively in Node.js, and directly parses the purchases into live server commands instantly when the transaction is made. It's the simplest way to monetize or manage custom server interactions!
+### 🎉 Por que a inteligência artificial vai dominar?
 
-### 📡 Dynamic Metadata Framework
-Due to constantly changing APIs, PaperCreeper integrates a *Real-Time Metadata Engine*. Instead of relying on hardcoded link strings that die out after a month, the panel leverages endpoints like `/api/meta` to index Mojang, PaperMC, Fabric, and Forge API manifests live. Ensure your server firewall allows outbound connections to `api.papermc.io` and `meta.fabricmc.net`!
-
-### 🔌 Intelligent Plugins & Mods Installer
-We've abstracted away downloading and FTP dragging.
-- Using our Universal Plugin search, you can install out of **Modrinth** & **Hangar** seamlessly. 
-- Using Spigot/Paper/Purpur? It gets downloaded to `/plugins`.
-- Using Forge/Fabric? It goes automatically to `/mods`.
-
-### 🛡 Playit.gg Tunnels & Dedicated VPS IPs
-We support **Per-Server Tunnels**. You can have multiple Minecraft servers running simultaneously on different ports within PaperCreeper, each bridging to their own unique `playit.gg` global IP.
-**VPS Users:** If your host machine has a dedicated IPv4 address, you can toggle **"Túnel Playit.gg (Público)" OFF** inside the "Create Server" modal to maximize direct connection performance natively on standard ports.
-
-### ❓ Troubleshooting
-- **Problem:** "Download of Paper/Purpur fails or returns 0 bytes".
-  **Solution:** Ensure you are not being rate-limited by `api.papermc.io` or that your DNS isn't blocking `.jar` extensions (Try changing DNS to 8.8.8.8).
-- **Problem:** "Java Runtime not found / Could not boot the jar". 
-  **Solution:** The panel automatically downloads the Adoptium JRE 21. If it gets corrupted or fails to extract on your Linux distribution, delete `bin/java_runtime` and restart the panel. If you are on Debian/WSL and the automatic download fails due to `tar`/`unzip` missing, install Java manually (`sudo apt install openjdk-21-jre-headless`) and set `const javaPath = "java";` in `server.ts`.
-- **Problem:** "AI Assistant does not answer or gives 'API Key' error".
-  **Solution:** Click the AI icon (or Settings) in the panel and input a valid API Key or check if your Local AI (LM Studio) endpoint `http://127.0.0.1:1234...` is reachable.
-- **Problem:** "Plugin not installing from Hangar/Modrinth".
-  **Solution:** If the store auto-installer fails to parse the download link, go to the plugin page natively, copy the `.jar` URL, and use the "Direct URL" install method in the papercreeper panel.
-
-### 💡 Tips & Tricks (Aliases)
-When you run the setup script, it automatically adds shortcuts to your `~/.bashrc`:
-- `staper`: Instantly navigates to the PaperCreeper folder, boots the panel, and attaches it to your terminal.
-- `stoper`: Kills the PaperCreeper panel background process.
-Always ensure you run `source ~/.bashrc` after installation so the terminal recognizes the new commands!
-
-## 🧠 AI Real-Time Agent
-
-Whenever your server starts, the **PaperCreeper AI Agent** listens silently to the server console output in the background. If an `Exception`, `WARN`, or `Crash` occurs, the AI analyzes the stack trace instantly in the background and suggests concise solutions right into your server terminal view. No more copy-pasting code into ChatGPT.
-
-## 📄 License & Credits
-Developed passionately for the community. Always lightweight, always open.
-
-> "A next-generation abstraction over tedious command-line setups" — *The PaperCreeper philosophy.*
+Porque ela lê os relatórios de crash, recarrega o Playit quando o tunnel cai off-line e até lhe informa dicas de "Otimização de Linux VPS e Anti-Lag". Explore e teste!

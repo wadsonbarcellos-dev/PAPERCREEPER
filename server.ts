@@ -176,9 +176,10 @@ async function startServer() {
     const match = mcVersion.match(/1\.(\d+)(?:\.(\d+))?/);
     if (!match) return 21;
     const minor = parseInt(match[1], 10);
+    const patch = match[2] ? parseInt(match[2], 10) : 0;
     if (minor <= 16) return 8; 
-    if (minor === 17) return 17; 
-    if (minor <= 20) return 17;
+    if (minor < 20) return 17;
+    if (minor === 20 && patch < 5) return 17;
     return 21;
   };
 
@@ -242,7 +243,7 @@ async function startServer() {
           if (fs.existsSync(javaDir)) fs.rmSync(javaDir, { recursive: true, force: true });
           fs.mkdirSync(javaDir, { recursive: true });
 
-          exec(`curl -A "Mozilla/5.0" -L "${url}" -o "${tempTar}"`, (err) => {
+          exec(`curl -f -A "Mozilla/5.0" -L "${url}" -o "${tempTar}"`, (err) => {
              if (err) {
                  onLog(`[ERROR] Falha ao baixar Java: ${err.message}`);
                  return resolve("java");
@@ -473,12 +474,16 @@ Exemplo: "Vou deixar de dia! [ACTION:{"name": "sendTerminalCommand", "args": {"c
         
         messages.push({ role: "user", content: prompt });
 
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 60000);
+
         const oaiRes = await fetch(targetEndpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          // A adição de 'model' dummy previne erros em algumas instâncias do LM Studio que requerem o campo
-          body: JSON.stringify({ model: "local-model", messages, temperature: 0.7 })
+          body: JSON.stringify({ model: "local-model", messages, temperature: 0.7 }),
+          signal: controller.signal
         });
+        clearTimeout(timeoutId);
         
         if (!oaiRes.ok) throw new Error(`Http error ${oaiRes.status}`);
         const oaiData: any = await oaiRes.json();
@@ -530,6 +535,9 @@ Exemplo: "Vou deixar de dia! [ACTION:{"name": "sendTerminalCommand", "args": {"c
 
         messages.push({ role: "user", content: prompt });
 
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 60000);
+
         const oaiRes = await fetch(targetEndpoint, {
           method: "POST",
           headers: {
@@ -541,7 +549,9 @@ Exemplo: "Vou deixar de dia! [ACTION:{"name": "sendTerminalCommand", "args": {"c
             messages,
             temperature: 0.8,
           }),
+          signal: controller.signal
         });
+        clearTimeout(timeoutId);
 
         if (!oaiRes.ok) {
           const errJson = await oaiRes.json().catch(() => ({}));
@@ -1396,16 +1406,20 @@ command /creeper-ai <text>:
 
     addLog(serverId, `[INSTALLER] Baixando de: ${url}`);
 
-    exec(`curl --http1.1 -A "Mozilla/5.0" -L "${url}" -o "${dest}"`, (err) => {
-      if (err) addLog(serverId, `[ERROR] Falha no download: ${err.message}`);
+    exec(`curl --http1.1 -A "Mozilla/5.0" -L -f "${url}" -o "${dest}"`, async (err) => {
+      if (err) addLog(serverId, `[ERROR] Falha no download ou versão não encontrada: ${err.message}`);
       else {
         if (type === "forge") {
           addLog(
             serverId,
             `[INSTALLER] Executando Forge Installer (isso pode demorar minutos)...`,
           );
+          
+          let reqMajor = getRequiredJavaMajor(version);
+          const javaForInstaller = await downloadJavaIfNeeded(reqMajor, (msg) => addLog(serverId, msg));
+
           exec(
-            `cd "${srvDir}" && "${JAVA_PATH}" -jar "${fileName}" --installServer`,
+            `cd "${srvDir}" && "${javaForInstaller}" -jar "${fileName}" --installServer`,
             (errInstall) => {
               if (fs.existsSync(dest)) fs.unlinkSync(dest); // Remove installer
               if (errInstall)

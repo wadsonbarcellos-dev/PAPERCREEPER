@@ -1639,7 +1639,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
     setPluginGenStatus("Salvando Arquivo...");
     try {
       const fileName = `plugin_${Date.now()}_aigen.sk`;
-      const res = await fetch("/api/server/file/write", {
+      const res = await fetch("/api/server/files/save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -2692,7 +2692,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
               <div className="hidden lg:flex text-[10px] font-black text-emerald-400 uppercase tracking-[0.25em] items-center gap-2">
                 <Star size={12} fill="currentColor" /> {t("menu_magic")}
               </div>
-              <nav className="flex lg:flex-col overflow-x-auto gap-3 lg:gap-0 lg:space-y-1 pb-2 lg:pb-0 snap-x custom-scrollbar">
+              <nav className="flex lg:flex-col flex-wrap gap-2 lg:gap-0 lg:space-y-1 pb-2 lg:pb-0">
                 <MenuLink
                   icon={<Server size={20} />}
                   label={t("servers")}
@@ -2754,7 +2754,19 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
           </div>
 
           {/* Main Display Area */}
-          <div className="order-2 lg:order-none col-span-1 lg:col-span-9 h-full lg:pr-2">
+          <div className="order-2 lg:order-none col-span-1 lg:col-span-9 h-full lg:pr-2 relative">
+            
+            {activeTab !== "ai" && modules.ai && (
+              <button
+                onClick={() => setActiveTab("ai")}
+                className="absolute z-50 bottom-6 right-6 lg:bottom-12 lg:right-12 p-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-full shadow-2xl border-4 border-emerald-900 transition-all active:scale-95 flex items-center gap-3 animate-pulse group"
+                title="Perguntar para a IA"
+              >
+                <Bot size={28} />
+                <span className="hidden group-hover:block font-black uppercase tracking-widest text-[10px] mr-2">I.A Assist</span>
+              </button>
+            )}
+
             <AnimatePresence mode="wait">
               {activeTab === "servers" && (
                 <motion.div
@@ -4463,7 +4475,7 @@ function MenuLink({
   return (
     <button
       onClick={onClick}
-      className={`min-w-fit lg:w-full flex-shrink-0 flex items-center gap-3 lg:gap-4 px-5 py-3 lg:py-4 rounded-3xl font-black text-xs lg:text-sm transition-all relative overflow-hidden group snap-start ${active ? "bg-emerald-600 text-white shadow-lg shadow-emerald-950/50 lg:translate-x-2" : "bg-black/10 lg:bg-transparent text-emerald-700 hover:bg-emerald-950/30 hover:text-emerald-400 border lg:border-transparent border-emerald-900/10"}`}
+      className={`min-w-fit lg:w-full flex items-center gap-3 lg:gap-4 px-5 py-3 lg:py-4 rounded-3xl font-black text-xs lg:text-sm transition-all relative overflow-hidden group flex-grow lg:flex-grow-0 justify-center lg:justify-start ${active ? "bg-emerald-600 text-white shadow-lg shadow-emerald-950/50 lg:translate-x-2" : "bg-black/10 lg:bg-transparent text-emerald-700 hover:bg-emerald-950/30 hover:text-emerald-400 border lg:border-transparent border-emerald-900/10"}`}
     >
       <span
         className={
