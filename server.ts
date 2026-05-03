@@ -31,9 +31,11 @@ async function downloadFile(url: string, dest: string, onLog?: (msg: string) => 
     
     if (res.body) {
       const { Readable } = require("stream");
-      const fileStream = fs.createWriteStream(dest);
+      const partDest = dest + ".part";
+      const fileStream = fs.createWriteStream(partDest);
       // @ts-ignore
       await pipeline(Readable.fromWeb(res.body), fileStream);
+      fs.renameSync(partDest, dest);
       return true;
     }
     return false;
@@ -843,7 +845,7 @@ Exemplo: "Vou deixar de dia! [ACTION:{"name": "sendTerminalCommand", "args": {"c
     res.json({ id });
   });
 
-  const autoInjectAICore = (serverId: string) => {
+  const autoInjectAICore = async (serverId: string) => {
     const srvDir = getServerDir(serverId);
     const pluginsDir = path.join(srvDir, "plugins");
     if (!fs.existsSync(pluginsDir))

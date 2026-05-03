@@ -872,12 +872,15 @@ export default function App({
       const data = await res.json();
       setMetadata(data);
       if (
-        showCreateModal &&
         data.versions &&
-        data.versions.length > 0 &&
-        !data.versions.includes(newServerConfig.version)
+        data.versions.length > 0
       ) {
-        setNewServerConfig((prev) => ({ ...prev, version: data.versions[0] }));
+        setNewServerConfig((prev) => {
+          if (!data.versions.includes(prev.version)) {
+            return { ...prev, version: data.versions[0] };
+          }
+          return prev;
+        });
       }
     } catch (e) {}
   };
@@ -1954,7 +1957,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                   </button>
                   <button
                     onClick={handleCreateServer}
-                    disabled={isInstalling}
+                    disabled={isInstalling || !newServerConfig.name.trim()}
                     className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 rounded-2xl shadow-lg border-b-4 border-emerald-900 transition-all active:scale-95 disabled:opacity-50"
                   >
                     {isInstalling ? "INSTALANDO..." : "CRIAR MUNDO!"}
@@ -3969,7 +3972,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
-                  className="bg-[#0b251a]/80 backdrop-blur-md rounded-3xl border-2 border-emerald-900 shadow-sm p-4 lg:p-8 min-h-[600px] lg:min-h-0 h-full flex flex-col relative overflow-hidden group"
+                  className="bg-[#0b251a]/80 backdrop-blur-md rounded-3xl border-2 border-emerald-900 shadow-sm p-4 lg:p-8 min-h-[600px] max-h-[80vh] lg:min-h-[600px] flex flex-col relative overflow-hidden group"
                 >
                   <div className="absolute -top-10 -right-10 text-emerald-950 transition-colors pointer-events-none opacity-20">
                     <Flower2 size={240} />
