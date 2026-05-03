@@ -1150,7 +1150,7 @@ command /creeper-ai <text>:
         throw new Error(`Comando de boot não encontrado em: ${command}`);
       }
 
-      const env = { ...process.env, MALLOC_ARENA_MAX: "2" };
+      const env: NodeJS.ProcessEnv = { ...process.env, MALLOC_ARENA_MAX: "2" };
       if (dynamicJavaPath !== "java" && dynamicJavaPath !== "java.exe") {
         const javaBinDir = path.dirname(dynamicJavaPath);
         env.PATH = `${javaBinDir}${path.delimiter}${env.PATH || ""}`;
