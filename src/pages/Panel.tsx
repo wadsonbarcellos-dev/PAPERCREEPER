@@ -3972,7 +3972,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
-                  className="bg-[#0b251a]/80 backdrop-blur-md rounded-3xl border-2 border-emerald-900 shadow-sm p-4 lg:p-8 min-h-[600px] max-h-[80vh] lg:min-h-[600px] flex flex-col relative overflow-hidden group"
+                  className="bg-[#0b251a]/80 backdrop-blur-md rounded-3xl border-2 border-emerald-900 shadow-sm p-4 lg:p-8 min-h-[600px] lg:h-[75vh] flex flex-col relative overflow-hidden group"
                 >
                   <div className="absolute -top-10 -right-10 text-emerald-950 transition-colors pointer-events-none opacity-20">
                     <Flower2 size={240} />

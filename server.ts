@@ -2252,7 +2252,7 @@ command /creeper-ai <text>:
 
       const { exec } = require("child_process");
       const cmd =
-        "(git pull origin main || git pull origin master || echo '[System] Not a git repo, skipping pull') && npm install && npm run build";
+        "(git fetch --all && git reset --hard origin/main || git reset --hard origin/master || echo '[System] Not a git repo, skipping pull') && npm install && npm run build";
 
       console.log("[System] Auto-update initiated...");
 

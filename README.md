@@ -1,73 +1,72 @@
-# PaperCreeper - O Painel Mágico de Minecraft (IA + Skript + Servidores Locais)
+# PaperCreeper - The Magic Minecraft Panel (AI + Skript + Local Servers)
 
-O **PaperCreeper** não é apenas um painel de hospedagem. É o seu companheiro Minecraft construído com Inteligência Artificial e foco extremo em performance.  
-Crie servidores (Paper, Forge, Fabric, etc.), gerencie plugins, edite mapas, modifique configurações, injete Skripts Mágicos nativos, e exporte seu mundo de jogo em minutos, tudo com ajuda da nossa "Inteligência Creeper".
+**PaperCreeper** is not just a hosting panel. It is your Minecraft companion built with Artificial Intelligence and extreme focus on performance.  
+Create servers (Paper, Forge, Fabric, etc.), manage plugins, edit maps, modify settings, inject Native Magic Skripts, and export your game world in minutes, all with the help of our "Creeper Intelligence".
 
 ---
 
-## 🚀 Como Iniciar (Setup & Configuração)
+## 🚀 Quick Success Guide - Optimized for WSL2 (Penguin Power) & Linux
 
-A configuração foi desenhada para ser simples e rápida. Você pode rodar de duas formas principais: Usando a nossa IA Embutida gratuitamente, ou se conectando ao seu provedor local pra rodar o painel off-grid (sem custos na cloud).
+Our architecture prioritizes Linux virtual servers and Windows Subsystem for Linux (WSL). Native Windows servers are slow and problematic. We assume you want to run this master piece straight from the penguin!
 
-### 1. Inicializando o Servidor Web (NodeJS)
+### 1. Initializing the Web Server (WSL2/Linux/Termux)
 
-Certifique-se de que o NPM e Node (v18+) estão instalados no seu computador.
-No terminal, execute:
+Ensure your Ubuntu/Debian machine on WSL/VPS has Node v18+ and zip/unzip/tar installed to allow the panel to handle jars:
+```bash
+sudo apt update && sudo apt install -y curl unzip zip tar lsof htop git
+```
+
+Clone the panel (or navigate to your directory) and run:
 ```bash
 npm install
 npm run build
 npm start
 ```
-O painel iniciará na porta `3000`. Acesse `http://localhost:3000` ou a URL providenciada do deploy na Cloud, e o **Menu Mágico** lhe dará boas vindas!
+*(TIP: If there are port issues on WSL, run `killall node` and start again. Our system will magically skip dead ports.)*
 
-### 2. Configuração do Assistente IA
+The Panel will be alive at `http://localhost:3000`.
 
-O painel já vem com integração total da IA nas abas e um botão voador onipresente (`I.A Assist`). Como conectar:
+### 2. Creeper AI-Brain Configuration
 
-1. Clique na engrenagem de **Configurações** no menu lateral.
-2. Na seção **API IA (Universal)** clique em `Configurar`.
-3. Selecione o seu provedor:
-   * **Local AI**: Se você roda [LM Studio](https://lmstudio.ai/) ou Ollama, selecione essa aba. Para o LM Studio, ligue o *Local Server* e cole o Endpoint (geralmente `http://127.0.0.1:1234/v1/chat/completions`). Aperte Salvar.
-   * **Gemini / OpenAI**: Se você for conectar à Nuvem (Google Gemini, Groq, xAI), cole sua respectiva `API_KEY` na caixa respectiva e aperte Salvar.
+The Creeper has a virtual mind of its own! The "AI Assist" button is always available.
 
-O Assistente agora está "Acordado" e ajudará em toda a jornada.
+1. Click on the sidebar tab **Settings**.
+2. Find the **AI API (Universal)** section.
+3. Insert your credentials:
+   * **Local (LM Studio / Ollama):** Local endpoint to run Llama3 offline for free. The IP must be the Windows host if via WSL (e.g. 172.x.x.x or if properly mapped `http://localhost:1234/v1`).
+   * **Gemini/Groq/OpenAI:** Direct API key for Cloud AI!
+4. Hit **SAVE** and the gear will come to life!
 
-### 3. Criando seu Primeiro Servidor Minecraft
+### 3. Creating MULTIVERSE WORLDS
 
-1. Vá na aba **Servidores (Servers)**.
-2. Clique em "CRIAR NOVO SERVIDOR".
-3. Dê um nome mágico, aloque a quantidade de RAM e selecione a versão que quiser da lista suspensa (desde o Nostálgico 1.12.2 até o 1.21.1+).  
-   *Nota: O painel automaticamente faz o download da versão exata de Java requisitada pela versão e instala o Forja (Forge / Fabric / Paper / Purpur / Vanilla) na hora pra você.*
-4. Clique em **Salvar e Iniciar!**
-5. Abra seu jogo no IP listado (ex: `localhost:25565`) ou pelo link do Playit.gg que será gerado!
-
----
-
-## 🛠 Recursos Opcionais: "Rode Leve, Rode Livre"
-
-Quer focar apenas na performance do Minecraft sem gastar recursos do painel? Nosso sistema foi feito para consumir 0% de uso até você clicar.
-
-### 🔌 Desligando Módulos Desnecessários
-Nas **Configurações**, procure pelos interruptores modulares:
-* **EDITOR DE MAPA:** Desligue para focar apenas nos arquivos (Desativando a aba Map)
-* **LOJA IN-GAME:** Oculta a área de configuração de lojinhas NPC.
-* **ASSISTENTE IA:** Desliga globalmente o companheiro virtual, poupando processamento de I/O em máquinas pesadas (VPS Optimistic).
+1. **Servers Tab:** Create a new one.
+2. Magic Name, RAM (2 to 8GB to run smoothly on the Panel's Java21+!)
+3. Choose *Paper* for RAM economy, or *Fabric* for fast Mods, *Forge* for nostalgia, or *Nukkit* (Bedrock C++ Bridge).
+4. Upon clicking "CREATE WORLD", you notice a "magic download". The panel does EVERYTHING without downloading extra windows!
 
 ---
 
-## 🔧 Fábrica de Plugins (Skript)
+## 💎 Modular "Uninstall" System
 
-O painel possui um integrador Native Skript acoplado nativamente na IA. 
-1. Clique no Menu de **Criador de Plugins**.
-2. Descreva sua ideia. Exemplo: *"Quero que toda vez que um jogador entre no servidor toquem fogos de artifício!"*
-3. Confirme. Ao receber a reposta da IA, clique em **Salvar e Injetar**. O painel auto-injeta o arquivo `.sk` direto na pasta, e recarrega os plugins instantaneamente no servidor aberto. Vualá.
+The base Panel memory usage is ~30MB. But the FrontEnd (Your Browser) will get heavy if many magic tabs run!
+**Turn off what you don't use** in the Settings panel:
+* 3D Map Editor
+* Internal In-Game Store
+* Floating Terminal
 
 ---
 
-## 🗺 Funcionalidade de Mapa Embutido
+## 🔥 Does it work on Android? Termux?
 
-Na aba **Mapa** (quando ativada usando a Loja de Extensões internas ou usando BlueMap), a IA explica claramente o que esperar da manipulação de Schematic (construções MCEdit). Devido à pesada renderização de grafos web tridimensionais, é recomendado rodar via BlueMap para pre-view, mas colar grandes schemas _sempre de dentro do jogo_ com as orientações do próprio botão `Ver Schematics`.
+**YES!** The entire Panel interface is Mobile First! Through *Termux* on an 8GB RAM Android, install `nodejs`, do a `git pull`, `npm i`, and run it locally! Our large on-screen buttons will make it easy to tweak `server.properties` files right from your bed using your Smartphone!
 
-### 🎉 Por que a inteligência artificial vai dominar?
+---
 
-Porque ela lê os relatórios de crash, recarrega o Playit quando o tunnel cai off-line e até lhe informa dicas de "Otimização de Linux VPS e Anti-Lag". Explore e teste!
+## 🔄 Updating the System (AUTOMATIC GIT PULL!)
+
+In the Settings tab, at the bottom of the page, we have the **UPDATE SYSTEM** button.
+This button forces the penguin or mac to dispatch the magic command in the backend!
+```bash
+git fetch --all && git reset --hard origin/main && npm install && npm run build
+```
+Never again will you need to go down to the Linux Console to push/pull commits from this repo! But hey, **Ensure Git is correctly configured!**
