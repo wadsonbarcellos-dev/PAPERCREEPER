@@ -17,8 +17,6 @@ const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY || "AIza_fallback",
 });
 
-import { pipeline } from "stream/promises";
-
 // Helper to reliably download files using native Node
 async function downloadFile(url: string, dest: string, onLog?: (msg: string) => void): Promise<boolean> {
   try {
@@ -29,16 +27,14 @@ async function downloadFile(url: string, dest: string, onLog?: (msg: string) => 
       return false;
     }
     
-    if (res.body) {
-      const { Readable } = require("stream");
-      const partDest = dest + ".part";
-      const fileStream = fs.createWriteStream(partDest);
-      // @ts-ignore
-      await pipeline(Readable.fromWeb(res.body), fileStream);
-      fs.renameSync(partDest, dest);
-      return true;
-    }
-    return false;
+    // Ler como arrayBuffer para memória (seguro para arquivos <500MB em VPS moderna e evita problemas de Readable stream compatibilidade)
+    const arrayBuffer = await res.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    
+    const partDest = dest + ".part";
+    fs.writeFileSync(partDest, buffer);
+    fs.renameSync(partDest, dest);
+    return true;
   } catch (e: any) {
     if (onLog) onLog(`[ERROR] Download exception: ${e.message}`);
     return false;
@@ -2255,7 +2251,6 @@ command /creeper-ai <text>:
     try {
       res.json({ message: "Atualização iniciada. Reiniciando o servidor..." });
 
-      const { exec } = require("child_process");
       const cmd =
         "(git fetch --all && git reset --hard origin/main || git reset --hard origin/master || echo '[System] Not a git repo, skipping pull') && npm install && npm run build";
 
@@ -2326,20 +2321,23 @@ command /creeper-ai <text>:
 
     // Abrir o navegador automaticamente (Modo App)
     try {
-      const { exec } = require("child_process");
       const isWsl = fs.existsSync("/proc/sys/fs/binfmt_misc/WSLInterop");
 
-      // Tenta abrir no Edge ou Chrome em modo "Aplicativo" para parecer um software nativo
-      const openCmd = isWsl
-        ? `cmd.exe /c start msedge --app=${url} || cmd.exe /c start chrome --app=${url} || cmd.exe /c start ${url}`
-        : os.platform() === "win32"
-          ? `start msedge --app=${url} || start chrome --app=${url} || start ${url}`
-          : os.platform() === "darwin"
-            ? `open ${url}`
-            : `xdg-open ${url}`;
+      let openCmd = "";
+      if (isWsl) {
+        // No WSL, executa powershell para tentar edge e chrome
+        openCmd = `powershell.exe -Command "Start-Process msedge -ArgumentList '--app=${url}' -ErrorAction SilentlyContinue; if (!$?) { Start-Process chrome -ArgumentList '--app=${url}' -ErrorAction SilentlyContinue; if (!$?) { Start-Process '${url}' } }"`;
+      } else if (os.platform() === "win32") {
+        openCmd = `powershell.exe -Command "Start-Process msedge -ArgumentList '--app=${url}' -ErrorAction SilentlyContinue; if (!$?) { Start-Process chrome -ArgumentList '--app=${url}' -ErrorAction SilentlyContinue; if (!$?) { Start-Process '${url}' } }"`;
+      } else if (os.platform() === "darwin") {
+        openCmd = `open -n -a "Google Chrome" --args --app=${url} || open ${url}`;
+      } else {
+        openCmd = `xdg-open ${url}`;
+      }
 
+      console.log("[System] Tentando abrir o painel automaticamente...");
       exec(openCmd, (err: any) => {
-        // Ignora erros silenciocamente (ex: se rodar em VPS sem interface gráfica)
+        // Silent catch
       });
     } catch (e) {}
   });
