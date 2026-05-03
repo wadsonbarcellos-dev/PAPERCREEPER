@@ -18,7 +18,7 @@ sudo apt update && sudo apt install -y curl unzip zip tar lsof htop git
 
 Clone o repositório e inicie o painel:
 ```bash
-git clone https://github.com/SeuUsuario/PaperCreeper.git
+git clone https://github.com/wadbar/paperCreeper.git
 cd PaperCreeper
 npm install
 npm run build
@@ -68,7 +68,7 @@ Acesse `http://localhost:3000` ou pelo IP local usando outro dispositivo! Nossos
 No terminal do seu Mac:
 ```bash
 brew install node git curl unzip zip
-git clone https://github.com/SeuUsuario/PaperCreeper.git
+git clone https://github.com/wadbar/paperCreeper.git
 cd PaperCreeper
 npm install
 npm run build
