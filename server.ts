@@ -450,7 +450,7 @@ async function startServer() {
   // --- API IA (UNIVERSAL) ---
   app.post("/api/ai", async (req, res) => {
     try {
-      const { prompt, context, serverId, provider, endpoint, history } = req.body;
+      const { prompt, context, serverId, provider, endpoint, history, modelName } = req.body;
       const sId = serverId || "default";
 
       const currentKey =
@@ -486,7 +486,7 @@ Exemplo: "Vou deixar de dia! [ACTION:{"name": "sendTerminalCommand", "args": {"c
 
       if (provider === "local") {
         // Local AI (LM Studio, Ollama, etc) via OpenAI API compatible endpoint
-        const targetEndpoint = endpoint || "http://127.0.0.1:1234/v1/chat/completions";
+        const targetEndpoint = endpoint || "http://127.0.0.1:11434/v1/chat/completions";
         const messages = [{ role: "system", content: systemInstruction }];
         if (context) messages.push({ role: "system", content: `CONTEXTO ATUAL DO SERVIDOR:\n${context}` });
         
@@ -499,10 +499,15 @@ Exemplo: "Vou deixar de dia! [ACTION:{"name": "sendTerminalCommand", "args": {"c
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 60000);
 
+        const fetchHeaders: any = { "Content-Type": "application/json" };
+        if (currentKey && currentKey !== "AIza_fallback") {
+          fetchHeaders["Authorization"] = `Bearer ${currentKey}`;
+        }
+
         const oaiRes = await fetch(targetEndpoint, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ model: "local-model", messages, temperature: 0.7 }),
+          headers: fetchHeaders,
+          body: JSON.stringify({ model: modelName || "llama3", messages, temperature: 0.7 }),
           signal: controller.signal
         });
         clearTimeout(timeoutId);
@@ -2316,7 +2321,27 @@ command /creeper-ai <text>:
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    const url = `http://localhost:${PORT}`;
+    console.log(`[🚀] Servidor rodando em ${url}`);
+
+    // Abrir o navegador automaticamente (Modo App)
+    try {
+      const { exec } = require("child_process");
+      const isWsl = fs.existsSync("/proc/sys/fs/binfmt_misc/WSLInterop");
+
+      // Tenta abrir no Edge ou Chrome em modo "Aplicativo" para parecer um software nativo
+      const openCmd = isWsl
+        ? `cmd.exe /c start msedge --app=${url} || cmd.exe /c start chrome --app=${url} || cmd.exe /c start ${url}`
+        : os.platform() === "win32"
+          ? `start msedge --app=${url} || start chrome --app=${url} || start ${url}`
+          : os.platform() === "darwin"
+            ? `open ${url}`
+            : `xdg-open ${url}`;
+
+      exec(openCmd, (err: any) => {
+        // Ignora erros silenciocamente (ex: se rodar em VPS sem interface gráfica)
+      });
+    } catch (e) {}
   });
 }
 

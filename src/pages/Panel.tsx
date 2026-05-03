@@ -414,7 +414,10 @@ export default function App({
     }
   );
   const [aiEndpoint, setAiEndpoint] = useState<string>(
-    () => localStorage.getItem("creeper_ai_endpoint") || "http://127.0.0.1:1234/v1/chat/completions"
+    () => localStorage.getItem("creeper_ai_endpoint") || "http://127.0.0.1:11434/v1/chat/completions"
+  );
+  const [aiLocalModel, setAiLocalModel] = useState<string>(
+    () => localStorage.getItem("creeper_ai_local_model") || "llama3"
   );
   
   const [pluginDescription, setPluginDescription] = useState("");
@@ -425,10 +428,12 @@ export default function App({
   useEffect(() => {
     localStorage.setItem("creeper_ai_provider", aiProvider);
     localStorage.setItem("creeper_ai_endpoint", aiEndpoint);
-  }, [aiProvider, aiEndpoint]);
+    localStorage.setItem("creeper_ai_local_model", aiLocalModel);
+  }, [aiProvider, aiEndpoint, aiLocalModel]);
 
   const [isVpsOptimized, setIsVpsOptimized] = useState(true);
   const [storeSearch, setStoreSearch] = useState("");
+  const [showBlueMap, setShowBlueMap] = useState(false);
   const [storeResults, setStoreResults] = useState<any[]>([]);
   const [isSearchingStore, setIsSearchingStore] = useState(false);
   const [storeProvider, setStoreProvider] = useState<"hangar" | "modrinth">(
@@ -1561,7 +1566,7 @@ export default function App({
 
     try {
       const context = `Servidor Selecionado: ${currentServerId}. Status: ${serverState.status}. Logs recentes:\n${serverState.logs.slice(-10).join("\n")}`;
-      const firstResult = await askAI(userMsg, context, currentServerId, aiProvider, aiEndpoint, aiChat.slice(-10));
+      const firstResult = await askAI(userMsg, context, currentServerId, aiProvider, aiEndpoint, aiChat.slice(-10), aiLocalModel);
 
       if (firstResult.call) {
         setAiChat((prev) => [
@@ -1580,7 +1585,8 @@ export default function App({
           currentServerId,
           aiProvider,
           aiEndpoint,
-          aiChat.slice(-10)
+          aiChat.slice(-10),
+          aiLocalModel
         );
         setAiChat((prev) => [
           ...prev.slice(0, -1),
@@ -1625,7 +1631,7 @@ export default function App({
 
 Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Retorne APENAS o código encapsulado num bloco \`\`\`skript ... \`\`\`. Use blocos de command, on event, etc conforme necessário e não utilize ferramentas [ACTION:...] aqui! Só envie o código, sem explicações extras.`;
       
-      const result = await askAI(prompt, "Skript Plugin Generation Mode", currentServerId, aiProvider, aiEndpoint, []);
+      const result = await askAI(prompt, "Skript Plugin Generation Mode", currentServerId, aiProvider, aiEndpoint, [], aiLocalModel);
       
       const rawText = result.text || "";
       const codeMatch = rawText.match(/```(?:skript|sk|yaml)?\n([\s\S]*?)```/);
@@ -3214,6 +3220,13 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                       </button>
 
                       <button
+                        onClick={() => setShowBlueMap(!showBlueMap)}
+                        className="w-full py-4 rounded-xl flex items-center justify-center gap-2 font-black text-[10px] uppercase shadow-lg transition-transform active:scale-95 border-b-4 bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-800"
+                      >
+                        <Globe size={16} /> {showBlueMap ? "Fechar Editor Web" : "Abrir Editor Web"}
+                      </button>
+
+                      <button
                         onClick={() => {
                           setActiveTab("settings");
                           setStoreProvider("hangar");
@@ -3223,9 +3236,9 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                           searchStore("bluemap");
                           setEditingServer(servers.find(s => s.id === currentServerId) || null);
                         }}
-                        className="w-full py-4 rounded-xl flex items-center justify-center gap-2 font-black text-[10px] uppercase shadow-lg transition-transform active:scale-95 border-b-4 bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-800"
+                        className="w-full py-4 rounded-xl flex items-center justify-center gap-2 font-black text-[10px] uppercase shadow-lg transition-transform active:scale-95 border-b-4 bg-zinc-800 hover:bg-zinc-700 text-blue-400 border-zinc-950"
                       >
-                        <Globe size={16} /> Mapa 3D no Navegador (BlueMap)
+                        <RefreshCw size={16} /> Instalar / Atualizar Engine
                       </button>
 
                       <button
@@ -3248,6 +3261,21 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                         <Map size={16} /> {t("map_view_worlds")}
                       </button>
                     </div>
+
+                    {showBlueMap && (
+                      <div className="w-full mt-4 bg-black/60 border-4 border-emerald-900 rounded-[2rem] overflow-hidden flex flex-col transition-all relative">
+                         <div className="bg-emerald-950 px-4 py-2 flex items-center justify-between border-b-2 border-emerald-900">
+                           <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">MAP ENGINE (WEB)</span>
+                           <a href={`http://${window.location.hostname}:8100/`} target="_blank" className="bg-emerald-700 hover:bg-emerald-600 text-white px-3 py-1 rounded-lg text-[9px] font-bold uppercase transition flex ">ABRIR NOVO MODO TELA CHEIA</a>
+                         </div>
+                         <iframe 
+                           src={`http://${window.location.hostname}:8100/`} 
+                           className="w-full h-[50vh] min-h-[400px] border-none bg-zinc-950" 
+                           title="BlueMap Frame"
+                           sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+                         />
+                      </div>
+                    )}
 
                     <div className="w-full mt-4 p-6 bg-black/40 border-2 border-emerald-900/40 rounded-2xl">
                       <p className="text-[12px] text-emerald-500 font-black tracking-widest uppercase mb-4 text-center">
@@ -3891,13 +3919,24 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                           )}
                         </div>
                       ) : (
-                        <input
-                          type="text"
-                          value={aiEndpoint}
-                          onChange={(e) => setAiEndpoint(e.target.value)}
-                          placeholder="http://127.0.0.1:1234/v1/chat/completions"
-                          className="bg-black/60 border border-emerald-900 rounded-xl px-4 py-2 text-xs text-emerald-100 outline-none focus:border-emerald-500 flex-1 min-w-[200px] w-full sm:w-auto"
-                        />
+                        <div className="flex items-center gap-2 flex-1 w-full sm:w-auto">
+                          <input
+                            type="text"
+                            value={aiEndpoint}
+                            onChange={(e) => setAiEndpoint(e.target.value)}
+                            placeholder="http://127.0.0.1:11434/v1/chat/completions"
+                            className="bg-black/60 border border-emerald-900 rounded-xl px-4 py-2 text-xs text-emerald-100 outline-none focus:border-emerald-500 flex-1 min-w-[200px] w-full sm:w-auto"
+                            title="Endpoint (Ex: Ollama ou LM Studio)"
+                          />
+                          <input
+                            type="text"
+                            value={aiLocalModel}
+                            onChange={(e) => setAiLocalModel(e.target.value)}
+                            placeholder="llama3"
+                            className="bg-black/60 border border-emerald-900 rounded-xl px-4 py-2 text-xs text-emerald-100 outline-none focus:border-emerald-500 w-24 sm:w-auto"
+                            title="Nome do Modelo (Ex: llama3, qwen2.5-coder)"
+                          />
+                        </div>
                       )}
 
                       <button
