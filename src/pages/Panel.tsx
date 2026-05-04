@@ -544,6 +544,8 @@ export default function App({
   const [pluginUrl, setPluginUrl] = useState("");
   const [pluginName, setPluginName] = useState("");
   const [ramConfig, setRamConfig] = useState({ ram: 2, minRam: 1 });
+  const [backups, setBackups] = useState<any[]>([]);
+  const [showBackups, setShowBackups] = useState(false);
   const [isSyncingRam, setIsSyncingRam] = useState(true);
   const [modules, setModules] = useState<{
     map: boolean;
@@ -862,6 +864,17 @@ export default function App({
     } catch (e) {
       alert("Erro ao salvar config.");
     }
+  };
+
+  const fetchBackups = async () => {
+    if (!currentServerId) return;
+    try {
+      const res = await fetch(`/api/server/backups?serverId=${currentServerId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setBackups(data.backups || []);
+      }
+    } catch(e) {}
   };
 
   const handleBackup = async () => {
@@ -4276,12 +4289,28 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                         </p>
                       </div>
                     </div>
-                    <button
-                      onClick={clearLogs}
-                      className="px-4 py-2 bg-emerald-900/40 hover:bg-emerald-800 text-emerald-400 font-bold rounded-xl border border-emerald-800 flex items-center gap-2 transition-colors text-xs"
-                    >
-                      <Trash2 size={14} /> Limpar Logs
-                    </button>
+                    <div className="flex items-center gap-2">
+                       <button
+                         onClick={async () => {
+                           if (!currentServerId) return;
+                           const res = await fetch("/api/bot/control", {
+                             method: "POST",
+                             headers: { "Content-Type": "application/json" },
+                             body: JSON.stringify({ serverId: currentServerId, action: "start", port: servers.find(s => s.id === currentServerId)?.port || 25565 }) // assume "start", logic can be improved
+                           });
+                           if (res.ok) alert("Comando enviado para o Bot IA! Verifique o console.");
+                         }}
+                         className="px-4 py-2 bg-purple-900/40 hover:bg-purple-800 text-purple-400 font-bold rounded-xl border border-purple-800 flex items-center gap-2 transition-colors text-xs"
+                       >
+                         <Bot size={14} /> Ativar IA Ajudante
+                       </button>
+                       <button
+                         onClick={clearLogs}
+                         className="px-4 py-2 bg-emerald-900/40 hover:bg-emerald-800 text-emerald-400 font-bold rounded-xl border border-emerald-800 flex items-center gap-2 transition-colors text-xs"
+                       >
+                         <Trash2 size={14} /> Limpar Logs
+                       </button>
+                    </div>
                   </div>
 
                   <div
@@ -4462,6 +4491,16 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                             BACKUP
                           </button>
                           <button
+                            onClick={() => {
+                              setShowBackups(!showBackups);
+                              if (!showBackups) fetchBackups();
+                            }}
+                            className={`px-6 py-4 rounded-2xl font-black text-xs transition-all border-b-4 flex items-center gap-2 ${showBackups ? "bg-amber-900/50 text-amber-500 border-amber-900" : "bg-emerald-900/50 text-emerald-500 border-emerald-950 hover:bg-emerald-900"}`}
+                          >
+                            <Database size={16} />
+                            {showBackups ? "OCULTAR BACKUPS" : "LISTAR BACKUPS"}
+                          </button>
+                          <button
                             onClick={() =>
                               setShowDownloadInput(!showDownloadInput)
                             }
@@ -4490,6 +4529,44 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                           </button>
                         </div>
                       </div>
+
+                      <AnimatePresence>
+                        {showBackups && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0, marginBottom: 0 }}
+                            animate={{
+                              height: "auto",
+                              opacity: 1,
+                              marginBottom: 24,
+                            }}
+                            exit={{ height: 0, opacity: 0, marginBottom: 0 }}
+                            className="overflow-hidden"
+                          >
+                            <div className="p-6 bg-amber-900/10 border-2 border-amber-900/50 rounded-3xl flex flex-col gap-4 max-h-64 overflow-y-auto custom-scrollbar">
+                               <h3 className="text-amber-500 font-black text-xs uppercase tracking-widest flex items-center gap-2">
+                                 <Database size={14} /> Seus Backups
+                               </h3>
+                               {backups.length === 0 && (
+                                 <div className="text-zinc-500 font-bold text-xs">Nenhum backup encontrado.</div>
+                               )}
+                               {backups.map((bak: any, idx) => (
+                                 <div key={idx} className="p-3 bg-black/40 rounded-xl border border-amber-900/30 flex justify-between items-center group">
+                                     <div className="flex flex-col">
+                                        <span className="text-amber-300 font-mono text-xs">{bak.name}</span>
+                                        <span className="text-zinc-500 font-bold text-[10px]">Misto/Local • {(bak.size / 1024 / 1024).toFixed(2)} MB</span>
+                                     </div>
+                                     <a
+                                       href={`/api/server/backup/download?serverId=${currentServerId}&file=${bak.name}`}
+                                       className="px-4 py-2 bg-amber-600/20 hover:bg-amber-600/40 text-amber-500 hover:text-amber-400 font-black text-[10px] rounded-lg tracking-widest uppercase transition-colors"
+                                     >
+                                        Fazer Download
+                                     </a>
+                                 </div>
+                               ))}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
 
                       <AnimatePresence>
                         {showDownloadInput && (

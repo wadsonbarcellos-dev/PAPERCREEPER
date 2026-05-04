@@ -8,6 +8,7 @@ import fs from "fs";
 import os from "os";
 import multer from "multer";
 import { GoogleGenAI, Type } from "@google/genai";
+import { manageBot, isBotConnected, sendBotMessage } from "./botService.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1383,6 +1384,43 @@ command /creeper-ai <text>:
       serversState[serverId].logs = [];
     }
     res.json({ success: true });
+  });
+
+  app.post("/api/bot/control", async (req, res) => {
+    const { serverId, action, port } = req.body;
+    ensureState(serverId);
+    const resolvedPort = port || 25565;
+    await manageBot(serverId, action, resolvedPort, "Ajudante_IA", (msg: string) => {
+        addLog(serverId, msg);
+    });
+    res.json({ success: true, connected: isBotConnected(serverId) });
+  });
+
+  app.post("/api/bot/chat", (req, res) => {
+      const { serverId, message } = req.body;
+      const sent = sendBotMessage(serverId, message);
+      res.json({ success: sent });
+  });
+
+  app.get("/api/server/backups", (req, res) => {
+    const id = req.query.serverId as string;
+    const backupDir = path.join(process.cwd(), "backups", id);
+    if (!fs.existsSync(backupDir)) return res.json({ backups: [] });
+    const files = fs.readdirSync(backupDir).filter(f => f.endsWith(".tar.gz")).map(f => {
+      const stats = fs.statSync(path.join(backupDir, f));
+      return { name: f, size: stats.size, date: stats.mtime };
+    });
+    res.json({ backups: files });
+  });
+
+  app.get("/api/server/backup/download", (req, res) => {
+    const { serverId, file } = req.query;
+    if (!serverId || !file) return res.status(400).send("Bad request");
+    // basic security check
+    if ((file as string).includes("..") || (file as string).includes("/")) return res.status(403).send("Forbidden");
+    const filepath = path.join(process.cwd(), "backups", serverId as string, file as string);
+    if (!fs.existsSync(filepath)) return res.status(404).send("Not found");
+    res.download(filepath);
   });
 
   app.post("/api/server/backup", (req, res) => {

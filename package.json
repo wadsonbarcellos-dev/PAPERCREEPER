@@ -36,6 +36,8 @@
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
     "lucide-react": "^0.546.0",
+    "mineflayer": "^4.37.1",
+    "mineflayer-pathfinder": "^2.4.5",
     "motion": "^12.23.24",
     "multer": "^2.1.1",
     "react": "^19.0.0",
