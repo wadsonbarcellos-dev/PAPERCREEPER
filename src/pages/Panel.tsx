@@ -424,10 +424,10 @@ export default function App({
   >([]);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiInput, setAiInput] = useState("");
-  const [aiProvider, setAiProvider] = useState<"remote" | "local">(
+  const [aiProvider, setAiProvider] = useState<"remote" | "local" | "off">(
     () => {
       const saved = localStorage.getItem("creeper_ai_provider");
-      return saved === "local" ? "local" : "remote";
+      return (saved as "remote" | "local" | "off") || "remote";
     }
   );
   const [aiEndpoint, setAiEndpoint] = useState<string>(
@@ -617,6 +617,16 @@ export default function App({
   const [mapRegion, setMapRegion] = useState("spawn");
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [autoScroll, setAutoScroll] = useState(true);
+  
+  const handleScroll = () => {
+    if (scrollRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+      const isAtBottom = scrollHeight - scrollTop - clientHeight < 50;
+      setAutoScroll(isAtBottom);
+    }
+  };
+
   const lastActivity = useRef(Date.now());
 
   const fetchServers = async () => {
@@ -1349,10 +1359,14 @@ export default function App({
   };
 
   useEffect(() => {
-    if (scrollRef.current) {
+    setAutoScroll(true);
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (autoScroll && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [serverState.logs, activeTab]);
+  }, [serverState.logs, aiChat, activeTab, autoScroll]);
 
   const handleAction = async (action: "start" | "stop" | "kill") => {
     if (!currentServerId) return;
@@ -3967,7 +3981,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
 
                   <div className="flex flex-col gap-4 mb-4">
                     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-black/20 p-4 rounded-2xl border border-emerald-900/50">
-                      <div className="flex gap-2 bg-emerald-950/50 p-1 rounded-xl">
+                      <div className="flex flex-wrap gap-2 bg-emerald-950/50 p-1 rounded-xl">
                         <button
                           onClick={() => { setAiProvider("remote"); setAiChat([]); }}
                           className={`px-4 py-2 rounded-lg text-xs font-bold uppercase transition-all ${aiProvider === "remote" ? "bg-emerald-600 text-white shadow-md" : "text-emerald-500 hover:text-emerald-400"}`}
@@ -3979,6 +3993,12 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                           className={`px-4 py-2 rounded-lg text-xs font-bold uppercase transition-all ${aiProvider === "local" ? "bg-emerald-600 text-white shadow-md" : "text-emerald-500 hover:text-emerald-400"}`}
                         >
                           I.A Local (PC)
+                        </button>
+                        <button
+                          onClick={() => { setAiProvider("off"); setAiChat([]); }}
+                          className={`px-4 py-2 rounded-lg text-xs font-bold uppercase transition-all ${aiProvider === "off" ? "bg-zinc-600 text-white shadow-md" : "text-zinc-500 hover:text-zinc-400"}`}
+                        >
+                          Desativar
                         </button>
                       </div>
 
@@ -4031,7 +4051,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                             </div>
                           )}
                         </div>
-                      ) : (
+                      ) : aiProvider === "local" ? (
                         <div className="flex items-center gap-2 flex-1 w-full sm:w-auto">
                           <input
                             type="text"
@@ -4050,6 +4070,10 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                             title="Nome do Modelo (Ex: llama3, qwen2.5-coder)"
                           />
                         </div>
+                      ) : (
+                        <div className="flex items-center gap-2 flex-1 w-full sm:w-auto px-4 text-[10px] text-zinc-400 font-bold uppercase tracking-widest">
+                          Assistente Desativado
+                        </div>
                       )}
 
                       <button
@@ -4065,6 +4089,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                   <div
                     className="flex-1 overflow-y-auto pr-4 custom-scrollbar mb-6 space-y-4"
                     ref={scrollRef}
+                    onScroll={handleScroll}
                   >
                     {aiChat.length === 0 && (
                       <div className="h-full flex flex-col items-center justify-center text-center opacity-40">
@@ -4103,14 +4128,15 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
 
                   <form onSubmit={handleAskAI} className="relative">
                     <input
-                      className="w-full bg-black/60 border-2 border-emerald-900 rounded-2xl px-6 py-5 text-emerald-50 font-medium outline-none focus:border-emerald-500 transition-all shadow-inner pr-16"
-                      placeholder="Pergunte qualquer coisa sobre seu servidor..."
+                      className="w-full bg-black/60 border-2 border-emerald-900 rounded-2xl px-6 py-5 text-emerald-50 font-medium outline-none focus:border-emerald-500 transition-all shadow-inner pr-16 disabled:opacity-50 disabled:cursor-not-allowed"
+                      placeholder={aiProvider === "off" ? "Assistente desativado." : "Pergunte qualquer coisa sobre seu servidor..."}
                       value={aiInput}
                       onChange={(e) => setAiInput(e.target.value)}
+                      disabled={aiProvider === "off" || aiLoading}
                     />
                     <button
                       type="submit"
-                      disabled={!aiInput.trim() || aiLoading}
+                      disabled={!aiInput.trim() || aiLoading || aiProvider === "off"}
                       className="absolute right-3 top-3 w-12 h-12 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-lg border-b-4 border-emerald-800 transition-all flex items-center justify-center disabled:opacity-50 disabled:grayscale"
                     >
                       <Send size={24} />
@@ -4154,6 +4180,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
 
                   <div
                     ref={scrollRef}
+                    onScroll={handleScroll}
                     className="flex-1 overflow-y-auto pr-6 space-y-1.5 custom-scrollbar font-mono text-[11px] p-6 bg-black/80 rounded-2xl border border-emerald-900/50 shadow-inner tech-grid"
                   >
                     {serverState.logs.length === 0 && (
