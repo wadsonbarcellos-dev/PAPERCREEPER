@@ -43,7 +43,7 @@ async function downloadFile(url: string, dest: string, onLog?: (msg: string) => 
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  let currentPort = parseInt(process.env.PORT || "3000", 10);
 
   app.use(express.json());
 
@@ -1272,6 +1272,10 @@ command /creeper-ai <text>:
               const state = serversState[serverId] as any;
               if (!state.errorBuffer) state.errorBuffer = [];
               state.errorBuffer.push(line.trim());
+              // Keep only the last 1000 lines to avoid RangeError: Invalid string length
+              if (state.errorBuffer.length > 1000) {
+                state.errorBuffer = state.errorBuffer.slice(-1000);
+              }
 
               if (state.errorTimer) clearTimeout(state.errorTimer);
               state.errorTimer = setTimeout(async () => {
@@ -1748,6 +1752,30 @@ command /creeper-ai <text>:
     });
   });
 
+  app.post("/api/ai/local", async (req, res) => {
+    const { action } = req.body;
+    try {
+      if (action === "start") {
+        console.log("[AI] Starting local AI (ollama)...");
+        // Try systemctl first, then fallback to direct execution
+        exec("systemctl restart ollama || ollama serve > /dev/null 2>&1 &", (err) => {
+          if (err) console.error("[AI] Error starting local AI:", err);
+        });
+        res.json({ success: true });
+      } else if (action === "stop") {
+        console.log("[AI] Stopping local AI (ollama)...");
+        exec("systemctl stop ollama || killall ollama", (err) => {
+          if (err) console.error("[AI] Error stopping local AI:", err);
+        });
+        res.json({ success: true });
+      } else {
+        res.status(400).json({ error: "Invalid action" });
+      }
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.get("/api/playit/status", async (req, res) => {
     let globalTunnel = null;
 
@@ -2160,10 +2188,15 @@ command /creeper-ai <text>:
       return res.status(403).json({ error: "Acesso proibido." });
 
     try {
+      const parentDir = path.dirname(fullPath);
+      if (!fs.existsSync(parentDir)) {
+        fs.mkdirSync(parentDir, { recursive: true });
+      }
       fs.writeFileSync(fullPath, content);
       res.json({ success: true });
-    } catch (e) {
-      res.status(500).json({ error: "Erro." });
+    } catch (e: any) {
+      console.error("[FS] Erro ao salvar arquivo:", e.message);
+      res.status(500).json({ error: e.message });
     }
   });
 
@@ -2338,32 +2371,26 @@ command /creeper-ai <text>:
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    const url = `http://localhost:${PORT}`;
-    console.log(`[🚀] Servidor rodando em ${url}`);
+  const startServerOnPort = (port: number) => {
+    const server = app.listen(port, "0.0.0.0", () => {
+      const url = `http://localhost:${port}`;
+      console.log(`[🚀] Servidor rodando em ${url}`);
+      console.log("[System] O navegador não será aberto automaticamente para evitar várias janelas.");
+    });
 
-    // Abrir o navegador automaticamente (Modo App)
-    try {
-      const isWsl = fs.existsSync("/proc/sys/fs/binfmt_misc/WSLInterop");
-
-      let openCmd = "";
-      if (isWsl) {
-        // No WSL, executa powershell para tentar edge e chrome
-        openCmd = `powershell.exe -Command "Start-Process msedge -ArgumentList '--app=${url}' -ErrorAction SilentlyContinue; if (!$?) { Start-Process chrome -ArgumentList '--app=${url}' -ErrorAction SilentlyContinue; if (!$?) { Start-Process '${url}' } }"`;
-      } else if (os.platform() === "win32") {
-        openCmd = `powershell.exe -Command "Start-Process msedge -ArgumentList '--app=${url}' -ErrorAction SilentlyContinue; if (!$?) { Start-Process chrome -ArgumentList '--app=${url}' -ErrorAction SilentlyContinue; if (!$?) { Start-Process '${url}' } }"`;
-      } else if (os.platform() === "darwin") {
-        openCmd = `open -n -a "Google Chrome" --args --app=${url} || open ${url}`;
+    server.on('error', (e: any) => {
+      if (e.code === 'EADDRINUSE') {
+        console.log(`[System] A porta ${port} está em uso, tentando a próxima (${port + 1})...`);
+        setTimeout(() => {
+          startServerOnPort(port + 1);
+        }, 1000);
       } else {
-        openCmd = `xdg-open ${url}`;
+        console.error(e);
       }
+    });
+  };
 
-      console.log("[System] Tentando abrir o painel automaticamente...");
-      exec(openCmd, (err: any) => {
-        // Silent catch
-      });
-    } catch (e) {}
-  });
+  startServerOnPort(currentPort);
 }
 
 startServer().catch(console.error);

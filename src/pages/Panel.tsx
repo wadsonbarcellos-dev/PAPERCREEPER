@@ -1371,6 +1371,12 @@ export default function App({
   const handleAction = async (action: "start" | "stop" | "kill") => {
     if (!currentServerId) return;
 
+    if (action === "start") {
+      setActiveTab("terminal");
+    } else if (action === "stop" || action === "kill") {
+      setActiveTab("servers");
+    }
+
     // Optimistic UI update
     setServerState((prev) => ({
       ...prev,
@@ -3983,19 +3989,31 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-black/20 p-4 rounded-2xl border border-emerald-900/50">
                       <div className="flex flex-wrap gap-2 bg-emerald-950/50 p-1 rounded-xl">
                         <button
-                          onClick={() => { setAiProvider("remote"); setAiChat([]); }}
+                          onClick={() => { 
+                            setAiProvider("remote"); 
+                            setAiChat([]); 
+                            fetch("/api/ai/local", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "stop" }) }).catch(() => {});
+                          }}
                           className={`px-4 py-2 rounded-lg text-xs font-bold uppercase transition-all ${aiProvider === "remote" ? "bg-emerald-600 text-white shadow-md" : "text-emerald-500 hover:text-emerald-400"}`}
                         >
                           I.A Remota (Cloud)
                         </button>
                         <button
-                          onClick={() => { setAiProvider("local"); setAiChat([]); }}
+                          onClick={() => { 
+                            setAiProvider("local"); 
+                            setAiChat([]); 
+                            fetch("/api/ai/local", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "start" }) }).catch(() => {});
+                          }}
                           className={`px-4 py-2 rounded-lg text-xs font-bold uppercase transition-all ${aiProvider === "local" ? "bg-emerald-600 text-white shadow-md" : "text-emerald-500 hover:text-emerald-400"}`}
                         >
                           I.A Local (PC)
                         </button>
                         <button
-                          onClick={() => { setAiProvider("off"); setAiChat([]); }}
+                          onClick={() => { 
+                            setAiProvider("off"); 
+                            setAiChat([]); 
+                            fetch("/api/ai/local", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "stop" }) }).catch(() => {});
+                          }}
                           className={`px-4 py-2 rounded-lg text-xs font-bold uppercase transition-all ${aiProvider === "off" ? "bg-zinc-600 text-white shadow-md" : "text-zinc-500 hover:text-zinc-400"}`}
                         >
                           Desativar
