@@ -55,6 +55,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { askAI } from "../services/geminiService";
+import MapEditor3D from "../components/MapEditor3D";
 
 const translations: any = {
   en: {
@@ -181,13 +182,22 @@ const translations: any = {
     map_view_schematics: "View Schematics (Server)",
     map_view_worlds: "View Worlds (Server)",
     store_editor_title: "Store Manager",
-    store_editor_desc: "Create your own 100% custom Skript store or manage native NPC/GUI store plugins.",
-    store_generate_skript: "Generate In-Game Skript Store (AI)",
+    store_editor_desc: "Create your own 100% custom Script store or manage native NPC/GUI store plugins.",
+    store_generate_skript: "Generate In-Game Script Store (AI)",
     store_npc_shopkeepers: "NPC Shop (Shopkeepers)",
     store_gui_economy: "Ready GUI Store (EconomyShopGUI)",
     store_npc_commands: "NPC Commands (Citizens)",
     store_status_help: "Status / Help",
-    store_help_desc: "If you generate a Skript Store, the code will be created by our AI assistant. Remember to install the Skript plugin in the Plugins tab first for it to work.",
+    script_builder_title: "Script Builder",
+    script_builder_desc: "AI SCRIPT AUTOMATION (•◡•)",
+    script_builder_input_label: "Describe the Script Idea",
+    script_builder_btn_loading: "Generating...",
+    script_builder_btn_generate: "Create Auto Script",
+    script_builder_status_success: "Script generated! Save to apply.",
+    script_builder_status_error: "Error generating script. Check AI Key or Local Server.",
+    script_builder_status_save_error: "Error saving script.",
+    script_builder_status_saving: "Plugin Saved! Restarting scripts...",
+    script_builder_save_btn: "SAVE SCRIPT (.SK)",
     java_settings: "Java Configuration",
     java_path_label: "Custom Java Execution Path (.exe / bin/java)",
     java_detect_btn: "SCAN SYSTEM",
@@ -322,13 +332,22 @@ const translations: any = {
     map_view_schematics: "Ver Schematics no SV",
     map_view_worlds: "Ver Mundos do SV",
     store_editor_title: "Gerenciador de Lojas",
-    store_editor_desc: "Crie sua própria loja Skript 100% customizada ou gerencie plugins de Lojas NPC / GUI nativos.",
-    store_generate_skript: "Gerar Loja Skript In-Game (IA)",
+    store_editor_desc: "Crie sua própria loja via Skript 100% customizada ou gerencie plugins de Lojas NPC / GUI nativos.",
+    store_generate_skript: "Gerar Loja via Skript In-Game (IA)",
     store_npc_shopkeepers: "Loja de NPCs (Shopkeepers)",
     store_gui_economy: "Loja GUI Pronta (EconomyShopGUI)",
     store_npc_commands: "Comandos em NPCs (Citizens)",
     store_status_help: "Status / Ajuda",
-    store_help_desc: "Se você gerar uma Loja Skript, o código será criado pelo nosso assistente. Lembre-se de instalar o plugin Skript na aba de Plugins primeiro para que ele funcione.",
+    script_builder_title: "Fábrica de Scripts",
+    script_builder_desc: "I.A. SKRIPT BUILDER (•◡•)",
+    script_builder_input_label: "Descreva a ideia do Script",
+    script_builder_btn_loading: "Gerando...",
+    script_builder_btn_generate: "Criar Script Automático",
+    script_builder_status_success: "Script gerado com sucesso! Salve para aplicar.",
+    script_builder_status_error: "Erro ao gerar script. Verifique a API Key ou o servidor Local AI.",
+    script_builder_status_save_error: "Erro ao salvar script.",
+    script_builder_status_saving: "Script Injetado e Salvo com Sucesso!",
+    script_builder_save_btn: "SALVAR SCRIPT (.SK)",
   },
 };
 
@@ -454,6 +473,7 @@ export default function App({
   const [isVpsOptimized, setIsVpsOptimized] = useState(true);
   const [storeSearch, setStoreSearch] = useState("");
   const [showBlueMap, setShowBlueMap] = useState(false);
+  const [showEditor3D, setShowEditor3D] = useState(false);
   const [storeResults, setStoreResults] = useState<any[]>([]);
   const [isSearchingStore, setIsSearchingStore] = useState(false);
   const [storeFolder, setStoreFolder] = useState<"plugins" | "mods">("plugins");
@@ -1686,10 +1706,10 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
       const code = codeMatch ? codeMatch[1].trim() : rawText.trim();
 
       setPluginCode(code);
-      setPluginGenStatus("Plugin gerado com sucesso! Salve para aplicar.");
+      setPluginGenStatus(t("script_builder_status_success") || "Plugin gerado com sucesso! Salve para aplicar.");
     } catch (err) {
       console.error(err);
-      setPluginGenStatus("Erro ao gerar plugin. Verifique a API Key ou o servidor Local AI.");
+      setPluginGenStatus(t("script_builder_status_error") || "Erro ao gerar plugin. Verifique a API Key ou o servidor Local AI.");
     }
     setIsGeneratingPlugin(false);
   };
@@ -1709,10 +1729,10 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
         })
       });
       if (res.ok) {
-        setPluginGenStatus("Plugin Injetado e Salvo com Sucesso!");
+        setPluginGenStatus(t("script_builder_status_saving") || "Plugin Injetado e Salvo com Sucesso!");
         await executeAITool({ name: "reloadSkripts", args: { serverId: currentServerId } });
       } else {
-        setPluginGenStatus("Erro ao salvar plugin.");
+        setPluginGenStatus(t("script_builder_status_save_error") || "Erro ao salvar plugin.");
       }
     } catch (e) {
       setPluginGenStatus("Erro na requisição. Verifique o console.");
@@ -3382,7 +3402,14 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                         onClick={() => setShowBlueMap(!showBlueMap)}
                         className="w-full py-4 rounded-xl flex items-center justify-center gap-2 font-black text-[10px] uppercase shadow-lg transition-transform active:scale-95 border-b-4 bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-800"
                       >
-                        <Globe size={16} /> {showBlueMap ? "Fechar Editor Web" : "Abrir Editor Web"}
+                        <Globe size={16} /> {showBlueMap ? "Fechar Web (Map Engine)" : "Abrir Web (Map Engine)"}
+                      </button>
+
+                      <button
+                        onClick={() => setShowEditor3D(!showEditor3D)}
+                        className="w-full col-span-2 py-4 rounded-xl flex items-center justify-center gap-2 font-black text-[10px] uppercase shadow-lg transition-transform active:scale-95 border-b-4 bg-purple-600 hover:bg-purple-500 text-white border-purple-800"
+                      >
+                        <Boxes size={16} /> {showEditor3D ? "Fechar MCEdit (3D Web)" : "Abrir MCEdit (3D Web)"}
                       </button>
 
                       <button
@@ -3464,6 +3491,10 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                            sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
                          />
                       </div>
+                    )}
+
+                    {showEditor3D && (
+                      <MapEditor3D />
                     )}
 
                     <div className="w-full mt-4 p-6 bg-black/40 border-2 border-emerald-900/40 rounded-2xl">
@@ -3682,17 +3713,17 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                     </div>
                     <div>
                       <h2 className="text-3xl font-black text-white tracking-tighter italic uppercase">
-                        Fábrica de Scripts
+                        {t("script_builder_title") || "Fábrica de Scripts"}
                       </h2>
                       <p className="text-emerald-500 text-[10px] font-black uppercase tracking-widest mt-1">
-                        I.A. SKRIPT BUILDER (•◡•)
+                        {t("script_builder_desc") || "I.A. SKRIPT BUILDER (•◡•)"}
                       </p>
                     </div>
                   </div>
 
                   <div className="flex-1 flex flex-col gap-4 min-h-0">
                     <div className="flex flex-col gap-2">
-                       <label className="text-xs font-bold text-emerald-400 uppercase tracking-widest pl-2">Descreva a ideia do Script</label>
+                       <label className="text-xs font-bold text-emerald-400 uppercase tracking-widest pl-2">{t("script_builder_input_label") || "Descreva a ideia do Script"}</label>
                        <textarea
                          value={pluginDescription}
                          onChange={(e) => setPluginDescription(e.target.value)}
@@ -3708,9 +3739,9 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                          className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:grayscale text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all flex hidden-sm items-center gap-2"
                        >
                          {isGeneratingPlugin ? (
-                           <><RefreshCw size={16} className="animate-spin" /> Gerando...</>
+                           <><RefreshCw size={16} className="animate-spin" /> {t("script_builder_btn_loading") || "Gerando..."}</>
                          ) : (
-                           <><Sparkles size={16} /> Criar Script Automático</>
+                           <><Sparkles size={16} /> {t("script_builder_btn_generate") || "Criar Script Automático"}</>
                          )}
                        </button>
                     </div>
@@ -3723,7 +3754,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                             onClick={handleSavePlugin}
                             className="px-4 py-2 bg-emerald-900/50 hover:bg-emerald-800 text-emerald-300 font-bold text-[10px] uppercase tracking-widest rounded-lg transition-all flex items-center gap-2 border border-emerald-800"
                           >
-                            <Save size={14} /> Salvar e Injetar no Servidor
+                            <Save size={14} /> {t("script_builder_save_btn") || "Salvar e Injetar no Servidor"}
                           </button>
                         </div>
                         <textarea

@@ -1,75 +1,78 @@
-# PaperCreeper - O Painel Mágico de Minecraft (IA + Skript + Servidores Locais)
+# PaperCreeper - The Magic Minecraft Panel (AI + Scripts + Local Servers)
 
-O **PaperCreeper** não é apenas um painel de hospedagem. É o seu companheiro Minecraft construído com Inteligência Artificial e foco extremo em performance.  
-Crie servidores (Paper, Forge, Fabric, etc.), gerencie plugins, edite mapas, modifique configurações, injete Skripts Mágicos nativos, e exporte seu mundo de jogo em minutos, tudo com ajuda da nossa "Inteligência Creeper".
+**PaperCreeper** is not just a hosting panel. It is your Minecraft server companion built with Artificial Intelligence and extreme focus on performance.
+Create servers (Paper, Forge, Fabric, etc.), manage plugins, edit maps, tweak configs, inject native Magic Scripts, and export your game world in minutes—all guided by our "Creeper Intelligence".
+
+## 🚀 Installation & Setup Guide (Step-by-Step)
+
+Our architecture is heavily optimized for Linux virtualization and the Windows Subsystem for Linux (WSL2). Native Windows Node.js servers are notoriously slow for heavy Minecraft workflows. We assume you want to run this beast directly from the penguin!
+
+### Method 1: Windows via WSL2 (The Best Way on Windows)
+
+If you are on Windows, WSL2 is mandatory for optimal performance.
+
+**Step 1: Enable WSL2 and Install Debian**
+1. Open PowerShell as Administrator.
+2. Run the command to install WSL and Debian directly:
+   ```powershell
+   wsl --install -d Debian
+   ```
+3. Restart your computer if prompted.
+4. Open the "Debian" app from your Start Menu. It will ask you to create a UNIX username and password.
+
+**Step 2: Install Dependencies inside Debian**
+Once in your Debian terminal, update the system and install the required tools (Git, Node.js, cURL, etc.):
+```bash
+# Update repositories and install basics
+sudo apt update && sudo apt upgrade -y
+sudo apt install -y curl unzip zip tar lsof htop git wget build-essential
+
+# Install Node.js v20 (Required)
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs
+```
+
+**Step 3: Clone PaperCreeper and Run**
+```bash
+# Clone the repository correctly
+git clone https://github.com/wadbar/papercreeper.git
+cd papercreeper
+
+# Install dependencies and build
+npm install
+npm run build
+
+# Start the panel
+npm start
+```
+*The Panel will automatically open in your browser as a Standalone Web App!*
 
 ---
 
-## 🚀 Guia de Instalação e Configuração
+### Method 2: Linux (Ubuntu/Debian VPS) - The Server Way
 
-Nossa arquitetura prioriza servidores Linux virtuais e o Subsistema Windows para Linux (WSL). Servidores em Windows Nativo são lerdos e problemáticos. Nós assumimos que você quer rodar esse mestre direto do pinguim!
-
-### Método 1: Linux (Ubuntu/Debian/VPS) - Recomendado
-
-Garanta que sua máquina possui Node v18+ e as ferramentas essenciais instaladas:
+Ensure your machine has Node v18+ and essential tools:
 ```bash
-sudo apt update && sudo apt install -y curl unzip zip tar lsof htop git
-```
-
-Clone o repositório e inicie o painel:
-```bash
-git clone https://github.com/SeuUsuario/PaperCreeper.git
-cd PaperCreeper
+sudo apt update && sudo apt install -y curl unzip zip tar lsof htop git nodejs npm
+git clone https://github.com/wadbar/papercreeper.git
+cd papercreeper
 npm install
 npm run build
 npm start
 ```
-O Painel estará vivo em `http://localhost:3000`.
+The Panel will be alive at `http://YOUR_SERVER_IP:3000`.
 
-> 🪄 **NOVIDADE: NATIVE APP MODE!**
-> Ao executar `npm start` ou iniciar pelos atalhos, o sistema detecta se você está no Windows (mesmo via WSL2) ou Mac, e abrirá automaticamente o Edge ou Google Chrome em **Modo Aplicativo (Standalone)**. O painel não terá barras de URL e se comportará como um programa nativo instalado na sua máquina!
+---
 
-### Método 2: Windows via WSL2 (Pinguim no Windows)
+### Método 3: Android (Via Termux) - Mobile Native
 
-Para a melhor performance no Windows, ative o WSL2 (Windows Subsystem for Linux), instale o Ubuntu pela Microsoft Store e abra o terminal do Ubuntu:
-```bash
-# Atualize e instale as dependências essenciais
-sudo apt update && sudo apt install -y curl unzip zip tar lsof htop git
-
-# Instale o Node.js via NVM ou repositório direto
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt-get install -y nodejs
-
-# Baixe e inicie
-git clone https://github.com/SeuUsuario/PaperCreeper.git
-cd PaperCreeper
-npm install
-npm run build
-npm start
-```
-
-### Método 3: Android (Via Termux)
-
-**SIM!** A interface inteira do Painel é Mobile First! Jogue pelo celular e hosteie pelo celular!
-Abra seu [Termux](https://f-droid.org/en/packages/com.termux/):
+**YES!** The whole Panel interface is Mobile First! Host and play directly from your phone!
+Open your [Termux](https://f-droid.org/en/packages/com.termux/):
 ```bash
 pkg update && pkg upgrade
 pkg install nodejs git curl unzip zip tar
-git clone https://github.com/SeuUsuario/PaperCreeper.git
-cd PaperCreeper
-npm install
-npm run build
-npm start
-```
-Acesse `http://localhost:3000` ou pelo IP local usando outro dispositivo! Nossos botões grandes na tela facilitarão mexer nos arquivos `server.properties` direto na cama usando o Smartphone!
-
-### Método 4: macOS via Homebrew
-
-No terminal do seu Mac:
-```bash
-brew install node git curl unzip zip
-git clone https://github.com/SeuUsuario/PaperCreeper.git
-cd PaperCreeper
+git clone https://github.com/wadbar/papercreeper.git
+cd papercreeper
 npm install
 npm run build
 npm start
@@ -77,83 +80,76 @@ npm start
 
 ---
 
-## 🛠 Entendendo os Comandos (Dicas & Troubleshooting)
+## 🔁 How to Update Your Panel
 
-Se o seu sistema der erro de "Permissão negada" (Permission denied) ao tentar instalar dependências pós-instalação ou ao tentar rodar `npm run dev`, aplique esse comando mágio:
-
-> "viu ta faltando aum passo acho q o chmod sei la so deu erro"
-
-Para garantir que nossos scripts automatizados e binários mágicos (como o túnel Playit) funcionem sem o temido erro de "permissão negada" (Permission Denied) no Linux/WSL, rode este passo fundamental na pasta do painel:
+We push new features frequently! To apply the latest updates directly from GitHub without breaking your servers:
 
 ```bash
-# 1. Dá permissão de execução ao Script de Setup Inicial
-chmod +x setup.sh
+# Make sure you are inside the panel's folder
+cd papercreeper
 
-# 2. Executa o Script de Setup (Isso instalará coisas cruciais e criará os atalhos!)
-./setup.sh
+# Fetch and reset to the latest origin
+git fetch --all
+git reset --hard origin/main
 
-# 3. Dá permissão ao binário do túnel proxy se usar Linux/WSL AMD64 (opcional/preventivo)
-chmod +x bin/playit-linux-amd64
+# Reinstall and rebuild just in case
+npm install
+npm run build
 
-# 4. PASSO CRÍTICO: Recarrega as configurações do seu terminal!
-# O script setup.sh criou atalhos mágicos para você ('staper' e 'stoper'). 
-# Para eles funcionarem AGORA na mesma janela, rode:
-source ~/.bashrc
+# Start it back up
+npm start
 ```
-
-**O que o `source ~/.bashrc` faz?**  
-Ele avisa ao seu Linux: *"Ei, leia novamente o meu arquivo de configurações"*. Como o nosso comando `setup.sh` injetou dois comandos novos lá (`staper` para iniciar o painel rapidamente, e `stoper` para parar quando rodar em background), se você não der o `source`, o terminal dirá que o comando 'staper' não existe até que você feche e abra o terminal novamente!
-
-**Portas Travadas? / Erro de lsof?**
-Se houve porta presa, use no WSL:
-```bash
-killall node
-```
-*Nosso painel agora já detecta automaticamente portas ocupadas e pula para a 3001, 3002 e assim por diante!*
+*(You can also use the "Update Panel" button directly inside the app's Settings!)*
 
 ---
 
-## 🤖 Configuração Cérebro-IA do Creeper
+## 🤖 AI Configuration (Ollama & API Keys)
 
-O Creeper tem uma mente virtual própria! O Botão "I.A Assiste" sempre está disponível.
+The Creeper has its own virtual mind! The "AI Assist" button is everywhere. We support both Cloud AI and Local AI.
 
-1. Clique na aba lateral **Configurações** ("Settings").
-2. Encontre a seção **API IA (Universal)**.
-3. Insira suas credenciais:
-   * **Local (LM Studio / Ollama):** Endpoint local para rodar Llama3 offline de graça. O IP tem que ser no host windows se via WSL (ex: 172.x.x.x ou se mapeado correto localhost:1234/v1).
-   * **Gemini/Groq:** Chave de API externa para a Nuvem de AI Google/Groq/OpenAI!
-4. Aperte SALVAR e a engrenagem criará vida!
+### Setting up MULTIPLE API Keys for Auto-Fallback (Gemini/Groq)
+In the Panel's Settings, you can now add **multiple API Keys separated by commas**!
+If a key reaches its rate limit (Quota Exceeded), the Panel will automatically switch to the next key without interrupting your workflow.
+1. Get a free API Key from [Google AI Studio](https://aistudio.google.com/app/apikey) or Groq.
+2. Go to PaperCreeper > Settings > AI Provider.
+3. Select "Cloud AI" and paste your keys: `AIzaSy..., AIzaSy..., gsk_...`
+4. Choose the model and enjoy!
 
----
-
-## 🌍 Criando MUNDOS MULTIVERSO
-
-1. **Aba Servidores Central:** Selecione 'Criar'.
-2. Digite um Nome Mágico e escolha a RAM (2GB a 8GB pra rodar redondinho no Java embutido no Painel!).
-3. Escolha *Paper* para economia de RAM, ou *Fabric* pra Mods, *Forge* pra nostalgia, ou *Nukkit* se for jogar via Bedrock.
-4. Ao clicar "CRIAR MUNDO", o painel faz TUDO para você. Não se preocupe em baixar Java dezenas de vezes, o painel centraliza instalações.
-
----
-
-## 🔄 Como Atualizar seu Painel
-
-Na aba Configurações, no final da página, temos os botões de Sistema. E temos o botão mágico de Atuliar **[Atualizar Painel (Update)]**. Este botão puxará do repositório a aba mais recente usando comandos git clássicos sem frescuras! Sendo nativamente compatível com WSL via comando Linux no Node.js!
-
-O código que roda por trás da interface usa:
-```bash
-git fetch --all && git reset --hard origin/main && npm install && npm run build
-```
-*(Certifique-se de que sua pasta é um repositório clonado do github e possua o git instalado)*
+### Setting up Local AI (Ollama - 100% Free & Offline)
+1. Install [Ollama](https://ollama.com/) on your host machine (Windows or Linux).
+2. Open your terminal and download a fast model (like Llama3 or Qwen):
+   ```bash
+   ollama run llama3.2
+   ```
+3. Inside PaperCreeper, go to Settings. Change the AI Provider to **Local AI**.
+4. Set the Endpoint:
+   - If PaperCreeper is on Linux running Ollama locally: `http://127.0.0.1:11434/v1/chat/completions`
+   - If PaperCreeper is inside WSL2, but Ollama is on Windows Host, use your WSL Gateway IP (e.g., `http://172.x.x.x:11434/v1/chat/completions` or check your WSL network settings).
+   *(Note: You might need to set `OLLAMA_HOST=0.0.0.0` in your Windows Environment Variables to allow WSL connections).*
 
 ---
 
-## 💎 Módulo Super Leve
+## 📜 The "Script Builder" vs The "Skript" Plugin
 
-O uso de memória do Painel base é ~30MB. Mas o FrontEnd (Seu Navegador) vai consumir renderizações 3Ds a depender das abas que utilizar (Mapa)!
-**Desligue componentes desnecessários para economizar RAM:**
-* O Editor de Mapa (MCEdit-like) pode ser pesado. Feche a aba se não usar.
-* Servidores grandes rodam mais tranquilos usando *PaperMC* com flags pré-programadas do Creeper.
+In our UI, you will see the **Script Builder** ("Fábrica de Scripts").
+This tool uses AI to write automation scripts, custom commands, and new mechanics for your Minecraft server *on the fly*, without needing to compile Java plugins.
+
+**How does it work?**
+1. The AI generates a `.sk` file (a Skript).
+2. For this file to be understood by Minecraft, your server **MUST** have the `Skript` plugin installed.
+3. You can install the Skript plugin easily from our "Mods/Plugins Store" tab with one click.
+4. Once installed, every time you use the Script Builder and click Save, it automatically puts the `.sk` file into `plugins/Skript/scripts/` and issues a `/sk reload all` command to your server, making your new script work instantly!
 
 ---
-Desenvolvido com 💚 usando Inteligência Artificial.
 
+## 🌍 Managing Servers & Optimizations
+
+- **Start/Stop/Kill:** Quick actions on the panel.
+- **Auto-Java:** PaperCreeper automatically downloads and assigns the correct Java version (8, 17, or 21) based on the Minecraft version you select!
+- **MCEdit / Map Editor:** We integrated an experimental Web-based 3D Map Viewer (like BlueMap) and a toolbar to send WorldEdit commands (like `//wand`, `//copy`, `//paste`, `//undo`) straight to the server! Native MCEdit is discontinued, so we combined Web Viewing + In-Game WorldEdit for the best experience.
+
+**Performance Warning:** 
+Keep the map viewer closed if you are low on RAM!
+
+---
+*Developed with 💚 using Full-Stack AI Automation.*

@@ -2399,7 +2399,35 @@ command /creeper-ai <text>:
     const server = app.listen(port, "0.0.0.0", () => {
       const url = `http://localhost:${port}`;
       console.log(`[🚀] Servidor rodando em ${url}`);
-      console.log("[System] O navegador não será aberto automaticamente para evitar várias janelas.");
+      
+      // Auto-open browser when running locally (not in AI Studio sandbox)
+      if (!process.env.CLOUD_RUN_JOB && !process.env.HOSTNAME) {
+        setTimeout(() => {
+          const platform = os.platform();
+          let command;
+          
+          try {
+            // Check for WSL safely
+            let isWslCheck = false;
+            try {
+               isWslCheck = fs.readFileSync('/proc/version', 'utf8').toLowerCase().includes('microsoft');
+            } catch(e) {}
+
+            if (isWslCheck) {
+              command = `cmd.exe /C "start msedge --app=${url} || start chrome --app=${url} || start ${url}"`;
+            } else if (platform === 'win32') {
+              command = `cmd.exe /C "start msedge --app=${url} || start chrome --app=${url} || start ${url}"`;
+            } else if (platform === 'darwin') {
+              command = `"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --app=${url} || open ${url}`;
+            } else {
+              command = `google-chrome --app=${url} || xdg-open ${url}`;
+            }
+            exec(command, () => {});
+          } catch (e) {
+            // ignore
+          }
+        }, 1500); // 1.5s delay to assure the startup process ends without glitching
+      }
     });
 
     server.on('error', (e: any) => {
