@@ -7,13 +7,14 @@ export const askAI = async (
   provider?: string,
   endpoint?: string,
   history?: any[],
-  modelName?: string
+  modelName?: string,
+  apiKeys?: string[]
 ) => {
   try {
     const response = await fetch("/api/ai", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt, context, serverId, provider, endpoint, history, modelName })
+      body: JSON.stringify({ prompt, context, serverId, provider, endpoint, history, modelName, apiKeys })
     });
 
     if (!response.ok) {

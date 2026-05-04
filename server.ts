@@ -516,14 +516,21 @@ async function startServer() {
   // --- API IA (UNIVERSAL) ---
   app.post("/api/ai", async (req, res) => {
     try {
-      const { prompt, context, serverId, provider, endpoint, history, modelName } = req.body;
+      const { prompt, context, serverId, provider, endpoint, history, modelName, apiKeys } = req.body;
       const sId = serverId || "default";
 
-      const currentKey =
-        process.env.UNIVERSAL_API_KEY || process.env.GEMINI_API_KEY || "";
+      let keysToTry = [];
+      if (apiKeys && Array.isArray(apiKeys) && apiKeys.length > 0) {
+        keysToTry = [...apiKeys];
+      }
       
-      if (provider !== "local" && (!currentKey || currentKey === "AIza_fallback")) {
-        throw new Error("API Key não configurada. Configure no menu de IA.");
+      const envKey = process.env.UNIVERSAL_API_KEY || process.env.GEMINI_API_KEY || "";
+      if (envKey && envKey !== "AIza_fallback" && !keysToTry.includes(envKey)) {
+         keysToTry.push(envKey);
+      }
+
+      if (provider !== "local" && keysToTry.length === 0) {
+        throw new Error("Nenhuma API Key configurada. Configure no menu de IA ou nas Configurações.");
       }
 
       // Instrução de sistema para manter a personalidade
@@ -557,7 +564,7 @@ Exemplo: "Vou deixar de dia! [ACTION:{"name": "sendTerminalCommand", "args": {"c
         if (context) messages.push({ role: "system", content: `CONTEXTO ATUAL DO SERVIDOR:\n${context}` });
         
         if (history && Array.isArray(history)) {
-          history.forEach(msg => messages.push({ role: msg.role === "assistant" ? "assistant" : "user", content: msg.text }));
+          history.forEach((msg: any) => messages.push({ role: msg.role === "assistant" ? "assistant" : "user", content: msg.text }));
         }
         
         messages.push({ role: "user", content: prompt });
@@ -566,8 +573,8 @@ Exemplo: "Vou deixar de dia! [ACTION:{"name": "sendTerminalCommand", "args": {"c
         const timeoutId = setTimeout(() => controller.abort(), 60000);
 
         const fetchHeaders: any = { "Content-Type": "application/json" };
-        if (currentKey && currentKey !== "AIza_fallback") {
-          fetchHeaders["Authorization"] = `Bearer ${currentKey}`;
+        if (keysToTry.length > 0) {
+          fetchHeaders["Authorization"] = `Bearer ${keysToTry[0]}`;
         }
 
         const oaiRes = await fetch(targetEndpoint, {
@@ -582,34 +589,51 @@ Exemplo: "Vou deixar de dia! [ACTION:{"name": "sendTerminalCommand", "args": {"c
         const oaiData: any = await oaiRes.json();
         text = oaiData.choices?.[0]?.message?.content || "";
 
-      } else if (currentKey.startsWith("AIza") && provider !== "openai") {
-        // Gemini API via @google/genai
-        const localAi = new GoogleGenAI({ apiKey: currentKey });
-        
-        const formattedHistory = (history || []).map((msg: any) => ({
-          role: msg.role === "assistant" ? "model" : "user",
-          parts: [{ text: msg.text }]
-        }));
+      } else if (keysToTry.length > 0 && provider !== "openai") {
+        // Assume all keys are Gemini keys
+        const tryKey = async (key: string) => {
+          const localAi = new GoogleGenAI({ apiKey: key });
+          
+          const formattedHistory = (history || []).map((msg: any) => ({
+            role: msg.role === "assistant" ? "model" : "user",
+            parts: [{ text: msg.text }]
+          }));
 
-        const chat = localAi.chats.create({
-          model: "gemini-2.5-flash",
-          config: {
-            systemInstruction,
-            temperature: 0.8,
-            topP: 0.95,
-            topK: 64,
-          },
-          history: formattedHistory
-        });
-        
-        const result = await chat.sendMessage({ 
-          message: `${context ? `CONTEXTO ATUAL DO SERVIDOR:\n${context}\n\n` : ""}${prompt}` 
-        });
-        text = result.text;
+          const chat = localAi.chats.create({
+            model: "gemini-2.5-flash",
+            config: {
+              systemInstruction,
+              temperature: 0.8,
+              topP: 0.95,
+              topK: 64,
+            },
+            history: formattedHistory
+          });
+          
+          const result = await chat.sendMessage({ 
+            message: `${context ? `CONTEXTO ATUAL DO SERVIDOR:\n${context}\n\n` : ""}${prompt}` 
+          });
+          return result.text;
+        };
+
+        for (let i = 0; i < keysToTry.length; i++) {
+          try {
+            text = await tryKey(keysToTry[i]);
+            break; // Success
+          } catch (e: any) {
+            console.error(`[AI] Error with key ${i + 1}/${keysToTry.length}:`, e.message);
+            if (e.message?.includes('429') && i < keysToTry.length - 1) {
+              console.log("[AI] Quota exceeded, switching to next key...");
+              continue;
+            }
+            if (i === keysToTry.length - 1) throw e;
+          }
+        }
       } else {
         // External OpenAI-compatible (Groq, xAI, OpenAI)
         let targetEndpoint = "https://api.openai.com/v1/chat/completions";
         let model = "gpt-4o-mini";
+        const currentKey = keysToTry.length > 0 ? keysToTry[0] : "";
 
         if (currentKey.startsWith("gsk_")) {
           targetEndpoint = "https://api.groq.com/openai/v1/chat/completions";

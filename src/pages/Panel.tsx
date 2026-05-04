@@ -430,6 +430,9 @@ export default function App({
       return (saved as "remote" | "local" | "off") || "remote";
     }
   );
+  const [aiKeysList, setAiKeysList] = useState<string>(
+    () => localStorage.getItem("creeper_ai_keys_list") || ""
+  );
   const [aiEndpoint, setAiEndpoint] = useState<string>(
     () => localStorage.getItem("creeper_ai_endpoint") || "http://127.0.0.1:11434/v1/chat/completions"
   );
@@ -1607,8 +1610,9 @@ export default function App({
     setAiLoading(true);
 
     try {
+      const keysArray = aiKeysList.split(",").map(k => k.trim()).filter(k => k.length > 5);
       const context = `Servidor Selecionado: ${currentServerId}. Status: ${serverState.status}. Logs recentes:\n${serverState.logs.slice(-10).join("\n")}`;
-      const firstResult = await askAI(userMsg, context, currentServerId, aiProvider, aiEndpoint, aiChat.slice(-10), aiLocalModel);
+      const firstResult = await askAI(userMsg, context, currentServerId, aiProvider, aiEndpoint, aiChat.slice(-10), aiLocalModel, keysArray);
 
       if (firstResult.call) {
         setAiChat((prev) => [
@@ -1628,7 +1632,8 @@ export default function App({
           aiProvider,
           aiEndpoint,
           aiChat.slice(-10),
-          aiLocalModel
+          aiLocalModel,
+          keysArray
         );
         setAiChat((prev) => [
           ...prev.slice(0, -1),
@@ -1668,12 +1673,13 @@ export default function App({
     setPluginCode("");
 
     try {
+      const keysArray = aiKeysList.split(",").map(k => k.trim()).filter(k => k.length > 5);
       const prompt = `Atue como um desenvolvedor Skript (Minecraft). O usuário quer o seguinte plugin/sistema:
 "${pluginDescription}"
 
 Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Retorne APENAS o código encapsulado num bloco \`\`\`skript ... \`\`\`. Use blocos de command, on event, etc conforme necessário e não utilize ferramentas [ACTION:...] aqui! Só envie o código, sem explicações extras.`;
       
-      const result = await askAI(prompt, "Skript Plugin Generation Mode", currentServerId, aiProvider, aiEndpoint, [], aiLocalModel);
+      const result = await askAI(prompt, "Skript Plugin Generation Mode", currentServerId, aiProvider, aiEndpoint, [], aiLocalModel, keysArray);
       
       const rawText = result.text || "";
       const codeMatch = rawText.match(/```(?:skript|sk|yaml)?\n([\s\S]*?)```/);
@@ -2159,6 +2165,25 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                               <RefreshCw size={10} className={scanningJavas ? "animate-spin" : ""} />
                               {t("java_detect_btn")}
                             </button>
+                          </div>
+                          <div className="flex gap-2 mt-2">
+                             {[8, 17, 21].map(major => (
+                               <button 
+                                 key={major}
+                                 onClick={async () => {
+                                    alert(`Baixando Java ${major}. Verifique o console!`);
+                                    try {
+                                      await fetch("/api/system/java/download", {
+                                        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ major })
+                                      });
+                                      scanJavas();
+                                    } catch(e) {}
+                                 }}
+                                 className="flex-1 py-2 bg-emerald-950/40 text-emerald-600 font-black text-[9px] uppercase tracking-widest rounded-lg hover:bg-emerald-800 hover:text-emerald-300 transition-colors border border-emerald-900/50"
+                               >
+                                 ➕ Baixar Java {major}
+                               </button>
+                             ))}
                           </div>
                           
                           {javas.length > 0 && (
@@ -2862,7 +2887,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                     />
                     <MenuLink
                       icon={<Code size={20} />}
-                      label="Criador de Plugins"
+                      label="Criador de Scripts"
                       active={activeTab === "plugin-factory"}
                       onClick={() => setActiveTab("plugin-factory")}
                     />
@@ -3401,6 +3426,37 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">MAP ENGINE (WEB)</span>
                            <a href={`http://${window.location.hostname}:8100/`} target="_blank" className="bg-emerald-700 hover:bg-emerald-600 text-white px-3 py-1 rounded-lg text-[9px] font-bold uppercase transition flex ">ABRIR NOVO MODO TELA CHEIA</a>
                          </div>
+                         
+                         {/* WorldEdit Tools Toolbar */}
+                         <div className="bg-black/80 px-2 py-2 flex flex-wrap gap-2 justify-center border-b border-emerald-900/50">
+                            <span className="text-[9px] text-emerald-500 uppercase tracking-widest font-black flex items-center mr-2">Ferramentas MCEdit (In-Game):</span>
+                            {[
+                              { label: "WAND (Machado)", cmd: "//wand" },
+                              { label: "COPIAR (Clipboard)", cmd: "//copy" },
+                              { label: "COLAR", cmd: "//paste" },
+                              { label: "DESFAZER", cmd: "//undo" },
+                              { label: "LIMPAR (Set 0)", cmd: "//set 0" }
+                            ].map(tool => (
+                              <button 
+                                key={tool.cmd}
+                                onClick={async () => {
+                                  if (!currentServerId) return;
+                                  try {
+                                    await fetch("/api/server/command", {
+                                      method: "POST",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({ serverId: currentServerId, command: tool.cmd })
+                                    });
+                                    alert(`Comando ${tool.cmd} enviado para o jogador!`);
+                                  } catch (e) {}
+                                }}
+                                className="bg-zinc-800 hover:bg-emerald-700 hover:text-white px-2 py-1 rounded text-[9px] font-bold uppercase transition text-emerald-500 border border-emerald-900"
+                              >
+                                {tool.label}
+                              </button>
+                            ))}
+                         </div>
+
                          <iframe 
                            src={`http://${window.location.hostname}:8100/`} 
                            className="w-full h-[50vh] min-h-[400px] border-none bg-zinc-950" 
@@ -3626,7 +3682,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                     </div>
                     <div>
                       <h2 className="text-3xl font-black text-white tracking-tighter italic uppercase">
-                        Fábrica de Plugins
+                        Fábrica de Scripts
                       </h2>
                       <p className="text-emerald-500 text-[10px] font-black uppercase tracking-widest mt-1">
                         I.A. SKRIPT BUILDER (•◡•)
@@ -3636,7 +3692,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
 
                   <div className="flex-1 flex flex-col gap-4 min-h-0">
                     <div className="flex flex-col gap-2">
-                       <label className="text-xs font-bold text-emerald-400 uppercase tracking-widest pl-2">Descreva a ideia do Plugin</label>
+                       <label className="text-xs font-bold text-emerald-400 uppercase tracking-widest pl-2">Descreva a ideia do Script</label>
                        <textarea
                          value={pluginDescription}
                          onChange={(e) => setPluginDescription(e.target.value)}
@@ -3654,7 +3710,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                          {isGeneratingPlugin ? (
                            <><RefreshCw size={16} className="animate-spin" /> Gerando...</>
                          ) : (
-                           <><Sparkles size={16} /> Criar Plugin Mágico</>
+                           <><Sparkles size={16} /> Criar Script Automático</>
                          )}
                        </button>
                     </div>
@@ -4033,28 +4089,29 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                             <div className="flex items-center gap-2 flex-1 w-full sm:w-auto">
                               <input
                                 type="password"
-                                placeholder={t("ai_api_key_placeholder")}
-                                value={apiKeyValue}
-                                onChange={(e) => setApiKeyValue(e.target.value)}
+                                placeholder="Key1, Key2, Key3..."
+                                value={aiKeysList}
+                                onChange={(e) => {
+                                   setAiKeysList(e.target.value);
+                                   localStorage.setItem("creeper_ai_keys_list", e.target.value);
+                                }}
                                 className="bg-black/60 border border-emerald-900 rounded-xl px-4 py-2 outline-none focus:border-emerald-500 text-xs text-emerald-100 flex-1 min-w-[200px]"
+                                title="Múltiplas chaves separadas por vírgula para fallback"
                               />
                               <button
                                 onClick={async () => {
-                                  const key = apiKeyValue.trim();
-                                  if (key && key.length > 5) {
-                                    const res = await fetch("/api/config/env", {
+                                  // As chaves já estão salvas no localStorage no onChange
+                                  // Vamos também tentar salvar a primeira no backend por compatibilidade
+                                  const firstKey = aiKeysList.split(",")[0]?.trim();
+                                  if (firstKey && firstKey.length > 5) {
+                                    await fetch("/api/config/env", {
                                       method: "POST",
                                       headers: { "Content-Type": "application/json" },
-                                      body: JSON.stringify({ key }),
+                                      body: JSON.stringify({ key: firstKey }),
                                     });
-                                    if (res.ok) {
-                                      alert(t("ai_api_key_success"));
-                                      setShowApiKeyInput(false);
-                                      setApiKeyValue("");
-                                    } else alert(t("ai_api_key_error"));
-                                  } else {
-                                    alert(t("ai_api_key_invalid"));
                                   }
+                                  alert("Chaves salvas e configuradas para o auto-fallback!");
+                                  setShowApiKeyInput(false);
                                 }}
                                 className="font-black text-[10px] uppercase bg-emerald-600 text-white px-3 py-2 rounded-xl hover:bg-emerald-500 transition-all"
                               >
