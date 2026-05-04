@@ -22,6 +22,7 @@ import {
   Upload,
   Trash2,
   X,
+  Download,
   Check,
   Globe,
   Search,
@@ -49,7 +50,6 @@ import {
   Hand,
   UploadCloud,
   Edit2,
-  Download,
   Code,
   Save,
 } from "lucide-react";
@@ -151,6 +151,10 @@ const translations: any = {
     install_btn: "Install",
     searching: "Searching in",
     developed_by: "Developed by",
+    select_version: "Select Version",
+    modrinth_versions_title: "Available Versions",
+    game_versions: "Minecraft",
+    loaders: "Softwares",
     vps_hosting: "VPS Optimization",
     current_server: "(Current Server)",
     disable: "Disable",
@@ -184,6 +188,13 @@ const translations: any = {
     store_npc_commands: "NPC Commands (Citizens)",
     store_status_help: "Status / Help",
     store_help_desc: "If you generate a Skript Store, the code will be created by our AI assistant. Remember to install the Skript plugin in the Plugins tab first for it to work.",
+    java_settings: "Java Configuration",
+    java_path_label: "Custom Java Execution Path (.exe / bin/java)",
+    java_detect_btn: "SCAN SYSTEM",
+    java_download_btn: "DOWNLOAD JRE",
+    java_found_list: "Found on this machine:",
+    java_active_tag: "Runtime",
+    java_path_desc: "Manual path for older versions (Java 8) or newer (Java 25+). Leave blank for default auto-detection.",
   },
   pt: {
     menu_magic: "MENU MÁGICO",
@@ -281,6 +292,10 @@ const translations: any = {
     install_btn: "Instalar",
     searching: "Buscando no",
     developed_by: "Desenvolvido por",
+    select_version: "Selecionar Versão",
+    modrinth_versions_title: "Versões Disponíveis",
+    game_versions: "Minecraft",
+    loaders: "Softwares",
     vps_hosting: "Otimização VPS",
     current_server: "(Servidor Atual)",
     disable: "Desligar",
@@ -394,6 +409,8 @@ export default function App({
     }[]
   >([]);
   const [currentServerId, setCurrentServerId] = useState<string>("");
+  const [javas, setJavas] = useState<{ version: string; path: string; type: string }[]>([]);
+  const [scanningJavas, setScanningJavas] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("servers");
 
   useEffect(() => {
@@ -436,13 +453,13 @@ export default function App({
   const [showBlueMap, setShowBlueMap] = useState(false);
   const [storeResults, setStoreResults] = useState<any[]>([]);
   const [isSearchingStore, setIsSearchingStore] = useState(false);
-  const [storeProvider, setStoreProvider] = useState<"hangar" | "modrinth">(
-    "modrinth",
-  );
   const [storeFolder, setStoreFolder] = useState<"plugins" | "mods">("plugins");
   const [installingStoreItem, setInstallingStoreItem] = useState<string | null>(
     null,
   );
+  const [modrinthVersions, setModrinthVersions] = useState<any[]>([]);
+  const [selectedModrinthProject, setSelectedModrinthProject] = useState<any>(null);
+  const [showVersionsModal, setShowVersionsModal] = useState(false);
 
   const searchStore = async (q: string) => {
     if (!q) {
@@ -451,59 +468,48 @@ export default function App({
     }
     setIsSearchingStore(true);
     try {
-      const endpoint =
-        storeProvider === "hangar"
-          ? "/api/hangar/search"
-          : "/api/modrinth/search";
-      const res = await fetch(`${endpoint}?q=${encodeURIComponent(q)}`);
+      const res = await fetch(`/api/modrinth/search?q=${encodeURIComponent(q)}`);
       const data = await res.json();
-      if (storeProvider === "hangar") {
-        setStoreResults(data.result || []);
-      } else {
-        setStoreResults(data.hits || []);
-      }
+      setStoreResults(data.hits || []);
     } catch (e) {}
     setIsSearchingStore(false);
   };
 
-  const installHangarPlugin = async (slug: string, version: string) => {
-    if (!currentServerId) return;
+  const openModrinthPicker = async (project: any) => {
+    setSelectedModrinthProject(project);
+    setModrinthVersions([]);
+    setShowVersionsModal(true);
     try {
-      const res = await fetch("/api/server/plugins/hangar-install", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          serverId: currentServerId,
-          slug,
-          version,
-          folder: storeFolder,
-        }),
-      });
-      if (res.ok) fetchPlugins();
+      const res = await fetch(`/api/modrinth/project/${project.project_id || project.id}/versions`);
+      const data = await res.json();
+      setModrinthVersions(data);
     } catch (e) {}
   };
 
-  const installModrinthProject = async (projectId: string) => {
+  const installModrinthVersion = async (version: any) => {
     if (!currentServerId) return;
+    setInstallingStoreItem(version.id);
     try {
-      // Fetch project details first to get the latest version id
-      const pRes = await fetch(`/api/modrinth/project/${projectId}`);
-      if (!pRes.ok) return;
-      const pData = await pRes.json();
-      const latestVersion = pData.versions[0];
-      if (!latestVersion) return;
+      const file = version.files.find((f: any) => f.primary) || version.files[0];
+      if (!file) return;
 
       const res = await fetch("/api/server/modrinth/install", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           serverId: currentServerId,
-          versionId: latestVersion.id,
+          versionId: version.id,
+          filename: file.filename,
+          url: file.url,
           folder: storeFolder,
         }),
       });
-      if (res.ok) fetchPlugins();
+      if (res.ok) {
+        fetchPlugins();
+        setShowVersionsModal(false);
+      }
     } catch (e) {}
+    setInstallingStoreItem(null);
   };
   const [isHibernating, setIsHibernating] = useState(false);
   const [command, setCommand] = useState("");
@@ -602,6 +608,7 @@ export default function App({
     ram?: number;
     minRam?: number;
     store?: any;
+    javaPath?: string;
   } | null>(null);
   const [editTab, setEditTab] = useState<"general" | "plugins" | "store">(
     "general",
@@ -679,6 +686,20 @@ export default function App({
     fetchStatus();
   }, [currentServerId]);
 
+  const scanJavas = async () => {
+    setScanningJavas(true);
+    try {
+      const res = await fetch("/api/system/javas");
+      const data = await res.json();
+      setJavas(data);
+    } catch (e) {}
+    setScanningJavas(false);
+  };
+
+  useEffect(() => {
+    scanJavas();
+  }, []);
+
   const handleCreateServer = async () => {
     if (!newServerConfig.name.trim()) {
       alert("Nome do servidor é obrigatório! (｡•́︿•̀｡)");
@@ -752,6 +773,7 @@ export default function App({
           ram: editingServer.ram,
           minRam: editingServer.minRam,
           store: editingServer.store,
+          javaPath: editingServer.javaPath,
         }),
       });
       if (res.ok) {
@@ -2093,30 +2115,71 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                           </div>
                         </div>
                       </div>
+
+                      {/* Java Settings Section */}
+                      <div className="space-y-3">
+                        <label className="text-[10px] font-black text-emerald-400 uppercase tracking-widest px-2">
+                          {t("java_settings")}
+                        </label>
+                        <div className="bg-black/40 p-6 rounded-[2rem] border-2 border-emerald-900 space-y-4">
+                          <p className="text-[10px] text-emerald-700 font-bold uppercase tracking-widest leading-relaxed">
+                            {t("java_path_desc")}
+                          </p>
+                          <div className="flex gap-2">
+                            <input
+                              className="flex-1 bg-black/40 border-2 border-emerald-900 rounded-xl px-4 py-2 text-xs text-emerald-50 font-black outline-none focus:border-emerald-500 font-mono"
+                              placeholder="Default (Auto)"
+                              value={editingServer.javaPath || ""}
+                              onChange={(e) => setEditingServer({...editingServer, javaPath: e.target.value})}
+                            />
+                            <button
+                              onClick={scanJavas}
+                              className="bg-emerald-900 px-4 rounded-xl text-emerald-500 font-black text-[8px] flex items-center gap-2 hover:bg-emerald-800 transition-all uppercase"
+                            >
+                              <RefreshCw size={10} className={scanningJavas ? "animate-spin" : ""} />
+                              {t("java_detect_btn")}
+                            </button>
+                          </div>
+                          
+                          {javas.length > 0 && (
+                            <div className="space-y-2 mt-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar border-t border-emerald-900/40 pt-2">
+                              <p className="text-[8px] font-black text-emerald-800 uppercase tracking-widest mb-1 italic">
+                                {t("java_found_list")}
+                              </p>
+                              {javas.map((j) => (
+                                <button
+                                  key={j.path}
+                                  onClick={() => setEditingServer({...editingServer, javaPath: j.path})}
+                                  className={`w-full text-left p-3 rounded-xl border transition-all flex items-center justify-between group ${editingServer.javaPath === j.path ? "bg-emerald-500/20 border-emerald-500" : "bg-black/20 border-emerald-950 hover:border-emerald-800"}`}
+                                >
+                                  <div>
+                                    <p className="text-[10px] font-black text-emerald-50 leading-tight">Java {j.version}</p>
+                                    <p className="text-[8px] font-mono text-emerald-700 truncate max-w-[200px]">{j.path}</p>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                     <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase ${j.type === "downloaded" ? "bg-emerald-900 text-emerald-300" : "bg-zinc-900 text-zinc-500"}`}>{j.type === "downloaded" ? "Compilado" : "Sistema"}</span>
+                                     {editingServer.javaPath === j.path && <Check size={12} className="text-emerald-500" />}
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   ) : (
                     <div className="space-y-8">
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                         {/* Search Area */}
-                        <div className="space-y-4 p-6 bg-emerald-900/10 border-2 border-emerald-900 rounded-3xl">
+                        <div className="space-y-4 p-6 bg-emerald-900/10 border-2 border-emerald-900 rounded-3xl relative">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <h4 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">
                                 {t("mods_store")}
                               </h4>
-                              <select
-                                className="bg-black/40 border-2 border-emerald-900 rounded-xl px-2 py-1 text-emerald-50 text-[10px] font-black outline-none focus:border-emerald-500 uppercase"
-                                value={storeProvider}
-                                onChange={(e) => {
-                                  setStoreProvider(
-                                    e.target.value as "hangar" | "modrinth",
-                                  );
-                                  setStoreResults([]);
-                                }}
-                              >
-                                <option value="modrinth">Modrinth</option>
-                                <option value="hangar">Hangar (Paper)</option>
-                              </select>
+                              <div className="bg-emerald-900/40 px-2 py-1 rounded-xl border border-emerald-800 text-[10px] font-black text-emerald-300 uppercase">
+                                Modrinth
+                              </div>
                               <select
                                 className="bg-black/40 border-2 border-emerald-900 rounded-xl px-2 py-1 text-emerald-50 text-[10px] font-black outline-none focus:border-emerald-500 uppercase"
                                 value={storeFolder}
@@ -2164,26 +2227,22 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                                 exit={{ opacity: 0 }}
                                 className="text-[8px] text-emerald-500 font-black animate-pulse uppercase tracking-widest"
                               >
-                                {t("searching")}{" "}
-                                {storeProvider === "modrinth"
-                                  ? "Modrinth"
-                                  : "Hangar"}
-                                ...
+                                {t("searching")} Modrinth...
                               </motion.p>
                             )}
                           </AnimatePresence>
 
-                          <div className="grid grid-cols-1 gap-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                          <div className="grid grid-cols-1 gap-2 max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
                             {storeResults.map((p: any) => {
-                              const itemKey = p.project_id || p.name;
+                              const itemKey = p.project_id || p.id;
                               return (
                                 <div
                                   key={itemKey}
                                   className="bg-black/40 p-3 rounded-xl border border-emerald-900/50 flex items-center gap-4 hover:border-emerald-500 transition-all group"
                                 >
-                                  {p.icon_url || p.avatarUrl ? (
+                                  {p.icon_url ? (
                                     <img
-                                      src={p.icon_url || p.avatarUrl}
+                                      src={p.icon_url}
                                       alt=""
                                       className="w-10 h-10 rounded-lg"
                                     />
@@ -2198,39 +2257,89 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                                     </p>
                                     <p className="text-[8px] text-emerald-700 font-black uppercase">
                                       {t("developed_by")}{" "}
-                                      {p.author ||
-                                        p.namespace?.owner ||
-                                        "Unknown"}
+                                      {p.author || "User"}
                                     </p>
                                   </div>
                                   <button
-                                    onClick={async () => {
-                                      setInstallingStoreItem(itemKey);
-                                      if (storeProvider === "hangar")
-                                        await installHangarPlugin(
-                                          p.name,
-                                          p.primaryVersion ||
-                                            p.latest?.name ||
-                                            p.lastVersion ||
-                                            "latest",
-                                        );
-                                      else
-                                        await installModrinthProject(
-                                          p.project_id,
-                                        );
-                                      setInstallingStoreItem(null);
-                                    }}
-                                    disabled={installingStoreItem === itemKey}
-                                    className={`px-3 py-1.5 font-black text-[9px] rounded-lg transition-all uppercase flex-shrink-0 ${installingStoreItem === itemKey ? "bg-zinc-600 text-zinc-300 pointer-events-none" : "bg-emerald-500 group-hover:bg-emerald-400 text-white"}`}
+                                    onClick={() => openModrinthPicker(p)}
+                                    className="px-3 py-1.5 bg-emerald-500 group-hover:bg-emerald-400 text-white font-black text-[9px] rounded-lg transition-all uppercase flex-shrink-0"
                                   >
-                                    {installingStoreItem === itemKey
-                                      ? "..."
-                                      : t("install_btn")}
+                                    {t("select_version")}
                                   </button>
                                 </div>
                               );
                             })}
                           </div>
+
+                          {/* Versions Modal */}
+                          <AnimatePresence>
+                            {showVersionsModal && selectedModrinthProject && (
+                              <motion.div
+                                initial={{ opacity: 0, scale: 0.9 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.9 }}
+                                className="absolute inset-0 z-50 bg-black/95 p-6 rounded-3xl flex flex-col border-4 border-emerald-900 shadow-2xl"
+                              >
+                                <div className="flex items-center justify-between mb-4">
+                                  <div>
+                                    <h5 className="text-emerald-50 font-black text-sm uppercase tracking-tighter">
+                                      {selectedModrinthProject.title}
+                                    </h5>
+                                    <p className="text-[8px] text-emerald-500 font-black uppercase tracking-widest animate-pulse">
+                                      {t("modrinth_versions_title")}
+                                    </p>
+                                  </div>
+                                  <button
+                                    onClick={() => setShowVersionsModal(false)}
+                                    className="p-2 text-emerald-900 hover:text-red-500 transition-colors"
+                                  >
+                                    <X size={20} />
+                                  </button>
+                                </div>
+
+                                <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                                  {modrinthVersions.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center h-40 text-emerald-900">
+                                      <RefreshCw size={24} className="animate-spin mb-2" />
+                                      <p className="text-[10px] font-black uppercase">Lendo versões...</p>
+                                    </div>
+                                  ) : (
+                                    modrinthVersions.map((v: any) => (
+                                      <button
+                                        key={v.id}
+                                        onClick={() => installModrinthVersion(v)}
+                                        disabled={installingStoreItem === v.id}
+                                        className={`w-full text-left p-3 rounded-xl border transition-all group flex items-center justify-between ${installingStoreItem === v.id ? "bg-zinc-900 border-zinc-800 opacity-50" : "bg-emerald-900/10 border-emerald-900/40 hover:border-emerald-500"}`}
+                                      >
+                                        <div className="min-w-0">
+                                          <p className="text-[10px] font-black text-emerald-50 truncate leading-tight">
+                                            {v.version_number} ({v.name})
+                                          </p>
+                                          <div className="flex flex-wrap gap-1 mt-1">
+                                            <span className="text-[7px] font-black text-emerald-400 bg-emerald-950 px-1 py-0.5 rounded border border-emerald-900/50 uppercase">
+                                              {t("game_versions")}: {v.game_versions?.slice(0, 3).join(", ")}
+                                            </span>
+                                            <span className="text-[7px] font-black text-emerald-200 bg-emerald-800/40 px-1 py-0.5 rounded border border-emerald-700/50 uppercase">
+                                              {t("loaders")}: {v.loaders?.join(", ")}
+                                            </span>
+                                          </div>
+                                        </div>
+                                        <div className="flex-shrink-0 ml-2">
+                                          {installingStoreItem === v.id ? (
+                                            <RefreshCw size={14} className="animate-spin text-emerald-500" />
+                                          ) : (
+                                            <div className="bg-emerald-500 p-1 rounded group-hover:bg-emerald-400">
+                                              <Download size={14} className="text-white" />
+                                            </div>
+                                          )}
+                                        </div>
+                                      </button>
+                                    ))
+                                  )}
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </div>
 
                         {/* Manual/List Area */}
@@ -2834,6 +2943,11 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                                       <span className="text-[9px] font-black text-emerald-400 bg-black/40 px-2 py-0.5 rounded-full border border-emerald-950 uppercase tracking-tighter font-mono">
                                         {serverState.status}
                                       </span>
+                                      {serverState.activeJava && (
+                                        <span className="text-[9px] font-black text-emerald-300 bg-emerald-900/40 px-2 py-0.5 rounded-full border border-emerald-800 uppercase tracking-tighter">
+                                          {t("java_active_tag")}: {serverState.activeJava}
+                                        </span>
+                                      )}
                                       {serverState.config && (
                                         <span className="text-[9px] font-black text-emerald-400 bg-black/40 px-2 py-0.5 rounded-full border border-emerald-950 uppercase tracking-tighter">
                                           {serverState.config.ram}GB RAM
@@ -3228,8 +3342,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
 
                       <button
                         onClick={() => {
-                          setActiveTab("settings");
-                          setStoreProvider("hangar");
+                          setActiveTab("plugins");
                           setEditTab("plugins");
                           setStoreFolder("plugins");
                           setStoreSearch("bluemap");

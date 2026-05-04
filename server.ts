@@ -164,6 +164,7 @@ async function startServer() {
       tunnelAddress: string | null;
       logs: string[];
       process?: any;
+      activeJava?: string;
     }
   > = {};
 
@@ -214,6 +215,75 @@ async function startServer() {
       return path.join(javaDir, "bin/java.exe");
     }
     return path.join(javaDir, "bin/java");
+  };
+
+  const scanInstalledJavas = () => {
+    const javas: { version: string; path: string; type: "system" | "downloaded" }[] = [];
+    const osPlatform = os.platform();
+
+    // Check system Java
+    try {
+      const sysJava = osPlatform === "win32" ? "where java" : "which java";
+      const sysPath = execSync(sysJava, { encoding: "utf-8" }).trim().split("\n")[0];
+      if (sysPath) {
+        const verOutput = execSync(`"${sysPath}" -version 2>&1`, { encoding: "utf-8" });
+        const match = verOutput.match(/version "([^"]+)"/);
+        javas.push({
+          version: match ? match[1] : "Sistema",
+          path: sysPath,
+          type: "system",
+        });
+      }
+    } catch (e) {}
+
+    // Check our downloaded ones
+    [8, 17, 21].forEach((major) => {
+      const p = getJavaPath(major);
+      if (fs.existsSync(p)) {
+        try {
+          const verOutput = execSync(`"${p}" -version 2>&1`, { encoding: "utf-8" });
+          const match = verOutput.match(/version "([^"]+)"/);
+          javas.push({
+            version: match ? match[1] : `${major} (Compilado)`,
+            path: p,
+            type: "downloaded",
+          });
+        } catch (e) {}
+      }
+    });
+
+    // MacOS / Linux common paths
+    if (osPlatform !== "win32") {
+      const commonPaths = [
+        "/usr/lib/jvm",
+        "/usr/lib64/jvm",
+        "/Library/Java/JavaVirtualMachines",
+      ];
+      commonPaths.forEach((base) => {
+        if (fs.existsSync(base)) {
+          try {
+            const dirs = fs.readdirSync(base);
+            dirs.forEach((d) => {
+              const jPath = path.join(base, d, "Contents/Home/bin/java");
+              const jPathLinux = path.join(base, d, "bin/java");
+              const final = fs.existsSync(jPath) ? jPath : (fs.existsSync(jPathLinux) ? jPathLinux : null);
+              
+              if (final) {
+                const verOutput = execSync(`"${final}" -version 2>&1`, { encoding: "utf-8" });
+                const match = verOutput.match(/version "([^"]+)"/);
+                javas.push({
+                  version: match ? match[1] : d,
+                  path: final,
+                  type: "system",
+                });
+              }
+            });
+          } catch (e) {}
+        }
+      });
+    }
+
+    return javas;
   };
 
   const downloadJavaIfNeeded = (major: number, onLog: (msg: string) => void): Promise<string> => {
@@ -1056,17 +1126,36 @@ command /creeper-ai <text>:
     // DYNAMIC JAVA SELECTION
     let assumedVersion = config.mcVersion || "";
     if (!assumedVersion && jarFile) {
-        const match = jarFile.match(/1\.\d+(?:\.\d+)?/);
-        if (match) assumedVersion = match[0];
+      const match = jarFile.match(/1\.\d+(?:\.\d+)?/);
+      if (match) assumedVersion = match[0];
     }
     let reqMajor = getRequiredJavaMajor(assumedVersion);
     if (config.javaVersion) reqMajor = parseInt(config.javaVersion, 10);
-    
+
     // Resolve dynamic java Path
     res.json({ message: "Iniciando..." }); // Envia resposta cedo para evitar timeout do front
-    
+
     try {
-      const dynamicJavaPath = await downloadJavaIfNeeded(reqMajor, (msg) => addLog(serverId, msg));
+      const resolveJava = async () => {
+        // 1. Check manual path first
+        if (config.javaPath && fs.existsSync(config.javaPath)) {
+          addLog(serverId, `[JAVA] Usando caminho manual: ${config.javaPath}`);
+          return config.javaPath;
+        }
+        // 2. Default to automated detection/download
+        return await downloadJavaIfNeeded(reqMajor, (msg) => addLog(serverId, msg));
+      };
+
+      const dynamicJavaPath = await resolveJava();
+      
+      // Update activeJava tag
+      try {
+        const verOut = execSync(`"${dynamicJavaPath}" -version 2>&1`, { encoding: "utf-8" });
+        const m = verOut.match(/version "([^"]+)"/);
+        serversState[serverId].activeJava = m ? m[1] : "Java " + reqMajor;
+      } catch(e) {
+        serversState[serverId].activeJava = "Java " + reqMajor;
+      }
 
       addLog(serverId, `⚙️ RAM: ${config.ram}GB | Java: ${dynamicJavaPath} | Server: ${assumedVersion}`);
 
@@ -1653,7 +1742,6 @@ command /creeper-ai <text>:
       links: [
         { label: "Documentação", url: "https://docs.papermc.io" },
         { label: "Modrinth", url: "https://modrinth.com" },
-        { label: "Hangar", url: "https://hangar.papermc.io" },
         { label: "Playit.gg Status", url: "https://status.playit.gg/" },
       ],
       versions: versions,
@@ -1903,8 +1991,6 @@ command /creeper-ai <text>:
   // Modrinth API Integration
   app.get("/api/modrinth/search", async (req, res) => {
     const q = (req.query.q as string) || "";
-    // facets: project_type can be mod or plugin
-    // Let's just search everything matching the query and let the user filter, or we can search both
     try {
       const mRes = await fetch(
         `https://api.modrinth.com/v2/search?query=${encodeURIComponent(q)}&limit=20`,
@@ -1916,110 +2002,31 @@ command /creeper-ai <text>:
     }
   });
 
-  app.get("/api/modrinth/project/:slug", async (req, res) => {
-    const slug = req.params.slug;
+  app.get("/api/modrinth/project/:id/versions", async (req, res) => {
+    const id = req.params.id;
     try {
-      const pRes = await fetch(`https://api.modrinth.com/v2/project/${slug}`);
-      const pData = await pRes.json();
-      const vRes = await fetch(
-        `https://api.modrinth.com/v2/project/${slug}/version`,
-      );
+      const vRes = await fetch(`https://api.modrinth.com/v2/project/${id}/version`);
       const vData = await vRes.json();
-      res.json({ project: pData, versions: vData });
+      res.json(vData);
     } catch (e) {
-      res.status(500).json({ error: "Erro." });
+      res.status(500).json({ error: "Erro ao buscar versões do Modrinth" });
     }
   });
 
   app.post("/api/server/modrinth/install", async (req, res) => {
-    const { serverId, versionId } = req.body;
+    const { serverId, versionId, filename, url, folder } = req.body;
+    if (!serverId) return res.status(400).json({ error: "No ID" });
+
     try {
-      const vRes = await fetch(
-        `https://api.modrinth.com/v2/version/${versionId}`,
-      );
-      const vData = await vRes.json();
-      const file = vData.files.find((f: any) => f.primary) || vData.files[0];
-      if (!file)
-        return res.status(404).json({ error: "Arquivo não encontrado." });
-
-      const destFolder = path.join(getServerDir(serverId), "plugins"); // Or mods? We can use plugins for both or mods for both, typically Fabric uses mods/ and Mohist uses both mods/ and plugins/
-      // wait, let's look at the software type if we can, but let's just default to 'plugins' if we don't know, or 'mods' based on something?
-      // Actually, if we use plugins folder or mods folder... Let's just pass `folder` dynamically.
-      const folderArg = req.body.folder || "plugins";
+      const folderArg = folder || "plugins";
       const targetDir = path.join(getServerDir(serverId), folderArg);
-      if (!fs.existsSync(targetDir))
-        fs.mkdirSync(targetDir, { recursive: true });
+      if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true });
 
-      const destPath = path.join(targetDir, file.filename);
-      await downloadFile(file.url, destPath, (msg) => addLog(serverId, msg));
+      const destPath = path.join(targetDir, filename);
+      await downloadFile(url, destPath, (msg) => addLog(serverId, msg));
       res.json({ success: true });
     } catch (e) {
       res.status(500).json({ error: "Erro na instalação Modrinth" });
-    }
-  });
-
-  // Hangar API Integration
-  app.get("/api/hangar/search", async (req, res) => {
-    const q = (req.query.q as string) || "";
-    try {
-      const hRes = await fetch(
-        `https://hangar.papermc.io/api/v1/projects?q=${encodeURIComponent(q)}&limit=20`,
-      );
-      const hData = await hRes.json();
-      res.json(hData);
-    } catch (e) {
-      res.status(500).json({ error: "Hangar Indisponível" });
-    }
-  });
-
-  app.get("/api/hangar/project/:slug", async (req, res) => {
-    const slug = req.params.slug;
-    try {
-      const pRes = await fetch(
-        `https://hangar.papermc.io/api/v1/projects/${slug}`,
-      );
-      const pData = await pRes.json();
-      const vRes = await fetch(
-        `https://hangar.papermc.io/api/v1/projects/${slug}/versions?limit=1`,
-      );
-      const vData: any = await vRes.json();
-      res.json({ ...pData, latest: vData.result?.[0] });
-    } catch (e) {
-      res.status(500).json({ error: "Erro ao buscar plugin" });
-    }
-  });
-
-  app.post("/api/server/plugins/hangar-install", async (req, res) => {
-    const { serverId, slug, version } = req.body;
-    try {
-      // Hangar doesn't provide a direct permanent download link in project meta easily without session,
-      // but we can construct it or use their download endpoint if available.
-      // Most common: https://hangar.papermc.io/api/v1/projects/{author}/{slug}/versions/{version}/PLATFORM/download
-      const pRes = await fetch(
-        `https://hangar.papermc.io/api/v1/projects/${slug}`,
-      );
-      const pData: any = await pRes.json();
-      const author = pData.namespace.owner;
-
-      const downloadUrl = `https://hangar.papermc.io/api/v1/projects/${author}/${pData.name}/versions/${version}/PAPER/download`;
-
-      const folderArg = req.body.folder || "plugins";
-      const targetDir = path.join(getServerDir(serverId), folderArg);
-      if (!fs.existsSync(targetDir))
-        fs.mkdirSync(targetDir, { recursive: true });
-
-      const fileName = `${pData.name}-${version}.jar`;
-      const dest = path.join(targetDir, fileName);
-
-      addLog(
-        serverId,
-        `[HANGAR] Baixando ${pData.name} v${version} para /${folderArg}...`,
-      );
-
-      await downloadFile(downloadUrl, dest, (msg) => addLog(serverId, msg));
-      res.json({ success: true });
-    } catch (e) {
-      res.status(500).json({ error: "Erro na instalação Hangar" });
     }
   });
 
@@ -2299,6 +2306,22 @@ command /creeper-ai <text>:
         res.json({ success: true });
       }
     });
+  });
+
+  app.get("/api/system/javas", (req, res) => {
+    res.json(scanInstalledJavas());
+  });
+
+  app.post("/api/system/java/download", async (req, res) => {
+    const { major } = req.body;
+    const sId = "system";
+    addLog(sId, `[SYS] Iniciando download manual do Java ${major}...`);
+    try {
+      const path = await downloadJavaIfNeeded(major, (msg) => addLog(sId, msg));
+      res.json({ success: true, path });
+    } catch(e: any) {
+      res.status(500).json({ error: e.message });
+    }
   });
 
   if (process.env.NODE_ENV !== "production") {
