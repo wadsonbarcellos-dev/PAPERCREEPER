@@ -416,7 +416,12 @@ export default function App({
   const [serverState, setServerState] = useState<ServerState>({
     status: "offline",
     logs: [t("panel_waking")],
+    stats: { cpu: "0%", ram: "0 / 0 GB", ramPercent: 0 }
   });
+  const [multiTerminals, setMultiTerminals] = useState<string[]>([]);
+  const [multiServerStates, setMultiServerStates] = useState<Record<string, ServerState>>({});
+  const multiLogCounts = useRef<Record<string, number>>({});
+  
   const [servers, setServers] = useState<
     {
       id: string;
@@ -670,40 +675,46 @@ export default function App({
   const fetchStatus = async () => {
     if (!currentServerId) return;
     try {
-      const res = await fetch(
-        `/api/server/status?serverId=${currentServerId}&lastLogIdx=${lastLogCount.current}`,
-      );
+      const trackers: Record<string, number> = {};
+      trackers[currentServerId] = lastLogCount.current;
+      multiTerminals.forEach(id => trackers[id] = multiLogCounts.current[id] || 0);
+
+      const res = await fetch("/api/servers/status-multi", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trackers })
+      });
       if (!res.ok) {
         if (res.status === 404) setCurrentServerId("");
         return;
       }
+      
+      const resData = await res.json();
+      if (!resData.servers) return;
 
-      const contentType = res.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        return;
-      }
-
-      const data = await res.json();
-
-      setServerState((prev) => {
-        const newLogs =
-          lastLogCount.current === 0 ? data.logs : [...prev.logs, ...data.logs];
-        // Adaptive memory management: keep fewer logs in hibernation
-        const maxLogs = isHibernating ? 50 : 300;
-        const trimmedLogs =
-          newLogs.length > maxLogs ? newLogs.slice(-maxLogs) : newLogs;
-
-        return {
-          ...data,
-          logs: trimmedLogs,
-        };
+      Object.entries(resData.servers).forEach(([id, data]: [string, any]) => {
+        if (id === currentServerId) {
+          setServerState((prev) => {
+            const newLogs = lastLogCount.current === 0 ? data.logs : [...prev.logs, ...data.logs];
+            const maxLogs = isHibernating ? 50 : 300;
+            const trimmedLogs = newLogs.length > maxLogs ? newLogs.slice(-maxLogs) : newLogs;
+            return { ...data, logs: trimmedLogs };
+          });
+          lastLogCount.current = data.logCount;
+          if (data.config && isSyncingRam) setRamConfig(data.config);
+        }
+        
+        if (multiTerminals.includes(id)) {
+           setMultiServerStates(prev => {
+             const prevLogs = prev[id]?.logs || [];
+             const idx = multiLogCounts.current[id] || 0;
+             const newLogs = idx === 0 ? data.logs : [...prevLogs, ...data.logs];
+             const trimmedLogs = newLogs.length > 300 ? newLogs.slice(-300) : newLogs;
+             return { ...prev, [id]: { ...data, logs: trimmedLogs } };
+           });
+           multiLogCounts.current[id] = data.logCount;
+        }
       });
-
-      lastLogCount.current = data.logCount;
-
-      if (data.config && isSyncingRam) {
-        setRamConfig(data.config);
-      }
     } catch (error) {
       // server probably down or restarting
     }
@@ -4289,85 +4300,153 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                       <button
-                         onClick={async () => {
-                           if (!currentServerId) return;
-                           const res = await fetch("/api/bot/control", {
-                             method: "POST",
-                             headers: { "Content-Type": "application/json" },
-                             body: JSON.stringify({ serverId: currentServerId, action: "start", port: servers.find(s => s.id === currentServerId)?.port || 25565 }) // assume "start", logic can be improved
-                           });
-                           if (res.ok) alert("Comando enviado para o Bot IA! Verifique o console.");
-                         }}
-                         className="px-4 py-2 bg-purple-900/40 hover:bg-purple-800 text-purple-400 font-bold rounded-xl border border-purple-800 flex items-center gap-2 transition-colors text-xs"
-                       >
-                         <Bot size={14} /> Ativar IA Ajudante
-                       </button>
-                       <button
-                         onClick={clearLogs}
-                         className="px-4 py-2 bg-emerald-900/40 hover:bg-emerald-800 text-emerald-400 font-bold rounded-xl border border-emerald-800 flex items-center gap-2 transition-colors text-xs"
-                       >
-                         <Trash2 size={14} /> Limpar Logs
-                       </button>
+                    <div className="flex flex-col gap-2">
+                       <div className="flex items-center gap-2 overflow-x-auto pb-2 custom-scrollbar">
+                         <span className="text-[10px] font-black uppercase text-emerald-500 tracking-widest mr-2">Multi-Terminais:</span>
+                         {servers.filter(s => s.status === "online").map(srv => {
+                           if (srv.id === currentServerId) return null;
+                           const active = multiTerminals.includes(srv.id);
+                           return (
+                             <button
+                               key={srv.id}
+                               onClick={() => setMultiTerminals(prev => active ? prev.filter(k => k !== srv.id) : [...prev, srv.id])}
+                               className={`px-3 py-1 text-[10px] font-black uppercase rounded-lg border flex items-center gap-1 transition-all ${active ? "bg-emerald-600 border-emerald-500 text-white" : "bg-emerald-900/20 border-emerald-900 text-emerald-700"}`}
+                             >
+                                <Terminal size={10} /> {srv.name}
+                             </button>
+                           )
+                         })}
+                       </div>
+                       <div className="flex items-center gap-2 justify-end">
+                         <button
+                           onClick={async () => {
+                             if (!currentServerId) return;
+                             const res = await fetch("/api/bot/control", {
+                               method: "POST",
+                               headers: { "Content-Type": "application/json" },
+                               body: JSON.stringify({ serverId: currentServerId, action: "start", port: servers.find(s => s.id === currentServerId)?.port || 25565 }) // assume "start", logic can be improved
+                             });
+                             if (res.ok) alert("Comando enviado para o Bot IA! Verifique o console.");
+                           }}
+                           className="px-4 py-2 bg-purple-900/40 hover:bg-purple-800 text-purple-400 font-bold rounded-xl border border-purple-800 flex items-center gap-2 transition-colors text-xs"
+                         >
+                           <Bot size={14} /> Ativar IA Ajudante
+                         </button>
+                         <button
+                           onClick={clearLogs}
+                           className="px-4 py-2 bg-emerald-900/40 hover:bg-emerald-800 text-emerald-400 font-bold rounded-xl border border-emerald-800 flex items-center gap-2 transition-colors text-xs"
+                         >
+                           <Trash2 size={14} /> Limpar Logs
+                         </button>
+                       </div>
                     </div>
                   </div>
 
-                  <div
-                    ref={scrollRef}
-                    onScroll={handleScroll}
-                    className="flex-1 overflow-y-auto pr-6 space-y-1.5 custom-scrollbar font-mono text-[11px] p-6 bg-black/80 rounded-2xl border border-emerald-900/50 shadow-inner tech-grid"
-                  >
-                    {serverState.logs.length === 0 && (
-                      <div className="text-emerald-900 animate-pulse italic">
-                        Aguardando sinais vitais...
+                  <div className={`flex ${multiTerminals.length > 0 ? "flex-col lg:flex-row gap-4 h-full" : "flex-1 flex-col"} overflow-hidden mt-4`}>
+                    <div className="flex-1 flex flex-col relative bg-black/80 rounded-2xl border border-emerald-900/50 shadow-inner tech-grid overflow-hidden">
+                      <div className="bg-emerald-900/30 text-[10px] font-black uppercase tracking-widest text-emerald-500 py-1 px-3 border-b border-emerald-900/50">{servers.find(s => s.id === currentServerId)?.name || 'Principal'}</div>
+                      <div
+                        ref={scrollRef}
+                        onScroll={handleScroll}
+                        className="flex-1 overflow-y-auto pr-6 space-y-1.5 custom-scrollbar font-mono text-[11px] p-6 lg:p-6 p-4"
+                      >
+                        {serverState.logs.length === 0 && (
+                          <div className="text-emerald-900 animate-pulse italic">
+                            Aguardando sinais vitais...
+                          </div>
+                        )}
+                        {serverState.logs.map((log, i) => (
+                          <div
+                            key={i}
+                            className="flex gap-4 group hover:bg-emerald-500/5 transition-colors"
+                          >
+                            <span className="text-emerald-900 select-none font-bold tabular-nums w-8 text-right opacity-50 group-hover:opacity-100 italic">
+                              {(i + 1).toString().padStart(2, "0")}
+                            </span>
+                            <p
+                              className={`leading-relaxed break-all ${
+                                log.includes("[ERROR]") || log.includes("Exception")
+                                  ? "text-red-400 font-bold bg-red-950/20 px-1"
+                                  : log.includes("[SUCCESS]") ||
+                                      log.includes("Done") ||
+                                      log.includes("For help, type")
+                                    ? "text-emerald-400 font-black"
+                                    : log.includes("[WARN]")
+                                      ? "text-amber-500 italic"
+                                      : log.startsWith(">")
+                                        ? "text-emerald-100 font-bold border-l-2 border-emerald-500 pl-2"
+                                        : "text-emerald-500/80"
+                              }`}
+                            >
+                              {log}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+
+                      <form
+                        onSubmit={sendCommand}
+                        className="bg-black/60 border-t border-emerald-900/50 px-4 py-3 flex items-center gap-3 relative z-10"
+                      >
+                        <span className="text-emerald-500 font-black text-xs">❯</span>
+                        <input
+                          className="flex-1 bg-transparent border-none outline-none text-emerald-50 placeholder:text-emerald-900 font-black text-xs"
+                          placeholder="Mande um comando mágico..."
+                          value={command}
+                          onChange={(e) => setCommand(e.target.value)}
+                        />
+                      </form>
+                    </div>
+
+                    {multiTerminals.length > 0 && (
+                      <div className="flex-1 flex flex-col gap-4 overflow-y-auto custom-scrollbar">
+                        {multiTerminals.map(mId => {
+                          const state = multiServerStates[mId] || { logs: [], status: "offline" };
+                          const sname = servers.find(s => s.id === mId)?.name || mId;
+                          return (
+                            <div key={mId} className="h-64 lg:h-full lg:flex-1 shrink-0 flex flex-col relative bg-black/80 rounded-2xl border border-emerald-900/50 shadow-inner tech-grid overflow-hidden">
+                              <div className="bg-emerald-900/30 text-[10px] font-black uppercase tracking-widest text-emerald-500 py-1 px-3 border-b border-emerald-900/50 flex justify-between items-center">
+                                <span>{sname}</span>
+                                <button onClick={() => setMultiTerminals(prev => prev.filter(k => k !== mId))} className="hover:text-emerald-300">
+                                  <Trash2 size={10} />
+                                </button>
+                              </div>
+                              <div className="flex-1 overflow-y-auto custom-scrollbar font-mono text-[10px] p-4">
+                                {state.logs.map((log, i) => (
+                                  <div key={i} className="flex gap-2 group hover:bg-emerald-500/5">
+                                    <p className={`leading-relaxed break-all ${log.includes("[ERROR]") ? "text-red-400 font-bold" : log.includes("[SUCCESS]") ? "text-emerald-400" : log.includes("[WARN]") ? "text-amber-500" : "text-emerald-500/60"}`}>
+                                      {log}
+                                    </p>
+                                  </div>
+                                ))}
+                              </div>
+                              <form
+                                onSubmit={(e) => {
+                                  e.preventDefault();
+                                  const fcmd = (e.currentTarget.elements.namedItem("cmd") as HTMLInputElement).value;
+                                  if (!fcmd.trim()) return;
+                                  fetch("/api/server/command", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ serverId: mId, command: fcmd })
+                                  });
+                                  (e.currentTarget.elements.namedItem("cmd") as HTMLInputElement).value = "";
+                                }}
+                                className="bg-black/60 border-t border-emerald-900/50 px-3 py-2 flex items-center gap-2"
+                              >
+                                <span className="text-emerald-700 font-black text-xs">❯</span>
+                                <input
+                                  name="cmd"
+                                  className="flex-1 bg-transparent border-none outline-none text-emerald-100 placeholder:text-emerald-900/50 font-black text-[10px]"
+                                  placeholder="Comando..."
+                                />
+                              </form>
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
-                    {serverState.logs.map((log, i) => (
-                      <div
-                        key={i}
-                        className="flex gap-4 group hover:bg-emerald-500/5 transition-colors"
-                      >
-                        <span className="text-emerald-900 select-none font-bold tabular-nums w-8 text-right opacity-50 group-hover:opacity-100 italic">
-                          {(i + 1).toString().padStart(2, "0")}
-                        </span>
-                        <p
-                          className={`leading-relaxed break-all ${
-                            log.includes("[ERROR]") || log.includes("Exception")
-                              ? "text-red-400 font-bold bg-red-950/20 px-1"
-                              : log.includes("[SUCCESS]") ||
-                                  log.includes("Done") ||
-                                  log.includes("For help, type")
-                                ? "text-emerald-400 font-black"
-                                : log.includes("[WARN]")
-                                  ? "text-amber-500 italic"
-                                  : log.startsWith(">")
-                                    ? "text-emerald-100 font-bold border-l-2 border-emerald-500 pl-2"
-                                    : "text-emerald-500/80"
-                          }`}
-                        >
-                          {log}
-                        </p>
-                      </div>
-                    ))}
                   </div>
-
-                  <form
-                    onSubmit={sendCommand}
-                    className="mt-8 flex gap-4 relative z-10"
-                  >
-                    <div className="flex-1 bg-black/40 rounded-2xl px-6 py-4 flex items-center gap-4 border-2 border-emerald-900 focus-within:border-emerald-500 transition-all">
-                      <span className="text-emerald-500 font-black text-lg">
-                        ❯
-                      </span>
-                      <input
-                        className="flex-1 bg-transparent border-none outline-none text-emerald-50 placeholder:text-emerald-900 font-black text-md"
-                        placeholder="Mande um comando mágico..."
-                        value={command}
-                        onChange={(e) => setCommand(e.target.value)}
-                      />
-                    </div>
-                  </form>
                 </motion.div>
               )}
 

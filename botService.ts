@@ -1,6 +1,7 @@
 import mineflayer from "mineflayer";
 import { pathfinder, Movements, goals } from "mineflayer-pathfinder";
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
+import { exec } from "child_process";
 
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY || "AIza_fallback",
@@ -8,7 +9,14 @@ const ai = new GoogleGenAI({
 
 const bots: Record<string, mineflayer.Bot> = {};
 
-export async function manageBot(serverId: string, action: string, port: number = 25565, username: string = "Ajudante_IA", emitLog: (msg: string) => void) {
+export async function manageBot(
+  serverId: string,
+  action: string,
+  port: number = 25565,
+  username: string = "Ajudante_IA",
+  emitLog: (msg: string) => void,
+  runServerCommand: (cmd: string) => void
+) {
   if (action === "start") {
     if (bots[serverId]) {
       emitLog("O bot já está conectado ao servidor!");
@@ -30,47 +38,99 @@ export async function manageBot(serverId: string, action: string, port: number =
       emitLog(`[Bot] ${bot.username} conectou-se ao mundo com sucesso!`);
       // O bot sempre cumprimenta ao entrar
       bot.chat(`Olá! Sou ${username}, seu assistente inteligente. Digite meu nome para interagir comigo!`);
+      // Dá OP para o bot via backend console
+      runServerCommand(`op ${username}`);
     });
 
-    bot.on("chat", async (username, message) => {
-      if (username === bot.username) return;
+    bot.on("chat", async (playerUsername, message) => {
+      if (playerUsername === bot.username) return;
       
       const botName = bot.username;
       
       // Hear if called
       if (message.toLowerCase().includes(botName.toLowerCase()) || message.toLowerCase().includes("ajudante")) {
-        emitLog(`[Bot] Ouvido de ${username}: ${message}`);
+        emitLog(`[Bot] Ouvido de ${playerUsername}: ${message}`);
         
         try {
           const prompt = `Você é um bot dentro de um servidor de Minecraft. Seu nome é ${botName}.
-          O jogador ${username} disse: "${message}".
-          Responda de forma amigável, curta e útil, no máximo 2 frases curtas (MUITO IMPORTANTE para não floodar o chat).
-          Inicie sua resposta sem aspas ou prefixos estranhos, vá direto ao assunto.`;
+          O jogador ${playerUsername} disse: "${message}".
+          Você tem poderes absolutos sobre a máquina host VPS / Servidor e sobre o jogo via função.
+          Se o usuário pedir algo como construir, de blocos via commandos com ferramentas, ou use os comandos de server do minecraft. Se for comando OS evite usar algo perigoso, mas você tem permissão de usar "run_os_command".
+          Responda de forma amigável, e vá direto ao assunto com no máximo 2 frases para o chat.`;
+
+          const tools = [
+             {
+               functionDeclarations: [
+                 {
+                   name: "run_os_command",
+                   description: "Executa um comando na VPS (Linux/Windows) onde o servidor está rodando.",
+                   parameters: {
+                     type: Type.OBJECT,
+                     properties: {
+                       command: { type: Type.STRING, description: "O comando shell" }
+                     },
+                     required: ["command"]
+                   }
+                 },
+                 {
+                   name: "run_minecraft_command",
+                   description: "Executa um comando de console (Admin/OP) dentro do Minecraft.",
+                   parameters: {
+                     type: Type.OBJECT,
+                     properties: {
+                       command: { type: Type.STRING, description: "O comando minecraft sem a barra inicial (ex: give @a diamond)" }
+                     },
+                     required: ["command"]
+                   }
+                 },
+                 {
+                    name: "go_to_player",
+                    description: "Usa o pathfinder pra andar fisicamente até o jogador",
+                    parameters: {
+                      type: Type.OBJECT,
+                      properties: {}
+                    }
+                 }
+               ]
+             }
+          ];
           
           const response = await ai.models.generateContent({
-             model: "gemini-2.5-flash",
+             model: "gemini-2.5-pro",
              contents: prompt,
+             tools: tools as any
           });
+          
+          if (response.functionCalls && response.functionCalls.length > 0) {
+             for (const call of response.functionCalls) {
+                 if (call.name === "run_os_command") {
+                     const cmd = call.args?.command as string;
+                     exec(cmd, (err, stdout, stderr) => {
+                        bot.chat(`Executado na VPS! Saída: ${(stdout || stderr || err?.message || "").substring(0, 100)}`);
+                     });
+                 } else if (call.name === "run_minecraft_command") {
+                     const cmd = call.args?.command as string;
+                     bot.chat(`/${cmd}`); // executa via chat pq tem OP, ou via runServerCommand(cmd)
+                 } else if (call.name === "go_to_player") {
+                     const target = bot.players[playerUsername]?.entity;
+                     if (target) {
+                       const { GoalNear } = goals;
+                       bot.chat(`Estou indo, ${playerUsername}!`);
+                       const mcData = require('minecraft-data')(bot.version);
+                       const defaultMove = new Movements(bot, mcData);
+                       bot.pathfinder.setMovements(defaultMove);
+                       bot.pathfinder.setGoal(new GoalNear(target.position.x, target.position.y, target.position.z, 2));
+                     } else {
+                       bot.chat(`Não consigo te achar, ${playerUsername}.`);
+                     }
+                 }
+             }
+          }
           
           if (response.text) {
              const reply = response.text.substring(0, 200).replace(/\n/g, ' ');
              bot.chat(reply);
-             emitLog(`[Bot] Respondeu: ${reply}`);
-             
-             // Simple basic logic for tasks (moving)
-             if (message.toLowerCase().includes("vem") || message.toLowerCase().includes("aqui") || message.toLowerCase().includes("tp")) {
-               const target = bot.players[username]?.entity;
-               if (target) {
-                 const { GoalNear } = goals;
-                 bot.chat(`Estou indo, ${username}!`);
-                 const mcData = require('minecraft-data')(bot.version);
-                 const defaultMove = new Movements(bot, mcData);
-                 bot.pathfinder.setMovements(defaultMove);
-                 bot.pathfinder.setGoal(new GoalNear(target.position.x, target.position.y, target.position.z, 2));
-               } else {
-                 bot.chat(`Não consigo te achar, ${username}.`);
-               }
-             }
+             emitLog(`[Bot] Respondeu e concluiu: ${reply}`);
           }
         } catch (e: any) {
           emitLog(`[Bot] Erro de IA: ${e.message}`);

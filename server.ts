@@ -896,6 +896,7 @@ Exemplo: "Vou deixar de dia! [ACTION:{"name": "sendTerminalCommand", "args": {"c
       .filter((id) => fs.lstatSync(path.join(SERVERS_ROOT, id)).isDirectory());
     const data = servers.map((id) => {
       const config = getSrvConfig(id);
+      ensureState(id);
       return {
         id,
         name: config.name,
@@ -904,6 +905,7 @@ Exemplo: "Vou deixar de dia! [ACTION:{"name": "sendTerminalCommand", "args": {"c
         type: config.type,
         version: config.version,
         store: config.store || null,
+        status: serversState[id].status,
       };
     });
     res.json({ servers: data });
@@ -1045,6 +1047,30 @@ command /creeper-ai <text>:
       proc.stdin.write("sk reload all\n");
     }
     res.json({ success: true });
+  });
+
+  app.post("/api/servers/status-multi", (req, res) => {
+    const { trackers } = req.body; // { [serverId]: lastLogIdx }
+    if (!trackers || typeof trackers !== "object") return res.json({ servers: {} });
+    
+    const result: Record<string, any> = {};
+    for (const id of Object.keys(trackers)) {
+      if (!fs.existsSync(getServerDir(id))) continue;
+      ensureState(id);
+      
+      const lastLogIdx = parseInt(trackers[id]) || 0;
+      const allLogs = serversState[id].logs;
+      const newLogs = lastLogIdx > 0 ? allLogs.slice(lastLogIdx) : allLogs;
+      
+      result[id] = {
+        status: serversState[id].status,
+        tunnel: serversState[id].tunnelAddress,
+        logs: newLogs,
+        logCount: allLogs.length,
+        stats: getAdvancedStatus(id)
+      };
+    }
+    res.json({ servers: result });
   });
 
   app.get("/api/server/status", (req, res) => {
@@ -1392,6 +1418,11 @@ command /creeper-ai <text>:
     const resolvedPort = port || 25565;
     await manageBot(serverId, action, resolvedPort, "Ajudante_IA", (msg: string) => {
         addLog(serverId, msg);
+    }, (cmd: string) => {
+       const proc = serversState[serverId]?.process;
+       if (proc) {
+           proc.stdin.write(cmd + "\n");
+       }
     });
     res.json({ success: true, connected: isBotConnected(serverId) });
   });
