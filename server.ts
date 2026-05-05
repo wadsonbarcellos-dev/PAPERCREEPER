@@ -1471,6 +1471,59 @@ command /creeper-ai <text>:
     res.download(filepath);
   });
 
+  app.post("/api/server/cloud-backup", (req, res) => {
+    const { serverId } = req.body;
+    ensureState(serverId);
+    const srvDir = getServerDir(serverId);
+    const backupDir = path.join(process.cwd(), "cloud_backups", serverId);
+    if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const zipName = `cloud-backup-${timestamp}.tar.gz`;
+    const dest = path.join(backupDir, zipName);
+
+    addLog(serverId, `[CLOUD BACKUP] Preparando pacotes vitais (world, plugins, dados de jogadores)...`);
+    
+    const dirsToBackup = [];
+    ["world", "world_nether", "world_the_end", "plugins", "usercache.json", "banned-players.json", "banned-ips.json", "ops.json", "whitelist.json"].forEach(item => {
+        if (fs.existsSync(path.join(srvDir, item))) dirsToBackup.push(item);
+    });
+    
+    if (dirsToBackup.length === 0) {
+      addLog(serverId, `[CLOUD BACKUP] Nenhuma pasta essencial encontrada.`);
+      return res.json({ success: false, message: "Nenhuma pasta essencial encontrada." });
+    }
+
+    // Windows requires slightly different syntax or bash support. Assume Linux environment per earlier implementations for tar
+    const includes = dirsToBackup.map(d => `"${d}"`).join(" ");
+    
+    exec(`tar -czf "${dest}" -C "${srvDir}" ${includes}`, (err) => {
+      if (err) addLog(serverId, `[ERROR] Cloud Backup falhou: ${err.message}`);
+      else addLog(serverId, `[SUCCESS] Cloud Backup local processado: ${zipName}. (Pronto para Upload na Nuvem)`);
+    });
+    res.json({ message: "Cloud Backup em progresso" });
+  });
+
+  app.get("/api/server/cloud-backups", (req, res) => {
+    const id = req.query.serverId as string;
+    const backupDir = path.join(process.cwd(), "cloud_backups", id);
+    if (!fs.existsSync(backupDir)) return res.json({ backups: [] });
+    const files = fs.readdirSync(backupDir).filter(f => f.endsWith(".tar.gz")).map(f => {
+      const stats = fs.statSync(path.join(backupDir, f));
+      return { name: f, size: stats.size, date: stats.mtime };
+    });
+    res.json({ backups: files });
+  });
+
+  app.get("/api/server/cloud-backup/download", (req, res) => {
+    const { serverId, file } = req.query;
+    if (!serverId || !file) return res.status(400).send("Bad request");
+    if ((file as string).includes("..") || (file as string).includes("/")) return res.status(403).send("Forbidden");
+    const filepath = path.join(process.cwd(), "cloud_backups", serverId as string, file as string);
+    if (!fs.existsSync(filepath)) return res.status(404).send("Not found");
+    res.download(filepath);
+  });
+
   app.post("/api/server/backup", (req, res) => {
     const { serverId } = req.body;
     ensureState(serverId);

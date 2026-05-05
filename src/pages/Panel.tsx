@@ -94,7 +94,8 @@ const translations: any = {
     files_title: "Files",
     files_sub: "Server Root",
     upload: "UPLOAD",
-    backup: "BACKUP",
+    backup: "BACKUP FULL",
+    cloud_backup: "CLOUD BACKUP (MAP/PLUGINS)",
     download_url: "DOWNLOAD URL",
     paste_hint: "DICE: DRAG OR PASTE (CTRL+V) FILES HERE",
     empty_folder: "Empty folder...",
@@ -242,7 +243,8 @@ const translations: any = {
     files_title: "Arquivos",
     files_sub: "Raiz do Servidor",
     upload: "UPLOAD",
-    backup: "BACKUP",
+    backup: "BACKUP COMPLETO",
+    cloud_backup: "BACKUP NUVEM (MAPA/PLUGINS)",
     download_url: "BAIXAR URL",
     paste_hint: "DICA: ARRASTE OU COLE (CTRL+V) ARQUIVOS AQUI",
     empty_folder: "Pasta vazia...",
@@ -558,6 +560,7 @@ export default function App({
   const [pluginName, setPluginName] = useState("");
   const [ramConfig, setRamConfig] = useState({ ram: 2, minRam: 1 });
   const [backups, setBackups] = useState<any[]>([]);
+  const [cloudBackups, setCloudBackups] = useState<any[]>([]);
   const [showBackups, setShowBackups] = useState(false);
   const [isSyncingRam, setIsSyncingRam] = useState(true);
   const [modules, setModules] = useState<{
@@ -893,6 +896,11 @@ export default function App({
         const data = await res.json();
         setBackups(data.backups || []);
       }
+      const resCloud = await fetch(`/api/server/cloud-backups?serverId=${currentServerId}`);
+      if (resCloud.ok) {
+        const data = await resCloud.json();
+        setCloudBackups(data.backups || []);
+      }
     } catch(e) {}
   };
 
@@ -910,6 +918,23 @@ export default function App({
       }
     } catch (e) {
       alert("Erro ao fazer backup.");
+    }
+  };
+
+  const handleCloudBackup = async () => {
+    if (!currentServerId) return;
+    try {
+      const res = await fetch("/api/server/cloud-backup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ serverId: currentServerId }),
+      });
+      if (res.ok) {
+        alert("Cloud Backup iniciado! Verifique o terminal para progresso.");
+        setActiveTab("console");
+      }
+    } catch (e) {
+      alert("Erro ao fazer cloud backup.");
     }
   };
 
@@ -4604,10 +4629,18 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                           <button
                             onClick={handleBackup}
                             className="px-6 py-4 bg-amber-600 hover:bg-amber-500 text-white rounded-2xl font-black text-xs shadow-lg shadow-amber-950 transition-all active:scale-95 border-b-4 border-amber-800 flex items-center gap-2"
-                            title="Fazer Backup Agora"
+                            title="Fazer Backup Completo Agora"
                           >
                             <Sparkles size={16} />
-                            BACKUP
+                            BACKUP FULL
+                          </button>
+                          <button
+                            onClick={handleCloudBackup}
+                            className="px-6 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black text-xs shadow-lg shadow-blue-950 transition-all active:scale-95 border-b-4 border-blue-800 flex items-center gap-2"
+                            title="Fazer Backup do Mapa e Plugins para envio/nuvem"
+                          >
+                            <Cloud size={16} />
+                            BACKUP NUVEM
                           </button>
                           <button
                             onClick={() => {
@@ -4665,20 +4698,34 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                                <h3 className="text-amber-500 font-black text-xs uppercase tracking-widest flex items-center gap-2">
                                  <Database size={14} /> Seus Backups
                                </h3>
-                               {backups.length === 0 && (
+                               {backups.length === 0 && cloudBackups.length === 0 && (
                                  <div className="text-zinc-500 font-bold text-xs">Nenhum backup encontrado.</div>
                                )}
                                {backups.map((bak: any, idx) => (
-                                 <div key={idx} className="p-3 bg-black/40 rounded-xl border border-amber-900/30 flex justify-between items-center group">
+                                 <div key={`local-${idx}`} className="p-3 bg-black/40 rounded-xl border border-amber-900/30 flex justify-between items-center group">
                                      <div className="flex flex-col">
                                         <span className="text-amber-300 font-mono text-xs">{bak.name}</span>
-                                        <span className="text-zinc-500 font-bold text-[10px]">Misto/Local • {(bak.size / 1024 / 1024).toFixed(2)} MB</span>
+                                        <span className="text-zinc-500 font-bold text-[10px]">Total/Local • {(bak.size / 1024 / 1024).toFixed(2)} MB</span>
                                      </div>
                                      <a
                                        href={`/api/server/backup/download?serverId=${currentServerId}&file=${bak.name}`}
                                        className="px-4 py-2 bg-amber-600/20 hover:bg-amber-600/40 text-amber-500 hover:text-amber-400 font-black text-[10px] rounded-lg tracking-widest uppercase transition-colors"
                                      >
                                         Fazer Download
+                                     </a>
+                                 </div>
+                               ))}
+                               {cloudBackups.map((bak: any, idx) => (
+                                 <div key={`cloud-${idx}`} className="p-3 bg-black/40 rounded-xl border border-blue-900/40 flex justify-between items-center group">
+                                     <div className="flex flex-col">
+                                        <span className="text-blue-300 font-mono text-xs">{bak.name}</span>
+                                        <span className="text-zinc-500 font-bold text-[10px]">Cloud (Mapa/Plugins) • {(bak.size / 1024 / 1024).toFixed(2)} MB</span>
+                                     </div>
+                                     <a
+                                       href={`/api/server/cloud-backup/download?serverId=${currentServerId}&file=${bak.name}`}
+                                       className="px-4 py-2 bg-blue-600/20 hover:bg-blue-600/40 text-blue-500 hover:text-blue-400 font-black text-[10px] rounded-lg tracking-widest uppercase transition-colors"
+                                     >
+                                        Fazer Download (Nuvem)
                                      </a>
                                  </div>
                                ))}

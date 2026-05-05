@@ -108,6 +108,44 @@ export default function MapEditor3D() {
      alert(`Colado ${newBlocks.length} blocos em ${pos1.join(',')}!`);
   };
 
+  const handleExportSchematic = () => {
+     if (clipboard.length === 0) {
+        alert("Clipboard vazio! Copie uma área primeiro usando //copy");
+        return;
+     }
+     const data = JSON.stringify(clipboard, null, 2);
+     const blob = new Blob([data], { type: 'application/json' });
+     const url = URL.createObjectURL(blob);
+     const a = document.createElement('a');
+     a.href = url;
+     a.download = `exported_schematic_${Date.now()}.json`;
+     document.body.appendChild(a);
+     a.click();
+     document.body.removeChild(a);
+     URL.revokeObjectURL(url);
+     alert("Schematic exportada!");
+  };
+
+  const handleImportSchematic = (e: React.ChangeEvent<HTMLInputElement>) => {
+     const file = e.target.files?.[0];
+     if (!file) return;
+     const reader = new FileReader();
+     reader.onload = (ev) => {
+        try {
+           const imported = JSON.parse(ev.target?.result as string);
+           if (Array.isArray(imported)) {
+             setClipboard(imported);
+             alert(`Schematic importada! (${imported.length} blocos). Use //paste para colocar no mundo.`);
+           } else {
+             alert('Formato inválido.');
+           }
+        } catch (err) {
+           alert("Erro ao ler o arquivo JSON schematic.");
+        }
+     };
+     reader.readAsText(file);
+  };
+
   return (
     <div className="w-full h-full relative border-4 border-emerald-900 rounded-[2rem] overflow-hidden bg-zinc-950 flex flex-col mt-4">
        <div className="absolute top-0 left-0 w-full z-10 bg-emerald-950/90 p-3 flex gap-2 border-b-2 border-emerald-900 shadow-md flex-wrap">
@@ -115,6 +153,11 @@ export default function MapEditor3D() {
           <button onClick={toggleWand} className={`px-3 py-1 ${wandMode !== 'none' ? 'bg-red-800 text-red-200' : 'bg-zinc-800 text-emerald-400'} text-[10px] font-black uppercase rounded hover:bg-zinc-700 shadow-sm border-b-2 border-zinc-950 active:translate-y-[2px] active:border-b-0`}>{wandMode !== 'none' ? 'Cancel Wand' : '//wand'}</button>
           <button onClick={handleCopy} className="px-3 py-1 bg-zinc-800 text-[10px] font-black uppercase rounded text-emerald-400 hover:bg-zinc-700 shadow-sm border-b-2 border-zinc-950 active:translate-y-[2px] active:border-b-0">//copy</button>
           <button onClick={handlePaste} className="px-3 py-1 bg-zinc-800 text-[10px] font-black uppercase rounded text-emerald-400 hover:bg-zinc-700 shadow-sm border-b-2 border-zinc-950 active:translate-y-[2px] active:border-b-0">//paste</button>
+          <button onClick={handleExportSchematic} className="px-3 py-1 bg-amber-600 text-[10px] font-black uppercase rounded text-white hover:bg-amber-500 shadow-sm border-b-2 border-amber-800 active:translate-y-[2px] active:border-b-0">Export</button>
+          <label className="px-3 py-1 cursor-pointer bg-amber-600 text-[10px] font-black uppercase rounded text-white hover:bg-amber-500 shadow-sm border-b-2 border-amber-800 active:translate-y-[2px] active:border-b-0">
+             Import
+             <input type="file" accept=".json" className="hidden" onChange={handleImportSchematic} />
+          </label>
           {wandMode !== 'none' && (
              <span className="ml-2 text-red-400 text-[10px] font-black uppercase self-center animate-pulse">Selecione {wandMode === 'pos1' ? 'Posição 1' : 'Posição 2'}</span>
           )}
