@@ -18,6 +18,15 @@ const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY || "AIza_fallback",
 });
 
+// Robust Error Handling: Evita que erros como ESM imports e Promessas Rejeitadas desliguem o backend do Painel.
+process.on('uncaughtException', (err) => {
+    console.error('[CRÍTICO] Uncaught Exception:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('[CRÍTICO] Unhandled Rejection:', reason);
+});
+
 // Helper to reliably download files using native Node
 async function downloadFile(url: string, dest: string, onLog?: (msg: string) => void): Promise<boolean> {
   try {

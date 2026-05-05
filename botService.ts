@@ -1,5 +1,9 @@
-import mineflayer from "mineflayer";
-import { pathfinder, Movements, goals } from "mineflayer-pathfinder";
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+const mineflayer = require("mineflayer");
+const { pathfinder, Movements, goals } = require("mineflayer-pathfinder");
+import type * as MineflayerTypes from "mineflayer";
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { exec } from "child_process";
 
@@ -7,7 +11,7 @@ const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY || "AIza_fallback",
 });
 
-const bots: Record<string, mineflayer.Bot> = {};
+const bots: Record<string, MineflayerTypes.Bot> = {};
 
 export async function manageBot(
   serverId: string,
