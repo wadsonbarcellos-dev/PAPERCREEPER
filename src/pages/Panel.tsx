@@ -3453,17 +3453,17 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
-                  className="bg-[#0b251a]/80 border-2 border-emerald-900 rounded-[2.5rem] shadow-sm p-4 sm:p-8 relative overflow-hidden flex flex-col items-center justify-center min-h-[500px]"
+                  className="bg-[#0b251a]/80 border-2 border-emerald-900 rounded-[2.5rem] shadow-sm p-4 sm:p-6 relative flex flex-col items-center w-full h-full max-h-[85vh] overflow-y-auto custom-scrollbar"
                 >
-                  <Map size={64} className="text-emerald-500 mb-6 opacity-80" />
-                  <h3 className="text-3xl font-black text-white tracking-tighter mb-4 text-center uppercase">
+                  <Map size={48} className="text-emerald-500 mb-4 opacity-80 shrink-0 mt-4" />
+                  <h3 className="text-2xl font-black text-white tracking-tighter mb-2 text-center uppercase shrink-0">
                     {t("map_editor_title")}
                   </h3>
-                  <p className="text-emerald-500 font-bold mb-8 text-center max-w-lg leading-relaxed mix-blend-screen text-[10px] sm:text-xs uppercase tracking-widest hidden sm:block">
+                  <p className="text-emerald-500 font-bold mb-6 text-center max-w-lg leading-relaxed mix-blend-screen text-[10px] uppercase tracking-widest hidden sm:block shrink-0">
                     {t("map_editor_desc")}
                   </p>
 
-                  <div className="flex flex-col items-center gap-4 w-full max-w-lg">
+                  <div className="flex flex-col items-center gap-4 w-full max-w-2xl shrink-0">
                     <div className="grid grid-cols-2 gap-3 w-full">
                       <button
                         onClick={() => {
@@ -3493,23 +3493,23 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                           };
                           input.click();
                         }}
-                        className="w-full py-4 rounded-xl flex items-center justify-center gap-2 font-black text-[10px] uppercase shadow-lg transition-transform active:scale-95 border-b-4 bg-emerald-500 hover:bg-emerald-400 text-emerald-950 border-emerald-700"
+                        className="w-full py-3 rounded-xl flex items-center justify-center gap-2 font-black text-[9px] uppercase shadow-lg transition-transform active:scale-95 border-b-4 bg-emerald-500 hover:bg-emerald-400 text-emerald-950 border-emerald-700"
                       >
-                        <UploadCloud size={16} /> {t("map_upload_zip")}
+                        <UploadCloud size={14} /> {t("map_upload_zip")}
                       </button>
 
                       <button
                         onClick={() => setShowBlueMap(!showBlueMap)}
-                        className="w-full py-4 rounded-xl flex items-center justify-center gap-2 font-black text-[10px] uppercase shadow-lg transition-transform active:scale-95 border-b-4 bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-800"
+                        className="w-full py-3 rounded-xl flex items-center justify-center gap-2 font-black text-[9px] uppercase shadow-lg transition-transform active:scale-95 border-b-4 bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-800"
                       >
-                        <Globe size={16} /> {showBlueMap ? "Fechar Web (Map Engine)" : "Abrir Web (Map Engine)"}
+                        <Globe size={14} /> {showBlueMap ? "Fechar Web (Map Engine)" : "Abrir Web (Map Engine)"}
                       </button>
 
                       <button
                         onClick={() => setShowEditor3D(!showEditor3D)}
-                        className="w-full col-span-2 py-4 rounded-xl flex items-center justify-center gap-2 font-black text-[10px] uppercase shadow-lg transition-transform active:scale-95 border-b-4 bg-purple-600 hover:bg-purple-500 text-white border-purple-800"
+                        className="w-full col-span-2 py-3 rounded-xl flex items-center justify-center gap-2 font-black text-[9px] uppercase shadow-lg transition-transform active:scale-95 border-b-4 bg-purple-600 hover:bg-purple-500 text-white border-purple-800"
                       >
-                        <Box size={16} /> {showEditor3D ? "Fechar MCEdit (3D Web)" : "Abrir MCEdit (3D Web)"}
+                        <Box size={14} /> {showEditor3D ? "Fechar MCEdit (3D Web)" : "Abrir MCEdit (3D Web)"}
                       </button>
 
                       <button
@@ -3521,9 +3521,9 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                           searchStore("bluemap");
                           setEditingServer(servers.find(s => s.id === currentServerId) || null);
                         }}
-                        className="w-full py-4 rounded-xl flex items-center justify-center gap-2 font-black text-[10px] uppercase shadow-lg transition-transform active:scale-95 border-b-4 bg-zinc-800 hover:bg-zinc-700 text-blue-400 border-zinc-950"
+                        className="w-full py-3 rounded-xl flex items-center justify-center gap-2 font-black text-[9px] uppercase shadow-lg transition-transform active:scale-95 border-b-4 bg-zinc-800 hover:bg-zinc-700 text-blue-400 border-zinc-950"
                       >
-                        <RefreshCw size={16} /> Instalar / Atualizar Engine
+                        <RefreshCw size={14} /> Instalar / Atualizar Engine
                       </button>
 
                       <button
@@ -3531,9 +3531,9 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                           setActiveTab("files");
                           setCurrentFolder("plugins/WorldEdit/schematics");
                         }}
-                        className="w-full py-4 rounded-xl flex items-center justify-center gap-2 font-black text-[10px] uppercase shadow-lg transition-transform active:scale-95 border-b-4 bg-zinc-800 hover:bg-zinc-700 text-emerald-400 border-zinc-950"
+                        className="w-full py-3 rounded-xl flex items-center justify-center gap-2 font-black text-[9px] uppercase shadow-lg transition-transform active:scale-95 border-b-4 bg-zinc-800 hover:bg-zinc-700 text-emerald-400 border-zinc-950"
                       >
-                        <Folder size={16} /> {t("map_view_schematics")}
+                        <Folder size={14} /> {t("map_view_schematics")}
                       </button>
 
                       <button
@@ -3541,9 +3541,9 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                           setActiveTab("files");
                           setCurrentFolder("");
                         }}
-                        className="w-full py-4 rounded-xl flex items-center justify-center gap-2 font-black text-[10px] uppercase shadow-lg transition-transform active:scale-95 border-b-4 bg-zinc-800 hover:bg-zinc-700 text-emerald-400 border-zinc-950"
+                        className="w-full py-3 rounded-xl flex items-center justify-center gap-2 font-black text-[9px] uppercase shadow-lg transition-transform active:scale-95 border-b-4 bg-zinc-800 hover:bg-zinc-700 text-emerald-400 border-zinc-950"
                       >
-                        <Map size={16} /> {t("map_view_worlds")}
+                        <Map size={14} /> {t("map_view_worlds")}
                       </button>
                     </div>
 
@@ -3586,7 +3586,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
 
                          <iframe 
                            src={`http://${window.location.hostname}:8100/`} 
-                           className="w-full h-[50vh] min-h-[400px] border-none bg-zinc-950" 
+                           className="w-full h-[60vh] min-h-[500px] border-none bg-zinc-950" 
                            title="BlueMap Frame"
                            sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
                          />
@@ -3594,10 +3594,12 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                     )}
 
                     {showEditor3D && (
-                      <MapEditor3D />
+                      <div className="w-full mt-4 min-h-[600px] flex flex-col">
+                         <MapEditor3D />
+                      </div>
                     )}
 
-                    <div className="w-full mt-4 p-6 bg-black/40 border-2 border-emerald-900/40 rounded-2xl">
+                    <div className="w-full mt-4 p-6 bg-black/40 border-2 border-emerald-900/40 rounded-2xl shrink-0">
                       <p className="text-[12px] text-emerald-500 font-black tracking-widest uppercase mb-4 text-center">
                         {t("map_protector_title")}
                       </p>

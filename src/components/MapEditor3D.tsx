@@ -166,7 +166,7 @@ export default function MapEditor3D() {
             MCEDIT VIRTUAL ENGINE
           </span>
        </div>
-       <div className="flex-1 w-full h-[500px]">
+       <div className="flex-1 w-full min-h-[500px]">
          <Canvas camera={{ position: [5, 5, 5], fov: 50 }}>
             <ambientLight intensity={0.5} />
             <pointLight position={[10, 10, 10]} intensity={1} />
