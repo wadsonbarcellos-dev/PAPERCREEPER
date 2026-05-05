@@ -29,7 +29,7 @@ export async function manageBot(
       host: "127.0.0.1",
       port: port,
       username: username,
-      version: false // autodetect
+      version: false as any // autodetect
     });
     
     bot.loadPlugin(pathfinder);
@@ -98,7 +98,7 @@ export async function manageBot(
           const response = await ai.models.generateContent({
              model: "gemini-2.5-pro",
              contents: prompt,
-             tools: tools as any
+             config: { tools: tools as any }
           });
           
           if (response.functionCalls && response.functionCalls.length > 0) {
@@ -116,8 +116,7 @@ export async function manageBot(
                      if (target) {
                        const { GoalNear } = goals;
                        bot.chat(`Estou indo, ${playerUsername}!`);
-                       const mcData = require('minecraft-data')(bot.version);
-                       const defaultMove = new Movements(bot, mcData);
+                       const defaultMove = new Movements(bot);
                        bot.pathfinder.setMovements(defaultMove);
                        bot.pathfinder.setGoal(new GoalNear(target.position.x, target.position.y, target.position.z, 2));
                      } else {

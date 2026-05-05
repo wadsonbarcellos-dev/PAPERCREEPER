@@ -52,6 +52,7 @@ import {
   Edit2,
   Code,
   Save,
+  Box,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { askAI } from "../services/geminiService";
@@ -357,6 +358,8 @@ interface ServerState {
   status: ServerStatus;
   logs: string[];
   tunnel?: string | null;
+  activeJava?: string;
+  config?: any;
   stats?: {
     cpu: string;
     ram: string;
@@ -430,6 +433,9 @@ export default function App({
       minRam?: number;
       type?: string;
       version?: string;
+      store?: any;
+      status?: string;
+      port?: number;
     }[]
   >([]);
   const [currentServerId, setCurrentServerId] = useState<string>("");
@@ -618,7 +624,7 @@ export default function App({
     running: false,
   });
   const [playitLoading, setPlayitLoading] = useState<
-    "install" | "uninstall" | "start" | "stop" | "reset" | null
+    "install" | "uninstall" | "start" | "stop" | "reset" | "update" | null
   >(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -1419,7 +1425,7 @@ export default function App({
     if (!currentServerId) return;
 
     if (action === "start") {
-      setActiveTab("terminal");
+      setActiveTab("console");
     } else if (action === "stop" || action === "kill") {
       setActiveTab("servers");
     }
@@ -3433,12 +3439,12 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                         onClick={() => setShowEditor3D(!showEditor3D)}
                         className="w-full col-span-2 py-4 rounded-xl flex items-center justify-center gap-2 font-black text-[10px] uppercase shadow-lg transition-transform active:scale-95 border-b-4 bg-purple-600 hover:bg-purple-500 text-white border-purple-800"
                       >
-                        <Boxes size={16} /> {showEditor3D ? "Fechar MCEdit (3D Web)" : "Abrir MCEdit (3D Web)"}
+                        <Box size={16} /> {showEditor3D ? "Fechar MCEdit (3D Web)" : "Abrir MCEdit (3D Web)"}
                       </button>
 
                       <button
                         onClick={() => {
-                          setActiveTab("plugins");
+                          setActiveTab("store");
                           setEditTab("plugins");
                           setStoreFolder("plugins");
                           setStoreSearch("bluemap");
@@ -3686,7 +3692,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                     <div className="grid grid-cols-2 gap-3 w-full">
                       <button
                         onClick={() => {
-                          setActiveTab("plugins");
+                          setActiveTab("store");
                           setStoreSearch("Shopkeepers");
                         }}
                         className="w-full py-4 rounded-xl flex flex-col items-center justify-center gap-2 font-black text-[10px] uppercase shadow-lg transition-transform active:scale-95 border-b-4 bg-zinc-800 hover:bg-zinc-700 text-emerald-400 border-zinc-950"
@@ -3695,7 +3701,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                       </button>
                       <button
                         onClick={() => {
-                          setActiveTab("plugins");
+                          setActiveTab("store");
                           setStoreSearch("EconomyShopGUI");
                         }}
                         className="w-full py-4 rounded-xl flex flex-col items-center justify-center gap-2 font-black text-[10px] uppercase shadow-lg transition-transform active:scale-95 border-b-4 bg-zinc-800 hover:bg-zinc-700 text-emerald-400 border-zinc-950"
@@ -3704,7 +3710,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                       </button>
                       <button
                         onClick={() => {
-                          setActiveTab("plugins");
+                          setActiveTab("store");
                           setStoreSearch("Citizens");
                         }}
                         className="col-span-2 w-full py-4 rounded-xl flex flex-col items-center justify-center gap-2 font-black text-[10px] uppercase shadow-lg transition-transform active:scale-95 border-b-4 bg-zinc-800 hover:bg-zinc-700 text-emerald-400 border-zinc-950"

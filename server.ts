@@ -1062,12 +1062,20 @@ command /creeper-ai <text>:
       const allLogs = serversState[id].logs;
       const newLogs = lastLogIdx > 0 ? allLogs.slice(lastLogIdx) : allLogs;
       
+      const freeMem = os.freemem();
+      const totalMem = os.totalmem();
+      const cpuLoad = os.loadavg()[0];
+
       result[id] = {
         status: serversState[id].status,
         tunnel: serversState[id].tunnelAddress,
         logs: newLogs,
         logCount: allLogs.length,
-        stats: getAdvancedStatus(id)
+        stats: {
+          cpu: `${(cpuLoad * 10).toFixed(1)}%`,
+          ram: `${((totalMem - freeMem) / 1024 / 1024 / 1024).toFixed(1)} / ${(totalMem / 1024 / 1024 / 1024).toFixed(1)} GB`,
+          ramPercent: Math.round(((totalMem - freeMem) / totalMem) * 100),
+        }
       };
     }
     res.json({ servers: result });

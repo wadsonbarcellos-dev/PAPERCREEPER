@@ -3,7 +3,7 @@ import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Box, Sky, Stars } from '@react-three/drei';
 
 function Voxel({ position, color }: { position: [number, number, number], color: string }) {
-  const ref = useRef<any>();
+  const ref = useRef<any>(null);
   const [hovered, setHover] = useState(false);
   return (
     <Box
