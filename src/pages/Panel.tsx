@@ -494,6 +494,8 @@ export default function App({
   const [modrinthVersions, setModrinthVersions] = useState<any[]>([]);
   const [selectedModrinthProject, setSelectedModrinthProject] = useState<any>(null);
   const [showVersionsModal, setShowVersionsModal] = useState(false);
+  const [storeGameVersion, setStoreGameVersion] = useState<string>("");
+  const [storeLoader, setStoreLoader] = useState<string>("");
 
   const searchStore = async (q: string) => {
     if (!q) {
@@ -2392,46 +2394,78 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                                   </button>
                                 </div>
 
-                                <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
-                                  {modrinthVersions.length === 0 ? (
-                                    <div className="flex flex-col items-center justify-center h-40 text-emerald-900">
-                                      <RefreshCw size={24} className="animate-spin mb-2" />
-                                      <p className="text-[10px] font-black uppercase">Lendo versões...</p>
-                                    </div>
-                                  ) : (
-                                    modrinthVersions.map((v: any) => (
-                                      <button
-                                        key={v.id}
-                                        onClick={() => installModrinthVersion(v)}
-                                        disabled={installingStoreItem === v.id}
-                                        className={`w-full text-left p-3 rounded-xl border transition-all group flex items-center justify-between ${installingStoreItem === v.id ? "bg-zinc-900 border-zinc-800 opacity-50" : "bg-emerald-900/10 border-emerald-900/40 hover:border-emerald-500"}`}
-                                      >
-                                        <div className="min-w-0">
-                                          <p className="text-[10px] font-black text-emerald-50 truncate leading-tight">
-                                            {v.version_number} ({v.name})
-                                          </p>
-                                          <div className="flex flex-wrap gap-1 mt-1">
-                                            <span className="text-[7px] font-black text-emerald-400 bg-emerald-950 px-1 py-0.5 rounded border border-emerald-900/50 uppercase">
-                                              {t("game_versions")}: {v.game_versions?.slice(0, 3).join(", ")}
-                                            </span>
-                                            <span className="text-[7px] font-black text-emerald-200 bg-emerald-800/40 px-1 py-0.5 rounded border border-emerald-700/50 uppercase">
-                                              {t("loaders")}: {v.loaders?.join(", ")}
-                                            </span>
+                                {(() => {
+                                  const filteredVersions = modrinthVersions.filter(v => {
+                                    if (storeGameVersion && (!v.game_versions || !v.game_versions.includes(storeGameVersion))) return false;
+                                    if (storeLoader && (!v.loaders || !v.loaders.includes(storeLoader))) return false;
+                                    return true;
+                                  });
+                                  const uniqueGameVersions = Array.from(new Set(modrinthVersions.flatMap(v => v.game_versions || []))).sort();
+                                  const uniqueLoaders = Array.from(new Set(modrinthVersions.flatMap(v => v.loaders || []))).sort();
+
+                                  return (
+                                    <>
+                                      <div className="flex gap-2 mb-4">
+                                        <select 
+                                          value={storeGameVersion} 
+                                          onChange={(e) => setStoreGameVersion(e.target.value)}
+                                          className="flex-1 bg-black/40 border-2 border-emerald-900 rounded-xl px-2 py-2 text-emerald-50 text-[10px] font-black outline-none focus:border-emerald-500 uppercase"
+                                        >
+                                          <option value="">{t("game_versions")} (Todas)</option>
+                                          {uniqueGameVersions.map(v => <option key={v as string} value={v as string}>{v as string}</option>)}
+                                        </select>
+                                        <select 
+                                          value={storeLoader} 
+                                          onChange={(e) => setStoreLoader(e.target.value)}
+                                          className="flex-1 bg-black/40 border-2 border-emerald-900 rounded-xl px-2 py-2 text-emerald-50 text-[10px] font-black outline-none focus:border-emerald-500 uppercase"
+                                        >
+                                          <option value="">Software/Loader (Todos)</option>
+                                          {uniqueLoaders.map(l => <option key={l as string} value={l as string}>{l as string}</option>)}
+                                        </select>
+                                      </div>
+                                      <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                                        {modrinthVersions.length === 0 ? (
+                                          <div className="flex flex-col items-center justify-center h-40 text-emerald-900">
+                                            <RefreshCw size={24} className="animate-spin mb-2" />
+                                            <p className="text-[10px] font-black uppercase">Lendo versões...</p>
                                           </div>
-                                        </div>
-                                        <div className="flex-shrink-0 ml-2">
-                                          {installingStoreItem === v.id ? (
-                                            <RefreshCw size={14} className="animate-spin text-emerald-500" />
-                                          ) : (
-                                            <div className="bg-emerald-500 p-1 rounded group-hover:bg-emerald-400">
-                                              <Download size={14} className="text-white" />
-                                            </div>
-                                          )}
-                                        </div>
-                                      </button>
-                                    ))
-                                  )}
-                                </div>
+                                        ) : (
+                                          filteredVersions.map((v: any) => (
+                                            <button
+                                              key={v.id}
+                                              onClick={() => installModrinthVersion(v)}
+                                              disabled={installingStoreItem === v.id}
+                                              className={`w-full text-left p-3 rounded-xl border transition-all group flex items-center justify-between ${installingStoreItem === v.id ? "bg-zinc-900 border-zinc-800 opacity-50" : "bg-emerald-900/10 border-emerald-900/40 hover:border-emerald-500"}`}
+                                            >
+                                              <div className="min-w-0">
+                                                <p className="text-[10px] font-black text-emerald-50 truncate leading-tight">
+                                                  {v.version_number} ({v.name})
+                                                </p>
+                                                <div className="flex flex-wrap gap-1 mt-1">
+                                                  <span className="text-[7px] font-black text-emerald-400 bg-emerald-950 px-1 py-0.5 rounded border border-emerald-900/50 uppercase">
+                                                    {t("game_versions")}: {v.game_versions?.slice(0, 3).join(", ")}
+                                                  </span>
+                                                  <span className="text-[7px] font-black text-emerald-200 bg-emerald-800/40 px-1 py-0.5 rounded border border-emerald-700/50 uppercase">
+                                                    {t("loaders")}: {v.loaders?.join(", ")}
+                                                  </span>
+                                                </div>
+                                              </div>
+                                              <div className="flex-shrink-0 ml-2">
+                                                {installingStoreItem === v.id ? (
+                                                  <RefreshCw size={14} className="animate-spin text-emerald-500" />
+                                                ) : (
+                                                  <div className="bg-emerald-500 p-1 rounded group-hover:bg-emerald-400">
+                                                    <Download size={14} className="text-white" />
+                                                  </div>
+                                                )}
+                                              </div>
+                                            </button>
+                                          ))
+                                        )}
+                                      </div>
+                                    </>
+                                  );
+                                })()}
                               </motion.div>
                             )}
                           </AnimatePresence>
