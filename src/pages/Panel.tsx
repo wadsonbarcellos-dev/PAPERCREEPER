@@ -3488,11 +3488,11 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                                 </button>
                               </div>
                             ) : (
-                              <div className="p-3 bg-amber-900/20 rounded-xl border border-amber-900/50 flex flex-col px-4 text-center mt-2 group hover:bg-amber-900/40 transition-all cursor-crosshair">
+                              <div className="p-3 bg-amber-900/20 rounded-xl border border-amber-900/50 flex flex-col px-4 text-center mt-2 cursor-pointer hover:bg-amber-900/40 transition-all" onClick={() => window.open("https://playit.gg/account", "_blank")}>
                                  <span className="text-amber-500 font-mono text-[10px] font-bold">
                                    AGUARDANDO ENDEREÇO IP...
                                  </span>
-                                 <span className="text-zinc-400 text-[9px] mt-1 leading-relaxed">Playit conectado. Pode demorar alguns segundos. Vá em painel da Playit.gg se ele não aparecer.</span>
+                                 <span className="text-zinc-400 text-[9px] mt-1 leading-relaxed">Playit conectado. Pode demorar alguns segundos. <span className="text-amber-400 underline">Clique aqui</span> para verificar no painel da Playit.gg se ele não aparecer.</span>
                               </div>
                             )}
                           </div>
@@ -4484,21 +4484,39 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                     <Flower2 size={240} />
                   </div>
 
-                  <div className="flex items-center justify-between mb-8 relative z-10">
+                  <div className="flex items-center justify-between mb-8 relative z-10 flex-wrap gap-4">
                     <div className="flex items-center gap-4">
-                      <div className="p-4 bg-emerald-900/50 rounded-2xl text-emerald-400">
+                      <div className="p-4 bg-emerald-900/50 rounded-2xl text-emerald-400 flex-shrink-0">
                         <Terminal size={32} />
                       </div>
                       <div>
-                        <h2 className="text-3xl font-black text-white tracking-tighter italic uppercase">
+                        <h2 className="text-3xl font-black text-white tracking-tighter italic uppercase break-all">
                           Terminal
                         </h2>
-                        <p className="text-emerald-500 text-[10px] font-black uppercase tracking-[0.2em] mt-1">
-                          Conectado ao Cubo (•◡•)
-                        </p>
+                        <div className="flex items-center flex-wrap gap-2 mt-1">
+                          <p className="text-emerald-500 text-[10px] font-black uppercase tracking-[0.2em] whitespace-nowrap">
+                            {currentServerId ? `Conectado: ${servers.find(s => s.id === currentServerId)?.name}` : 'Nenhum servidor selecionado'}
+                          </p>
+                          {currentServerId && (
+                             <button
+                               onClick={() => handleAction(serverState.status === "online" ? "stop" : "start")}
+                               disabled={serverState.status !== "online" && serverState.status !== "offline"}
+                               className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest text-white shadow-lg transition-transform active:scale-95 flex items-center gap-1.5 border-b-2 disabled:opacity-50 disabled:grayscale ${
+                                   serverState.status === "online" ? "bg-red-600 hover:bg-red-500 border-red-800" :
+                                   serverState.status === "offline" ? "bg-emerald-600 hover:bg-emerald-500 border-emerald-800" :
+                                   "bg-amber-500 hover:bg-amber-400 border-amber-700"
+                               }`}
+                             >
+                               {serverState.status === "online" ? <Square fill="currentColor" size={10} /> : <Play fill="currentColor" size={10} />}
+                               {serverState.status === "online" ? "PARAR SERVIDOR" : 
+                                serverState.status === "offline" ? "INICIAR SERVIDOR" :
+                                "AGUARDE..."}
+                             </button>
+                          )}
+                        </div>
                       </div>
                     </div>
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-2 w-full lg:w-auto">
                        <div className="flex items-center gap-2 overflow-x-auto pb-2 custom-scrollbar">
                          <span className="text-[10px] font-black uppercase text-emerald-500 tracking-widest mr-2">Multi-Terminais:</span>
                          {servers.filter(s => s.status === "online").map(srv => {

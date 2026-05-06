@@ -1,75 +1,77 @@
-# PaperCreeper - The Magic Minecraft Panel (AI + Scripts + Local Servers)
+# 🧨 PaperCreeper - The Magic Minecraft Panel (AI + Scripts + Local Servers)
 
-**PaperCreeper** is not just a hosting panel. It is your Minecraft server companion built with Artificial Intelligence and extreme focus on performance.
-Create servers (Paper, Forge, Fabric, etc.), manage plugins, edit maps, tweak configs, inject native Magic Scripts, and export your game world in minutes—all guided by our "Creeper Intelligence".
-
-## 🚀 Installation & Setup Guide (Step-by-Step)
-
-Our architecture is heavily optimized for Linux virtualization and the Windows Subsystem for Linux (WSL2). Native Windows Node.js servers are notoriously slow for heavy Minecraft workflows. We assume you want to run this beast directly from the penguin!
-
-### Method 1: Windows via WSL2 (The Best Way on Windows)
-
-If you are on Windows, WSL2 is mandatory for optimal performance.
-
-**Step 1: Enable WSL2 and Install Debian**
-1. Open PowerShell as Administrator.
-2. Run the command to install WSL and Debian directly:
-   ```powershell
-   wsl --install -d Debian
-   ```
-3. Restart your computer if prompted.
-4. Open the "Debian" app from your Start Menu. It will ask you to create a UNIX username and password.
-
-**Step 2: Install Dependencies inside Debian**
-Once in your Debian terminal, update the system and install the required tools (Git, Node.js, cURL, etc.):
-```bash
-# Update repositories and install basics
-sudo apt update && sudo apt upgrade -y
-sudo apt install -y curl unzip zip tar lsof htop git wget build-essential
-
-# Install Node.js v20 (Required)
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt install -y nodejs
-```
-
-**Step 3: Clone PaperCreeper and Run**
-```bash
-# Clone the repository correctly
-git clone https://github.com/wadbar/papercreeper.git
-cd papercreeper
-
-# Install dependencies and build
-npm install
-npm run build
-
-# Start the panel
-npm start
-```
-*The Panel will automatically open in your browser as a Standalone Web App!*
+**PaperCreeper** is a next-generation Minecraft server management panel built with modern edge tools, Artificial Intelligence, and performance optimizations.
+It allows you to create servers (Paper, Purpur, Velocity, BungeeCord, Forge, Fabric, etc.), manage multiple instances, edit maps, generate Skripts via AI, manage plugins via Modrinth, and even deploy an AI Assistant Bot directly into your game world.
 
 ---
 
-### Method 2: Linux (Ubuntu/Debian VPS) - The Server Way
+## 🌟 Key Features
 
-Ensure your machine has Node v18+ and essential tools:
+- **Multi-Server & Multi-Terminal:** Run and manage multiple servers simultaneously on the same host. Connect securely through an interactive web-console.
+- **Modrinth Store:** Download and install plugins, mods, and engines directly from the Modrinth database inside the panel.
+- **AI "Skript" Builder (Gemini/Cloud or Local AI):** Instead of compiling Java plugins, tell the AI your idea, and it generates an instant `.sk` Skript directly into your server!
+- **Mineflayer AI Bot ("Ajudante IA"):** Spawn an intelligent bot in-game! It navigates, connects to your AI model, listens to chat, and interacts with players smoothly.
+- **Playit.gg Native Integration:** No need to configure your router or use VPNs. Activate Playit.gg within the panel to instantly get a public IP for your server!
+- **Advanced File Manager & MCEdit 3D Web:** Browse, edit, upload Zips/Schematics, and even visualize chunks natively with the Prismarine Anvil Editor! Also integrated with BlueMap web viewer and WorldEdit commands.
+- **Server Hibernation / UptimeRobot:** Set your host to suspend mode when idle to save RAM on VPS, keeping it responsive to UptimeRobot pings.
+- **Full Cloud & Local Backups:** Create complete backups, isolated cloud backups, and restore them securely.
+- **Intelligent Auto-Java:** Auto-detects Java distributions on the machine and switches between Java 8, 17, and 21 depending on the server version selected!
+
+---
+
+## 🚀 Installation & Setup Guide (Step-by-Step)
+
+Our architecture is extremely optimized for Linux. Windows users should ideally use WSL2 to avoid Node.js native filesystem performance issues.
+
+### Method 1: Linux VPS (Ubuntu/Debian) - **The Recommended Way**
+Ensure your machine has Node.js (v18+) and essential tools. 
+
 ```bash
-sudo apt update && sudo apt install -y curl unzip zip tar lsof htop git nodejs npm
+# 1. Update your apt and install essentials
+sudo apt update && sudo apt install -y curl unzip zip tar lsof htop git
+
+# 2. Install Node.js (v20 or v22 Recommended)
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs npm
+
+# 3. Clone PaperCreeper repository
 git clone https://github.com/wadbar/papercreeper.git
 cd papercreeper
+
+# 4. Install all platform dependencies
 npm install
 npm run build
-npm start
+
+# 5. KEEPING THE PANEL ONLINE (Start/Stop using PM2)
+# If you just run 'npm start' and close the terminal, the panel stops.
+# We highly recommend using PM2 to keep it alive as a service:
+sudo npm install -g pm2
+pm2 start "npx tsx server.ts" --name papercreeper
+pm2 save
+pm2 startup
+
+# Now PaperCreeper runs automatically in the background!
+# To monitor logs: pm2 logs papercreeper
+# To stop the panel: pm2 stop papercreeper
+# To restart the panel: pm2 restart papercreeper
 ```
 The Panel will be alive at `http://YOUR_SERVER_IP:3000`.
 
 ---
 
-### Método 3: Android (Via Termux) - Mobile Native
+### Method 2: Windows via WSL2 (Best option for Windows hosts)
+If you are on Windows, Virtualizing Linux via WSL2 is mandatory for optimal disk performance.
+1. Open PowerShell as Administrator and install WSL Debian: `wsl --install -d Debian`
+2. Restart PC and open "Debian" from the Start Menu.
+3. Follow the **Linux VPS** steps directly inside that terminal.
+4. Access via `http://localhost:3000` or `http://[WSL_IP]:3000`.
 
-**YES!** The whole Panel interface is Mobile First! Host and play directly from your phone!
-Open your [Termux](https://f-droid.org/en/packages/com.termux/):
+---
+
+### Method 3: Mobile Native (Termux on Android)
+You can host a full Minecraft server + the panel right from your phone!
 ```bash
-pkg update && pkg upgrade
+pkg update && pkg upgrade -y
 pkg install nodejs git curl unzip zip tar
 git clone https://github.com/wadbar/papercreeper.git
 cd papercreeper
@@ -80,76 +82,62 @@ npm start
 
 ---
 
-## 🔁 How to Update Your Panel
+## 🤖 AI Features Configuration & Guide
 
-We push new features frequently! To apply the latest updates directly from GitHub without breaking your servers:
+PaperCreeper features a highly capable Intelligence available through two formats: Chat Assistant and In-Game Bot. 
 
-```bash
-# Make sure you are inside the panel's folder
-cd papercreeper
+### Supported IA Providers
 
-# Fetch and reset to the latest origin
-git fetch --all
-git reset --hard origin/main
+**1. Cloud AI (Gemini / OpenAI / Groq)**
+We support multiple keys for automatic Quota fallback. 
+1. Get a free API Key from [Google AI Studio](https://aistudio.google.com/app/apikey).
+2. Go to **Panel Settings > AI**.
+3. Select "Cloud AI" and paste your keys separated by commas: `AIzaSyX..., AIzaSyY...`
+4. Choose the model and test! The panel will automatically distribute usage.
 
-# Reinstall and rebuild just in case
-npm install
-npm run build
+**2. Local AI (Ollama - 100% Offline)**
+1. Install [Ollama](https://ollama.com/) on the server running PaperCreeper.
+2. Run your preferred model in your OS terminal: `ollama run llama3.2` or `ollama run qwen2.5-coder`
+3. In Panel Settings, switch the provider to "Local AI".
+4. Set Endpoint to: `http://127.0.0.1:11434/v1/chat/completions` (or `http://YOUR_HOST_IP:11434` depending on your setup).
 
-# Start it back up
-npm start
-```
-*(You can also use the "Update Panel" button directly inside the app's Settings!)*
+### Using The "Ajudante IA" In-Game Bot
+1. From the Terminal tab, click **"Ativar IA Ajudante"**.
+2. A Mineflayer Virtual Player logic will boot up and spawn into your running Minecraft Server.
+3. The Bot will automatically connect to your active AI Provider (Local or Cloud). Chat with it in your game using the native Minecraft chat! It has basic memory and behaves as a helpful player.
 
----
-
-## 🤖 AI Configuration (Ollama & API Keys)
-
-The Creeper has its own virtual mind! The "AI Assist" button is everywhere. We support both Cloud AI and Local AI.
-
-### Setting up MULTIPLE API Keys for Auto-Fallback (Gemini/Groq)
-In the Panel's Settings, you can now add **multiple API Keys separated by commas**!
-If a key reaches its rate limit (Quota Exceeded), the Panel will automatically switch to the next key without interrupting your workflow.
-1. Get a free API Key from [Google AI Studio](https://aistudio.google.com/app/apikey) or Groq.
-2. Go to PaperCreeper > Settings > AI Provider.
-3. Select "Cloud AI" and paste your keys: `AIzaSy..., AIzaSy..., gsk_...`
-4. Choose the model and enjoy!
-
-### Setting up Local AI (Ollama - 100% Free & Offline)
-1. Install [Ollama](https://ollama.com/) on your host machine (Windows or Linux).
-2. Open your terminal and download a fast model (like Llama3 or Qwen):
-   ```bash
-   ollama run llama3.2
-   ```
-3. Inside PaperCreeper, go to Settings. Change the AI Provider to **Local AI**.
-4. Set the Endpoint:
-   - If PaperCreeper is on Linux running Ollama locally: `http://127.0.0.1:11434/v1/chat/completions`
-   - If PaperCreeper is inside WSL2, but Ollama is on Windows Host, use your WSL Gateway IP (e.g., `http://172.x.x.x:11434/v1/chat/completions` or check your WSL network settings).
-   *(Note: You might need to set `OLLAMA_HOST=0.0.0.0` in your Windows Environment Variables to allow WSL connections).*
+### Script Factory (AI Code Generator)
+1. Navigate to the "Criador de Scripts" tab.
+2. Ensure you have the `Skript` plugin installed in your server (Go to the Panel Store > Search `Skript` > Install and restart the Minecraft server once).
+3. Describe your mechanism (e.g., *"Create a GUI store that sells dirt for 10 coins"*).
+4. The AI writes the Skript logic. Click **Save**, and it natively deploys into `plugins/Skript/scripts/` while actively `/sk reload`-ing the game! Your mechanics change instantly without Minecraft server restarts!
 
 ---
 
-## 📜 The "Script Builder" vs The "Skript" Plugin
-
-In our UI, you will see the **Script Builder** ("Fábrica de Scripts").
-This tool uses AI to write automation scripts, custom commands, and new mechanics for your Minecraft server *on the fly*, without needing to compile Java plugins.
-
-**How does it work?**
-1. The AI generates a `.sk` file (a Skript).
-2. For this file to be understood by Minecraft, your server **MUST** have the `Skript` plugin installed.
-3. You can install the Skript plugin easily from our "Mods/Plugins Store" tab with one click.
-4. Once installed, every time you use the Script Builder and click Save, it automatically puts the `.sk` file into `plugins/Skript/scripts/` and issues a `/sk reload all` command to your server, making your new script work instantly!
+## 🌐 Network & Playit.gg
+Don't have port forwarding or a Dedicated IPv4? 
+1. In the Panel, go to the **Playit.gg** tab.
+2. If starting for the first time, click to Link Account.
+3. A browser tab opens. Verify it with Playit.gg credentials.
+4. The panel natively spins up a local Playit daemon. Once connected, your panel will display an auto-assigned global public IP (e.g., `playit-craft.gg:25565`) which anyone can join.
 
 ---
 
-## 🌍 Managing Servers & Optimizations
-
-- **Start/Stop/Kill:** Quick actions on the panel.
-- **Auto-Java:** PaperCreeper automatically downloads and assigns the correct Java version (8, 17, or 21) based on the Minecraft version you select!
-- **MCEdit / Map Editor:** We integrated an experimental Web-based 3D Map Viewer (like BlueMap) and a toolbar to send WorldEdit commands (like `//wand`, `//copy`, `//paste`, `//undo`) straight to the server! Native MCEdit is discontinued, so we combined Web Viewing + In-Game WorldEdit for the best experience.
-
-**Performance Warning:** 
-Keep the map viewer closed if you are low on RAM!
+## 🗺️ Map Editor (Prismarine + Web Tools)
+Our Map tab contains massive tools:
+- **Zip / Schematics Uploads:** Drop `.zip` map files or `.schem` directly onto the "Upload Map/Schematic" button! It handles deep extraction efficiently, sending them straight to `/plugins/WorldEdit/schematics`.
+- **WorldGuard Protector:** Highlight regions inside the game with WorldEdit (`//wand`), type the region name in the panel, and click a button to mass-apply flags (PVP Off, No Building, Immortal Area).
+- **MCEdit 3D Web & BlueMap:**
+    - The "Abrir MCEdit 3D Web" utilizes Prismarine engines to provide a raw voxel scanner over your `region` folder!
+    - For massive fluid visual capabilities, the panel auto-integrates with the **BlueMap** engine if downloaded from the Store! Open the `MAP ENGINE (WEB)` directly inside our interface on port `8100`!
+    - The Map tab also includes buttons that send direct `//copy`, `//paste` commands into the connected Minecraft server.
 
 ---
-*Developed with 💚 using Full-Stack AI Automation.*
+
+## 💻 Working with the Server Files & Terminal
+- **Workspace:** Server files are completely isolated inside `./servers/ServerName`.
+- **Code Edits:** Need to update properties quickly? Every file in the Web File Manager has a Code Editor built-in.
+- **Terminal Control:** The web terminal routes commands raw directly to `process.stdin`. Use the top bubbles to select which server you want to Multi-Control.
+- Press **Parar** or **Iniciar** locally in the terminal view. 
+
+Enjoy creating your perfect Minecraft Network automatically! PaperCreeper accelerates the way we build Minecraft.

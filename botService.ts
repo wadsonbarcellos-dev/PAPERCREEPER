@@ -1,7 +1,3 @@
-import { createRequire } from "module";
-const require = createRequire(import.meta.url);
-const mineflayer = require("mineflayer");
-const { pathfinder, Movements, goals } = require("mineflayer-pathfinder");
 import type * as MineflayerTypes from "mineflayer";
 
 import { GoogleGenAI, Type } from "@google/genai";
@@ -22,6 +18,18 @@ export async function manageBot(
   runServerCommand: (cmd: string) => void
 ) {
   if (action === "start") {
+    let mineflayer: any, pathfinder: any, Movements: any, goals: any;
+    try {
+        mineflayer = await import("mineflayer");
+        const pf = await import("mineflayer-pathfinder");
+        pathfinder = pf.pathfinder;
+        Movements = pf.Movements;
+        goals = pf.goals;
+    } catch (e) {
+        emitLog(`[Erro Fatal] O pacote mineflayer não está instalado no host VPS. Execute: npm install mineflayer mineflayer-pathfinder`);
+        return;
+    }
+
     if (bots[serverId]) {
       emitLog("O bot já está conectado ao servidor!");
       return;

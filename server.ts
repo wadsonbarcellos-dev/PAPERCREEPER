@@ -596,8 +596,15 @@ async function startServer() {
   app.post("/api/bot/spawn", async (req, res) => {
     const { serverId, botName } = req.body;
     try {
-      const mineflayer = await import("mineflayer");
-      const { pathfinder, Movements } = await import("mineflayer-pathfinder");
+      let mineflayer: any, pathfinder: any, Movements: any;
+      try {
+         mineflayer = await import("mineflayer");
+         const pf = await import("mineflayer-pathfinder");
+         pathfinder = pf.pathfinder;
+         Movements = pf.Movements;
+      } catch (err) {
+         return res.json({ error: "Módulos do bot não instalados. Use: npm install mineflayer mineflayer-pathfinder" });
+      }
 
       if (activeBots[serverId]) {
         activeBots[serverId].quit("I am restarting...");
@@ -679,10 +686,18 @@ async function startServer() {
       const worldPath = path.join(srvDir, "world");
       if (!fs.existsSync(worldPath)) return res.json({ error: "Mundo não encontrado ou servidor não gerou o world." });
 
-      const Anvil = await import("prismarine-provider-anvil");
-      const Chunk = await import("prismarine-chunk");
-      const registry = await import("prismarine-registry").then(m => m.default("1.20.1"));
-      const AnvilWorld = Anvil.Anvil("1.20.1");
+      let AnvilPkg: any, ChunkPkg: any, registry: any;
+      try {
+        AnvilPkg = await import("prismarine-provider-anvil");
+        ChunkPkg = await import("prismarine-chunk");
+        const registryAll = await import("prismarine-registry");
+        registry = registryAll.default ? registryAll.default("1.20.1") : (registryAll as any)("1.20.1");
+      } catch (err: any) {
+        return res.json({ error: "Módulos de mapa não encontrados. Certifique-se de instalar as dependências: npm install prismarine-provider-anvil prismarine-chunk prismarine-registry" });
+      }
+
+      const Anvil = AnvilPkg.default ? AnvilPkg.default.Anvil : AnvilPkg.Anvil;
+      const AnvilWorld = Anvil("1.20.1");
       const worldProvider = new AnvilWorld(path.join(worldPath, "region"));
 
       const loadSize = Math.min(size || 16, 32); 
@@ -698,7 +713,7 @@ async function startServer() {
       try {
         const chunkData = await worldProvider.load(chunkX, chunkZ);
         if (chunkData) {
-           const PrisChunk = Chunk.default(registry);
+           const PrisChunk = ChunkPkg.default ? ChunkPkg.default(registry) : ChunkPkg(registry);
            const chunk: any = new PrisChunk(null);
            if (chunk.loadLight) chunk.loadLight(chunkData.light);
            if (chunk.load) chunk.load(chunkData.chunk, chunkData.bitmaps);
@@ -1510,41 +1525,6 @@ command /creeper-ai <text>:
       }
 
       args.push("-Dfile.encoding=UTF-8");
-
-      // Auto-assign free port
-      try {
-        const net = await import("net");
-        const getFreePort = (startPort: number): Promise<number> => new Promise((resolve) => {
-          let port = startPort;
-          const testPort = () => {
-             const s = net.createServer();
-             s.listen(port, "0.0.0.0", () => {
-               s.once('close', () => resolve(port));
-               s.close();
-             });
-             s.on('error', () => { port++; testPort(); });
-          };
-          testPort();
-        });
-
-        const propsPath = path.join(srvDir, "server.properties");
-        if (!fs.existsSync(propsPath)) {
-          fs.writeFileSync(propsPath, "server-port=25565\nonline-mode=false\n");
-        }
-        
-        let props = fs.readFileSync(propsPath, "utf-8");
-        const match = props.match(/server-port=(\d+)/);
-        let wantedPort = match ? parseInt(match[1]) : 25565;
-        
-        const freePort = await getFreePort(wantedPort);
-        if (freePort !== wantedPort) {
-           props = props.replace(/server-port=\d+/, `server-port=${freePort}`);
-           fs.writeFileSync(propsPath, props);
-           addLog(serverId, `[INFO] Porta ${wantedPort} em uso. Trocada para: ${freePort}`);
-        }
-      } catch(e) {
-         console.warn("Failed to check free port", e);
-      }
 
       if (fs.existsSync(runShPath)) {
         addLog(serverId, `[INFO] Usando script run.sh em vez de JAR direto...`);
