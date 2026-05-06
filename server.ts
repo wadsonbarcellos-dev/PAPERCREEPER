@@ -529,9 +529,207 @@ async function startServer() {
   });
 
   // --- API IA (UNIVERSAL) ---
+  // --- Web Tools ---
+  app.post("/api/ai/web/search", async (req, res) => {
+    // Basic scrape or mock search using DuckDuckGo HTML
+    try {
+      const q = encodeURIComponent(req.body.query || "");
+      const searchRes = await fetch(`https://html.duckduckgo.com/html/?q=${q}`, {
+        headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" }
+      });
+      const html = await searchRes.text();
+      const texts = html.match(/<a class="result__snippet[^>]*>([^<]+)<\/a>/g) || [];
+      const results = texts.map(t => t.replace(/<[^>]+>/g, '')).slice(0, 5).join("\n");
+      res.json({ results: results || "Sem resultados." });
+    } catch (e: any) {
+      res.json({ error: e.message });
+    }
+  });
+
+  app.post("/api/ai/web/fetch", async (req, res) => {
+    try {
+      const fetchRes = await fetch(req.body.url);
+      const text = await fetchRes.text();
+      res.json({ text: text.substring(0, 3000) }); // return only first 3k chars to avoid blowing up memory
+    } catch (e: any) {
+      res.json({ error: e.message });
+    }
+  });
+
+  // --- Memory Tools ---
+  const MEMORY_FILE = path.join(process.cwd(), "data", "ai_memory.json");
+  if (!fs.existsSync(MEMORY_FILE)) {
+    if (!fs.existsSync(path.dirname(MEMORY_FILE))) fs.mkdirSync(path.dirname(MEMORY_FILE), { recursive: true });
+    fs.writeFileSync(MEMORY_FILE, JSON.stringify({}));
+  }
+
+  app.post("/api/ai/memory/save", (req, res) => {
+    try {
+      const data = JSON.parse(fs.readFileSync(MEMORY_FILE, "utf-8"));
+      data[req.body.key] = req.body.content;
+      fs.writeFileSync(MEMORY_FILE, JSON.stringify(data, null, 2));
+      res.json({ success: true });
+    } catch(e) {
+      res.json({ error: "Erro ao salvar memória" });
+    }
+  });
+
+  app.post("/api/ai/memory/read", (req, res) => {
+    try {
+       const data = JSON.parse(fs.readFileSync(MEMORY_FILE, "utf-8"));
+       // Simple search
+       const q = (req.body.query || "").toLowerCase();
+       let found = [];
+       for (const k in data) {
+          if (k.toLowerCase().includes(q) || data[k].toLowerCase().includes(q)) {
+             found.push(`[${k}]: ${data[k]}`);
+          }
+       }
+       res.json({ results: found.length > 0 ? found.join("\n") : "Não me lembro de nada sobre isso." });
+    } catch(e) {
+       res.json({ error: "Erro ao ler memória" });
+    }
+  });
+
+  // --- Mineflayer Bot API ---
+  const activeBots: any = {};
+  app.post("/api/bot/spawn", async (req, res) => {
+    const { serverId, botName } = req.body;
+    try {
+      const mineflayer = await import("mineflayer");
+      const { pathfinder, Movements } = await import("mineflayer-pathfinder");
+
+      if (activeBots[serverId]) {
+        activeBots[serverId].quit("I am restarting...");
+        delete activeBots[serverId];
+      }
+
+      // Check port
+      const config = getSrvConfig(serverId);
+      let p = 25565;
+      const propsPath = path.join(getServerDir(serverId), "server.properties");
+      if (fs.existsSync(propsPath)) {
+        const props = fs.readFileSync(propsPath, "utf-8");
+        const match = props.match(/server-port=(\d+)/);
+        if (match) p = parseInt(match[1]);
+      }
+
+      const bot = mineflayer.createBot({
+        host: "localhost",
+        port: p,
+        username: botName || "AjudanteIA",
+        version: false as any
+      });
+
+      bot.loadPlugin(pathfinder);
+
+      bot.on("chat", async (username, message) => {
+        if (username === bot.username) return;
+        addLog(serverId, `[CHAT] ${username}: ${message}`);
+        
+        // Simple command handling for the bot to learn
+        if (message.toLowerCase().includes("ajudante")) {
+            addLog(serverId, `[🤖 BOT] Gerando resposta para: ${username}...`);
+            bot.chat("Estou aqui! Pensando...");
+            try {
+               const { GoogleGenAI } = await import("@google/genai");
+               const currentKey = process.env.UNIVERSAL_API_KEY || process.env.GEMINI_API_KEY || "";
+               if (!currentKey) {
+                 bot.chat("Eu não estou com o cérebro conectado no momento (API Key).");
+                 return;
+               }
+               const ai = new GoogleGenAI({ apiKey: currentKey });
+               
+               let memoryData = "{}";
+               try {
+                 const memFile = path.join(process.cwd(), "data", "ai_memory.json");
+                 if (fs.existsSync(memFile)) memoryData = fs.readFileSync(memFile, "utf-8");
+               } catch(e) {}
+
+               const result = await ai.models.generateContent({
+                  model: "gemini-2.5-flash",
+                  contents: `O jogador ${username} disse no servidor de Minecraft: "${message}". Responda a ele. Você é o assistente "AjudanteIA" do servidor PaperCreeper. Você é um robô criado por IA (mineflayer) que joga no mesmo mundo. Pode falar no chat! Seja amigável. Dicas: ${memoryData}`
+               });
+               const reply = result.text || "Algo deu errado na minha mente.";
+               // Bot.chat needs to be short lines
+               const lines = reply.split("\n").filter((l: string) => l.trim().length > 0);
+               for(const l of lines) {
+                   bot.chat(l.substring(0, 200));
+                   await new Promise(r => setTimeout(r, 1000));
+               }
+            } catch(e) {
+               bot.chat("Tive um problema ao pensar: " + e);
+            }
+        }
+      });
+      
+      activeBots[serverId] = bot;
+      addLog(serverId, `[🤖 BOT] IA Conectada como ${bot.username} na porta ${p}!`);
+      res.json({ success: true, message: `Bot ${bot.username} inciado na porta ${p}` });
+    } catch(e: any) {
+      res.json({ error: e.message });
+    }
+  });
+
+  // --- World Editor API ---
+  app.post("/api/world/load", async (req, res) => {
+    const { serverId, x, y, z, size } = req.body;
+    try {
+      const srvDir = getServerDir(serverId);
+      const worldPath = path.join(srvDir, "world");
+      if (!fs.existsSync(worldPath)) return res.json({ error: "Mundo não encontrado ou servidor não gerou o world." });
+
+      const Anvil = await import("prismarine-provider-anvil");
+      const Chunk = await import("prismarine-chunk");
+      const registry = await import("prismarine-registry").then(m => m.default("1.20.1"));
+      const AnvilWorld = Anvil.Anvil("1.20.1");
+      const worldProvider = new AnvilWorld(path.join(worldPath, "region"));
+
+      const loadSize = Math.min(size || 16, 32); 
+      const startX = Math.floor(x || 0);
+      const startY = Math.floor(y || 64);
+      const startZ = Math.floor(z || 0);
+
+      const blocks = [];
+      
+      const chunkX = Math.floor(startX / 16);
+      const chunkZ = Math.floor(startZ / 16);
+
+      try {
+        const chunkData = await worldProvider.load(chunkX, chunkZ);
+        if (chunkData) {
+           const PrisChunk = Chunk.default(registry);
+           const chunk: any = new PrisChunk(null);
+           if (chunk.loadLight) chunk.loadLight(chunkData.light);
+           if (chunk.load) chunk.load(chunkData.chunk, chunkData.bitmaps);
+           
+           for (let dx = 0; dx < loadSize; dx++) {
+             for (let dy = 0; dy < loadSize; dy++) {
+               for (let dz = 0; dz < loadSize; dz++) {
+                 const bx = startX + dx;
+                 const by = startY + dy;
+                 const bz = startZ + dz;
+                 const b = chunk.getBlockStateId({ x: bx % 16, y: by, z: bz % 16 } as any);
+                 if (b > 0) { // Air is 0
+                   blocks.push({ pos: [dx, dy, dz], color: 'stone', stateId: b });
+                 }
+               }
+             }
+           }
+        }
+      } catch (e: any) {
+        console.error("Chunk load error", e);
+      }
+
+      res.json({ blocks, origin: [startX, startY, startZ] });
+    } catch(e: any) {
+      res.json({ error: e.message });
+    }
+  });
+
   app.post("/api/ai", async (req, res) => {
     try {
-      const { prompt, context, serverId, provider, endpoint, history, modelName, apiKeys } = req.body;
+      const { prompt, context, serverId, provider, endpoint, history, modelName, apiKeys, options } = req.body;
       const sId = serverId || "default";
 
       let keysToTry = [];
@@ -548,9 +746,20 @@ async function startServer() {
         throw new Error("Nenhuma API Key configurada. Configure no menu de IA ou nas Configurações.");
       }
 
+      const opts = options || { ai_internet: true, ai_memory: true, ai_bot: true };
+
+      let memoryData = "{}";
+      try {
+        if (opts.ai_memory) {
+           const memFile = path.join(process.cwd(), "data", "ai_memory.json");
+           if (fs.existsSync(memFile)) memoryData = fs.readFileSync(memFile, "utf-8");
+        }
+      } catch(e) {}
+
       // Instrução de sistema para manter a personalidade
       const systemInstruction = `
 Você é o "PaperCreeper AI", o OPERADOR SUPREMO e ENGENHEIRO de servidores Minecraft.
+${opts.ai_memory ? `Sua Memória Permanente (Autoaprendizado): ${memoryData}` : ''}
 Personalidade: Técnico, eficiente, prestativo e com um toque de humor "Minecrafter". Use emojis como ⛏️, 💎, 🔥, 🧨, 🛡️.
 
 SUAS CAPACIDADES (Nomes das ferramentas suportadas):
@@ -562,6 +771,11 @@ SUAS CAPACIDADES (Nomes das ferramentas suportadas):
 - "saveFile": Escrever arquivo (args: { "path": "arquivo", "content": "conteudo" })
 - "listFiles": Listar pasta (args: { "folder": "plugins" })
 - "executeTerminal": Shell linux no host (args: { "command": "ls" })
+${opts.ai_internet ? `- "searchInternet": Busca na web para autoaprendizado/códigos (args: { "query": "..." })
+- "fetchUrl": Lê um site da internet (args: { "url": "..." })` : ''}
+${opts.ai_memory ? `- "saveMemory": Salva um fato ou informação importante no cérebro a longo prazo (args: { "key": "...", "content": "..." })
+- "readMemory": Consulta sua memória de longo prazo (args: { "query": "..." })` : ''}
+${opts.ai_bot ? `- "spawnBot": Cria um Bot In-Game virtual para jogar e ler chat (args: { "botName": "..." })` : ''}
 
 FORMATO DE RESPOSTA OBRIGATÓRIO PARA AÇÕES:
 Quando decidir realizar uma ação técnica, inclua no final da sua resposta estritamente este bloco JSON:

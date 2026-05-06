@@ -23,7 +23,7 @@ function Voxel({ position, color, onSelect }: { position: [number, number, numbe
   );
 }
 
-export default function MapEditor3D() {
+export default function MapEditor3D({ serverId }: { serverId?: string }) {
   const [blocks, setBlocks] = useState([
     { pos: [0, 0, 0] as [number, number, number], color: 'grass' },
     { pos: [1, 0, 0] as [number, number, number], color: 'dirt' },
@@ -35,6 +35,35 @@ export default function MapEditor3D() {
   const [pos1, setPos1] = useState<[number, number, number] | null>(null);
   const [pos2, setPos2] = useState<[number, number, number] | null>(null);
   const [clipboard, setClipboard] = useState<{pos: [number, number, number], color: string}[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const loadWorld = async () => {
+    if (!serverId) { alert("Selecione um servidor primeiro."); return; }
+    setLoading(true);
+    try {
+      const res = await fetch("/api/world/load", { 
+         method: "POST", headers: {"Content-Type": "application/json"},
+         body: JSON.stringify({ serverId, x: 0, y: 64, z: 0, size: 8 }) 
+      });
+      const data = await res.json();
+      if (data.error) {
+         alert(data.error);
+         return;
+      }
+      if (data.blocks) {
+         const mapped = data.blocks.map((b: any) => ({
+            pos: [b.pos[0] - 4, b.pos[1], b.pos[2] - 4], 
+            color: b.stateId === 2 ? 'grass' : b.stateId === 3 ? 'dirt' : 'stone'
+         }));
+         setBlocks([...blocks, ...mapped]);
+         alert(`Carregados ${data.blocks.length} blocos do chunk (0,64,0) de forma simplificada!`);
+      }
+    } catch(e) {
+      alert("Erro de conexão com Map Engine.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const addBlock = () => {
     setBlocks([...blocks, { pos: [Math.floor(Math.random() * 5), Math.floor(Math.random() * 5), Math.floor(Math.random() * 5)], color: 'stone' }]);
@@ -158,6 +187,7 @@ export default function MapEditor3D() {
              Import
              <input type="file" accept=".json" className="hidden" onChange={handleImportSchematic} />
           </label>
+          <button onClick={loadWorld} disabled={loading} className="px-3 py-1 bg-blue-600 text-[10px] font-black uppercase rounded text-white hover:bg-blue-500 shadow-sm border-b-2 border-blue-800 active:translate-y-[2px] active:border-b-0">{loading ? 'CARREGANDO...' : 'CARREGAR MUNDO REAL'}</button>
           {wandMode !== 'none' && (
              <span className="ml-2 text-red-400 text-[10px] font-black uppercase self-center animate-pulse">Selecione {wandMode === 'pos1' ? 'Posição 1' : 'Posição 2'}</span>
           )}

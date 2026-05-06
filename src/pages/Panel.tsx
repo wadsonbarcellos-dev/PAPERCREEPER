@@ -567,12 +567,27 @@ export default function App({
     map: boolean;
     store: boolean;
     ai: boolean;
+    ai_internet: boolean;
+    ai_memory: boolean;
+    ai_bot: boolean;
+    server_hibernation: boolean;
   }>(() => {
     try {
       const saved = localStorage.getItem("ppc_modules");
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+         const parsed = JSON.parse(saved);
+         return {
+            map: parsed.map ?? true,
+            store: parsed.store ?? true,
+            ai: parsed.ai ?? true,
+            ai_internet: parsed.ai_internet ?? true,
+            ai_memory: parsed.ai_memory ?? true,
+            ai_bot: parsed.ai_bot ?? true,
+            server_hibernation: parsed.server_hibernation ?? false
+         };
+      }
     } catch (e) {}
-    return { map: true, store: true, ai: true };
+    return { map: true, store: true, ai: true, ai_internet: true, ai_memory: true, ai_bot: true, server_hibernation: false };
   });
 
   useEffect(() => {
@@ -1668,6 +1683,41 @@ export default function App({
             json: () => Promise.resolve({ success: true }),
           } as any;
           break;
+        case "searchInternet":
+          res = await fetch("/api/ai/web/search", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ query: args.query })
+          });
+          break;
+        case "fetchUrl":
+          res = await fetch("/api/ai/web/fetch", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url: args.url })
+          });
+          break;
+        case "saveMemory":
+          res = await fetch("/api/ai/memory/save", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ key: args.key, content: args.content })
+          });
+          break;
+        case "readMemory":
+          res = await fetch("/api/ai/memory/read", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ query: args.query })
+          });
+          break;
+        case "spawnBot":
+          res = await fetch("/api/bot/spawn", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ serverId, botName: args.botName })
+          });
+          break;
       }
 
       const data = await res?.json();
@@ -1689,7 +1739,7 @@ export default function App({
     try {
       const keysArray = aiKeysList.split(",").map(k => k.trim()).filter(k => k.length > 5);
       const context = `Servidor Selecionado: ${currentServerId}. Status: ${serverState.status}. Logs recentes:\n${serverState.logs.slice(-10).join("\n")}`;
-      const firstResult = await askAI(userMsg, context, currentServerId, aiProvider, aiEndpoint, aiChat.slice(-10), aiLocalModel, keysArray);
+      const firstResult = await askAI(userMsg, context, currentServerId, aiProvider, aiEndpoint, aiChat.slice(-10), aiLocalModel, keysArray, modules);
 
       if (firstResult.call) {
         setAiChat((prev) => [
@@ -1710,7 +1760,8 @@ export default function App({
           aiEndpoint,
           aiChat.slice(-10),
           aiLocalModel,
-          keysArray
+          keysArray,
+          modules
         );
         setAiChat((prev) => [
           ...prev.slice(0, -1),
@@ -1756,7 +1807,7 @@ export default function App({
 
 Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Retorne APENAS o código encapsulado num bloco \`\`\`skript ... \`\`\`. Use blocos de command, on event, etc conforme necessário e não utilize ferramentas [ACTION:...] aqui! Só envie o código, sem explicações extras.`;
       
-      const result = await askAI(prompt, "Skript Plugin Generation Mode", currentServerId, aiProvider, aiEndpoint, [], aiLocalModel, keysArray);
+      const result = await askAI(prompt, "Skript Plugin Generation Mode", currentServerId, aiProvider, aiEndpoint, [], aiLocalModel, keysArray, modules);
       
       const rawText = result.text || "";
       const codeMatch = rawText.match(/```(?:skript|sk|yaml)?\n([\s\S]*?)```/);
@@ -3595,7 +3646,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
 
                     {showEditor3D && (
                       <div className="w-full mt-4 min-h-[600px] flex flex-col">
-                         <MapEditor3D />
+                         <MapEditor3D serverId={currentServerId} />
                       </div>
                     )}
 
@@ -3942,6 +3993,50 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                           className={`p-4 rounded-2xl flex flex-col items-center justify-center gap-2 font-black text-xs transition-all border-2 ${modules.store ? "bg-emerald-600 border-emerald-400 text-white shadow-lg" : "bg-black/10 border-emerald-950/20 text-emerald-900/50 hover:border-emerald-500"}`}
                         >
                           <Store size={24} /> LOJA IN-GAME
+                        </button>
+                      </div>
+
+                      <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-widest flex items-center gap-2 mt-6">
+                        <Globe size={12} /> Habilidades da IA
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                         <button
+                          onClick={() =>
+                            setModules((m) => ({ ...m, ai_internet: !m.ai_internet }))
+                          }
+                          className={`p-4 rounded-2xl flex flex-col items-center justify-center gap-2 font-black text-[10px] transition-all border-2 ${modules.ai_internet ? "bg-blue-600 border-blue-400 text-white shadow-lg" : "bg-black/10 border-blue-950/20 text-blue-900/50 hover:border-blue-500"}`}
+                        >
+                          <Globe size={20} /> ACESSO À INTERNET
+                        </button>
+                        <button
+                          onClick={() =>
+                            setModules((m) => ({ ...m, ai_memory: !m.ai_memory }))
+                          }
+                          className={`p-4 rounded-2xl flex flex-col items-center justify-center gap-2 font-black text-[10px] transition-all border-2 ${modules.ai_memory ? "bg-blue-600 border-blue-400 text-white shadow-lg" : "bg-black/10 border-blue-950/20 text-blue-900/50 hover:border-blue-500"}`}
+                        >
+                          <Save size={20} /> MEMÓRIA PERMANENTE
+                        </button>
+                         <button
+                          onClick={() =>
+                            setModules((m) => ({ ...m, ai_bot: !m.ai_bot }))
+                          }
+                          className={`p-4 rounded-2xl flex flex-col items-center justify-center gap-2 font-black text-[10px] transition-all border-2 ${modules.ai_bot ? "bg-blue-600 border-blue-400 text-white shadow-lg" : "bg-black/10 border-blue-950/20 text-blue-900/50 hover:border-blue-500"}`}
+                        >
+                          <Bot size={20} /> CRIAR BOT IN-GAME
+                        </button>
+                      </div>
+
+                      <h4 className="text-[10px] font-black text-amber-500 uppercase tracking-widest flex items-center gap-2 mt-6">
+                        <Power size={12} /> Sistema do Painel
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                         <button
+                          onClick={() =>
+                            setModules((m) => ({ ...m, server_hibernation: !m.server_hibernation }))
+                          }
+                          className={`p-4 rounded-2xl flex flex-col items-center justify-center gap-2 font-black text-[10px] transition-all border-2 ${modules.server_hibernation ? "bg-amber-600 border-amber-400 text-white shadow-lg" : "bg-black/10 border-amber-950/20 text-amber-900/50 hover:border-amber-500"}`}
+                        >
+                          <Moon size={20} /> HIBERNAÇÃO (MANTER ONLINE)
                         </button>
                       </div>
                     </section>
