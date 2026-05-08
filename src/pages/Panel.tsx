@@ -379,11 +379,11 @@ const CreeperPaper = ({ className = "" }: { className?: string }) => (
     transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
     className={`absolute pointer-events-none select-none opacity-30 -z-10 ${className}`}
   >
-    <div className="w-16 h-16 bg-emerald-500 rounded-sm relative shadow-[4px_4px_0_0_#064e3b]">
+    <div className="w-10 h-10 bg-emerald-500 rounded-sm relative shadow-[4px_4px_0_0_#064e3b]">
       {/* Face */}
       <div className="absolute top-4 left-3 w-3 h-3 bg-black" />
       <div className="absolute top-4 right-3 w-3 h-3 bg-black" />
-      <div className="absolute top-8 left-6 w-4 h-6 bg-black" />
+      <div className="absolute top-6 left-6 w-4 h-6 bg-black" />
       <div className="absolute top-10 left-4 w-2 h-4 bg-black" />
       <div className="absolute top-10 right-4 w-2 h-4 bg-black" />
       {/* Paper Fold Texture */}
@@ -674,6 +674,7 @@ export default function App({
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
+  const [showHibernationModal, setShowHibernationModal] = useState(false);
   
   const handleScroll = () => {
     if (scrollRef.current) {
@@ -1913,8 +1914,49 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
       <div
         className={`fixed inset-0 creeper-pattern pointer-events-none ${theme === "light" ? "opacity-[0.02]" : "opacity-05"}`}
       />
-      <div className="w-full max-w-[1920px] mx-auto min-h-screen flex flex-col p-6 lg:p-10 relative">
+      <div className="w-full max-w-[1920px] mx-auto min-h-screen flex flex-col p-6 lg:p-6 relative">
         <AnimatePresence>
+          {showHibernationModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[110] bg-black/80 backdrop-blur-md flex items-center justify-center p-6"
+            >
+              <motion.div
+                initial={{ scale: 0.9, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                className="bg-amber-950/80 backdrop-blur-md rounded-3xl border-2 border-amber-500 shadow-xl p-6 max-w-lg w-full text-center space-y-6"
+              >
+                <div className="w-10 h-10 bg-amber-900/50 rounded-full flex items-center justify-center mx-auto text-amber-400">
+                  <Moon size={40} />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-black text-amber-50 tracking-tighter uppercase mb-4">
+                    AVISO IMPORTANTE
+                  </h3>
+                  <p className="text-amber-200/80 font-bold mb-4 text-sm whitespace-pre-wrap">
+                    O Google Cloud Run suspende servidores sem atividade após cerca de 15 minutos de inatividade em requisições web.
+                  </p>
+                  <p className="text-amber-200/80 font-bold mb-4 text-sm whitespace-pre-wrap">
+                    Para que o servidor sobreviva com a página do Painel fechada, configure um monitor gratuito no [UptimeRobot.com] apontando para a sua SHARED APP URL (URL fornecida no menu de compartilhamento do AI Studio).
+                  </p>
+                  <p className="text-amber-200/80 font-bold text-sm whitespace-pre-wrap">
+                    A aba de Hibernação prepara o servidor para manter os processos do Minecraft rodando no background apenas aguardando o "Ping" constante do UptimeRobot para evitar o congelamento do container.
+                  </p>
+                </div>
+                <div className="flex gap-4">
+                  <button
+                    onClick={() => setShowHibernationModal(false)}
+                    className="w-full bg-amber-500 hover:bg-amber-400 text-amber-950 border-b-4 border-amber-700 font-black py-4 rounded-2xl transition-all shadow-lg active:scale-95 active:border-b-0 uppercase"
+                  >
+                    OK, ENTENDI
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+
           {showDeleteConfirm && (
             <motion.div
               initial={{ opacity: 0 }}
@@ -1925,9 +1967,9 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
               <motion.div
                 initial={{ scale: 0.9, y: 20 }}
                 animate={{ scale: 1, y: 0 }}
-                className="bg-[#1b4332] rounded-[2.5rem] border-2 border-emerald-500 shadow-xl p-8 max-w-md w-full text-center space-y-6"
+                className="bg-emerald-950/80 backdrop-blur-md rounded-3xl border border-emerald-500 shadow-xl p-6 max-w-md w-full text-center space-y-6"
               >
-                <div className="w-16 h-16 bg-emerald-900/50 rounded-full flex items-center justify-center mx-auto text-emerald-400">
+                <div className="w-10 h-10 bg-emerald-900/50 rounded-full flex items-center justify-center mx-auto text-emerald-400">
                   <Trash2 size={40} />
                 </div>
                 <div>
@@ -1966,30 +2008,30 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
               <motion.div
                 initial={{ scale: 0.9, y: 20 }}
                 animate={{ scale: 1, y: 0 }}
-                className="bg-[#0b251a] rounded-[2.5rem] border-2 border-emerald-500 shadow-xl p-8 max-w-2xl w-full space-y-6 overflow-y-auto max-h-[90vh] custom-scrollbar"
+                className="bg-black/40 backdrop-blur-md rounded-3xl border border-emerald-500 shadow-xl p-6 max-w-2xl w-full space-y-6 overflow-y-auto max-h-[90vh] custom-scrollbar"
               >
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-emerald-900/50 rounded-2xl flex items-center justify-center text-emerald-400">
+                  <div className="w-8 h-8 bg-emerald-900/50 rounded-2xl flex items-center justify-center text-emerald-400">
                     <Play size={24} />
                   </div>
                   <div>
                     <h3 className="text-2xl font-black text-emerald-50 tracking-tighter uppercase italic">
                       Novo Servidor
                     </h3>
-                    <p className="text-emerald-500 text-[10px] font-black uppercase tracking-widest">
+                    <p className="text-emerald-500 text-[9px] font-black uppercase tracking-widest">
                       Configure sua nova aventura!
                     </p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-4">
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black text-emerald-400 uppercase tracking-widest px-2">
+                      <label className="text-[9px] font-black text-emerald-400 uppercase tracking-widest px-2">
                         Nome do Servidor
                       </label>
                       <input
-                        className="w-full bg-black/40 border-2 border-emerald-900 rounded-2xl px-6 py-3 text-emerald-50 font-black outline-none focus:border-emerald-500 transition-all font-mono"
+                        className="w-full bg-black/40 border border-emerald-900/50 rounded-2xl px-6 py-3 text-emerald-50 font-black outline-none focus:border-emerald-500 transition-all font-mono"
                         placeholder="Ex: Galilandia Survival"
                         value={newServerConfig.name}
                         onChange={(e) =>
@@ -2002,7 +2044,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black text-emerald-400 uppercase tracking-widest px-2">
+                      <label className="text-[9px] font-black text-emerald-400 uppercase tracking-widest px-2">
                         Software (Motor)
                       </label>
                       <div className="grid grid-cols-3 gap-2">
@@ -2038,11 +2080,11 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
 
                     {newServerConfig.type === "custom" ? (
                       <div className="space-y-1">
-                        <label className="text-[10px] font-black text-emerald-400 uppercase tracking-widest px-2">
+                        <label className="text-[9px] font-black text-emerald-400 uppercase tracking-widest px-2">
                           Link Direto (.jar)
                         </label>
                         <input
-                          className="w-full bg-black/40 border-2 border-emerald-900 rounded-2xl px-6 py-3 text-emerald-50 font-black outline-none focus:border-emerald-500 transition-all font-mono text-xs"
+                          className="w-full bg-black/40 border border-emerald-900/50 rounded-2xl px-6 py-3 text-emerald-50 font-black outline-none focus:border-emerald-500 transition-all font-mono text-xs"
                           placeholder={"Ex: https://site.com/server.jar"}
                           value={newServerConfig.url}
                           onChange={(e) =>
@@ -2055,12 +2097,12 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                       </div>
                     ) : (
                       <div className="space-y-1">
-                        <label className="text-[10px] font-black text-emerald-400 uppercase tracking-widest px-2">
+                        <label className="text-[9px] font-black text-emerald-400 uppercase tracking-widest px-2">
                           Versão
                         </label>
                         <div className="relative">
                           <select
-                            className="w-full bg-black/40 border-2 border-emerald-900 rounded-2xl px-6 py-3 text-emerald-50 font-black outline-none focus:border-emerald-500 transition-all appearance-none cursor-pointer"
+                            className="w-full bg-black/40 border border-emerald-900/50 rounded-2xl px-6 py-3 text-emerald-50 font-black outline-none focus:border-emerald-500 transition-all appearance-none cursor-pointer"
                             value={newServerConfig.version}
                             onChange={(e) =>
                               setNewServerConfig({
@@ -2073,7 +2115,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                               <option
                                 key={v}
                                 value={v}
-                                className="bg-[#0b251a]"
+                                className="bg-black/40 backdrop-blur-md"
                               >
                                 {v}
                               </option>
@@ -2090,10 +2132,10 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
 
                   <div className="space-y-4">
                     <div className="space-y-1 text-left">
-                      <label className="text-[10px] font-black text-emerald-400 uppercase tracking-widest px-2">
+                      <label className="text-[9px] font-black text-emerald-400 uppercase tracking-widest px-2">
                         RAM Máxima ({newServerConfig.ram}GB)
                       </label>
-                      <div className="flex items-center gap-3 bg-black/40 p-4 rounded-2xl border-2 border-emerald-900">
+                      <div className="flex items-center gap-3 bg-black/40 p-4 rounded-2xl border border-emerald-900/50">
                         <input
                           type="range"
                           min="1"
@@ -2114,10 +2156,10 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                     </div>
 
                     <div className="space-y-1 text-left">
-                      <label className="text-[10px] font-black text-emerald-400 uppercase tracking-widest px-2">
+                      <label className="text-[9px] font-black text-emerald-400 uppercase tracking-widest px-2">
                         RAM Mínima ({newServerConfig.minRam}GB)
                       </label>
-                      <div className="flex items-center gap-3 bg-black/40 p-4 rounded-2xl border-2 border-emerald-900">
+                      <div className="flex items-center gap-3 bg-black/40 p-4 rounded-2xl border border-emerald-900/50">
                         <input
                           type="range"
                           min="1"
@@ -2174,19 +2216,19 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
               <motion.div
                 initial={{ scale: 0.9, y: 20 }}
                 animate={{ scale: 1, y: 0 }}
-                className="bg-[#0b251a] rounded-[3rem] border-2 border-emerald-500/30 shadow-2xl p-0 max-w-4xl w-full h-[80vh] flex flex-col overflow-hidden"
+                className="bg-black/40 backdrop-blur-md rounded-3xl border border-emerald-500/30 shadow-2xl p-0 max-w-4xl w-full h-[80vh] flex flex-col overflow-hidden"
               >
                 {/* Modal Header */}
-                <div className="p-8 border-b border-emerald-900/50 flex items-center justify-between bg-emerald-950/20">
+                <div className="p-6 border-b border-emerald-900/50 flex items-center justify-between bg-emerald-950/20">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-emerald-900/50 rounded-2xl flex items-center justify-center text-emerald-400">
+                    <div className="w-8 h-8 bg-emerald-900/50 rounded-2xl flex items-center justify-center text-emerald-400">
                       <Settings size={24} />
                     </div>
                     <div>
                       <h3 className="text-2xl font-black text-emerald-50 tracking-tighter uppercase italic">
                         {t("edit_server")}
                       </h3>
-                      <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-widest">
+                      <p className="text-[9px] text-emerald-600 font-bold uppercase tracking-widest">
                         {editingServer.id}
                       </p>
                     </div>
@@ -2194,7 +2236,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                   <div className="flex items-center gap-2 bg-black/40 p-1.5 rounded-2xl border border-emerald-900/50">
                     <button
                       onClick={() => setEditTab("general")}
-                      className={`px-6 py-2 rounded-xl text-[10px] font-black transition-all ${editTab === "general" ? "bg-emerald-600 text-white shadow-lg" : "text-emerald-700 hover:text-emerald-400"}`}
+                      className={`px-6 py-2 rounded-xl text-[9px] font-black transition-all ${editTab === "general" ? "bg-emerald-600 text-white shadow-lg" : "text-emerald-700 hover:text-emerald-400"}`}
                     >
                       {t("config_tab_general")}
                     </button>
@@ -2203,7 +2245,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                         setEditTab("plugins");
                         fetchPlugins();
                       }}
-                      className={`px-6 py-2 rounded-xl text-[10px] font-black transition-all ${editTab === "plugins" ? "bg-emerald-600 text-white shadow-lg" : "text-emerald-700 hover:text-emerald-400"}`}
+                      className={`px-6 py-2 rounded-xl text-[9px] font-black transition-all ${editTab === "plugins" ? "bg-emerald-600 text-white shadow-lg" : "text-emerald-700 hover:text-emerald-400"}`}
                     >
                       {t("config_tab_plugins")}
                     </button>
@@ -2216,15 +2258,15 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                   </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+                <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
                   {editTab === "general" ? (
-                    <div className="max-w-md mx-auto space-y-8 py-4">
+                    <div className="max-w-md mx-auto space-y-4 py-4">
                       <div className="space-y-3">
-                        <label className="text-[10px] font-black text-emerald-400 uppercase tracking-widest px-2">
+                        <label className="text-[9px] font-black text-emerald-400 uppercase tracking-widest px-2">
                           {t("server_name")}
                         </label>
                         <input
-                          className="w-full bg-black/40 border-2 border-emerald-900 rounded-2xl px-6 py-5 text-emerald-50 font-black outline-none focus:border-emerald-500 transition-all font-mono text-lg"
+                          className="w-full bg-black/40 border border-emerald-900/50 rounded-2xl px-6 py-5 text-emerald-50 font-black outline-none focus:border-emerald-500 transition-all font-mono text-lg"
                           value={editingServer.name || ""}
                           onChange={(e) =>
                             setEditingServer({
@@ -2237,15 +2279,15 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                       </div>
 
                       <div className="space-y-3">
-                        <label className="text-[10px] font-black text-emerald-400 uppercase tracking-widest px-2">
+                        <label className="text-[9px] font-black text-emerald-400 uppercase tracking-widest px-2">
                           {t("ram_allocation")}
                         </label>
-                        <div className="bg-black/40 p-8 rounded-[2rem] border-2 border-emerald-900 space-y-6">
+                        <div className="bg-black/40 p-6 rounded-[2rem] border border-emerald-900/50 space-y-6">
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-black text-emerald-700 uppercase">
                               {t("max_memory")}
                             </span>
-                            <span className="text-2xl font-black text-white">
+                            <span className="text-base font-black text-white">
                               {editingServer.ram}GB
                             </span>
                           </div>
@@ -2287,16 +2329,16 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
 
                       {/* Java Settings Section */}
                       <div className="space-y-3">
-                        <label className="text-[10px] font-black text-emerald-400 uppercase tracking-widest px-2">
+                        <label className="text-[9px] font-black text-emerald-400 uppercase tracking-widest px-2">
                           {t("java_settings")}
                         </label>
-                        <div className="bg-black/40 p-6 rounded-[2rem] border-2 border-emerald-900 space-y-4">
-                          <p className="text-[10px] text-emerald-700 font-bold uppercase tracking-widest leading-relaxed">
+                        <div className="bg-black/40 p-6 rounded-[2rem] border border-emerald-900/50 space-y-4">
+                          <p className="text-[9px] text-emerald-700 font-bold uppercase tracking-widest leading-relaxed">
                             {t("java_path_desc")}
                           </p>
                           <div className="flex gap-2">
                             <input
-                              className="flex-1 bg-black/40 border-2 border-emerald-900 rounded-xl px-4 py-2 text-xs text-emerald-50 font-black outline-none focus:border-emerald-500 font-mono"
+                              className="flex-1 bg-black/40 border border-emerald-900/50 rounded-xl px-4 py-2 text-xs text-emerald-50 font-black outline-none focus:border-emerald-500 font-mono"
                               placeholder="Default (Auto)"
                               value={editingServer.javaPath || ""}
                               onChange={(e) => setEditingServer({...editingServer, javaPath: e.target.value})}
@@ -2352,7 +2394,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                                   className={`w-full text-left p-3 rounded-xl border transition-all flex items-center justify-between group ${editingServer.javaPath === j.path ? "bg-emerald-500/20 border-emerald-500" : "bg-black/20 border-emerald-950 hover:border-emerald-800"}`}
                                 >
                                   <div>
-                                    <p className="text-[10px] font-black text-emerald-50 leading-tight">Java {j.version}</p>
+                                    <p className="text-[9px] font-black text-emerald-50 leading-tight">Java {j.version}</p>
                                     <p className="text-[8px] font-mono text-emerald-700 truncate max-w-[200px]">{j.path}</p>
                                   </div>
                                   <div className="flex items-center gap-2">
@@ -2367,20 +2409,20 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                       </div>
                     </div>
                   ) : (
-                    <div className="space-y-8">
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         {/* Search Area */}
-                        <div className="space-y-4 p-6 bg-emerald-900/10 border-2 border-emerald-900 rounded-3xl relative">
+                        <div className="space-y-4 p-6 bg-emerald-900/10 border border-emerald-900/50 rounded-3xl relative">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                              <h4 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">
+                              <h4 className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">
                                 {t("mods_store")}
                               </h4>
-                              <div className="bg-emerald-900/40 px-2 py-1 rounded-xl border border-emerald-800 text-[10px] font-black text-emerald-300 uppercase">
+                              <div className="bg-emerald-900/40 px-2 py-1 rounded-xl border border-emerald-800 text-[9px] font-black text-emerald-300 uppercase">
                                 Modrinth
                               </div>
                               <select
-                                className="bg-black/40 border-2 border-emerald-900 rounded-xl px-2 py-1 text-emerald-50 text-[10px] font-black outline-none focus:border-emerald-500 uppercase"
+                                className="bg-black/40 border border-emerald-900/50 rounded-xl px-2 py-1 text-emerald-50 text-[9px] font-black outline-none focus:border-emerald-500 uppercase"
                                 value={storeFolder}
                                 onChange={(e) =>
                                   setStoreFolder(
@@ -2398,7 +2440,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                             />
                           </div>
                           <div className="flex gap-3">
-                            <div className="flex-1 bg-black/40 border-2 border-emerald-900 rounded-xl px-4 py-3 flex items-center gap-3 focus-within:border-emerald-500 transition-all">
+                            <div className="flex-1 bg-black/40 border border-emerald-900/50 rounded-xl px-4 py-3 flex items-center gap-3 focus-within:border-emerald-500 transition-all">
                               <Search size={18} className="text-emerald-700" />
                               <input
                                 className="bg-transparent border-none outline-none text-emerald-50 w-full font-black text-xs placeholder:text-emerald-900"
@@ -2412,7 +2454,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                             </div>
                             <button
                               onClick={() => searchStore(storeSearch)}
-                              className="px-5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl text-[10px] transition-all border-b-4 border-emerald-800"
+                              className="px-5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl text-[9px] transition-all border-b-4 border-emerald-800"
                             >
                               {t("search_btn")}
                             </button>
@@ -2446,7 +2488,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                                       className="w-10 h-10 rounded-lg"
                                     />
                                   ) : (
-                                    <div className="w-10 h-10 bg-emerald-900 rounded-lg flex items-center justify-center text-[10px] font-black">
+                                    <div className="w-10 h-10 bg-emerald-900 rounded-lg flex items-center justify-center text-[9px] font-black">
                                       {p.title ? p.title[0] : p.name?.[0]}
                                     </div>
                                   )}
@@ -2511,7 +2553,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                                         <select 
                                           value={storeGameVersion} 
                                           onChange={(e) => setStoreGameVersion(e.target.value)}
-                                          className="flex-1 bg-black/40 border-2 border-emerald-900 rounded-xl px-2 py-2 text-emerald-50 text-[10px] font-black outline-none focus:border-emerald-500 uppercase"
+                                          className="flex-1 bg-black/40 border border-emerald-900/50 rounded-xl px-2 py-2 text-emerald-50 text-[9px] font-black outline-none focus:border-emerald-500 uppercase"
                                         >
                                           <option value="">{t("game_versions")} (Todas)</option>
                                           {uniqueGameVersions.map(v => <option key={v as string} value={v as string}>{v as string}</option>)}
@@ -2519,7 +2561,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                                         <select 
                                           value={storeLoader} 
                                           onChange={(e) => setStoreLoader(e.target.value)}
-                                          className="flex-1 bg-black/40 border-2 border-emerald-900 rounded-xl px-2 py-2 text-emerald-50 text-[10px] font-black outline-none focus:border-emerald-500 uppercase"
+                                          className="flex-1 bg-black/40 border border-emerald-900/50 rounded-xl px-2 py-2 text-emerald-50 text-[9px] font-black outline-none focus:border-emerald-500 uppercase"
                                         >
                                           <option value="">Software/Loader (Todos)</option>
                                           {uniqueLoaders.map(l => <option key={l as string} value={l as string}>{l as string}</option>)}
@@ -2529,7 +2571,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                                         {modrinthVersions.length === 0 ? (
                                           <div className="flex flex-col items-center justify-center h-40 text-emerald-900">
                                             <RefreshCw size={24} className="animate-spin mb-2" />
-                                            <p className="text-[10px] font-black uppercase">Lendo versões...</p>
+                                            <p className="text-[9px] font-black uppercase">Lendo versões...</p>
                                           </div>
                                         ) : (
                                           filteredVersions.map((v: any) => (
@@ -2540,7 +2582,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                                               className={`w-full text-left p-3 rounded-xl border transition-all group flex items-center justify-between ${installingStoreItem === v.id ? "bg-zinc-900 border-zinc-800 opacity-50" : "bg-emerald-900/10 border-emerald-900/40 hover:border-emerald-500"}`}
                                             >
                                               <div className="min-w-0">
-                                                <p className="text-[10px] font-black text-emerald-50 truncate leading-tight">
+                                                <p className="text-[9px] font-black text-emerald-50 truncate leading-tight">
                                                   {v.version_number} ({v.name})
                                                 </p>
                                                 <div className="flex flex-wrap gap-1 mt-1">
@@ -2576,12 +2618,12 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                         {/* Manual/List Area */}
                         <div className="space-y-6">
                           <div className="p-6 bg-emerald-900/5 border-2 border-dashed border-emerald-900/30 rounded-3xl space-y-4">
-                            <h4 className="text-[10px] font-black text-emerald-800 uppercase tracking-widest">
+                            <h4 className="text-[9px] font-black text-emerald-800 uppercase tracking-widest">
                               Download Direto
                             </h4>
                             <div className="flex gap-2">
                               <input
-                                className="flex-1 bg-black/20 border-2 border-emerald-900/50 rounded-xl px-4 py-2 text-xs text-emerald-50 font-black outline-none focus:border-emerald-500"
+                                className="flex-1 bg-black/20 border border-emerald-900/50/50 rounded-xl px-4 py-2 text-xs text-emerald-50 font-black outline-none focus:border-emerald-500"
                                 placeholder="URL do arquivo .jar"
                                 value={pluginUrl}
                                 onChange={(e) => setPluginUrl(e.target.value)}
@@ -2589,7 +2631,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                               <button
                                 onClick={handleInstallPlugin}
                                 disabled={installingStoreItem === "manual"}
-                                className="bg-emerald-900 px-4 rounded-xl text-emerald-500 font-black text-[10px] disabled:opacity-50"
+                                className="bg-emerald-900 px-4 rounded-xl text-emerald-500 font-black text-[9px] disabled:opacity-50"
                               >
                                 {installingStoreItem === "manual"
                                   ? "..."
@@ -2600,7 +2642,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
 
                           <div className="space-y-4">
                             <div className="flex items-center justify-between">
-                              <h3 className="text-[10px] font-black text-emerald-700 uppercase tracking-widest">
+                              <h3 className="text-[9px] font-black text-emerald-700 uppercase tracking-widest">
                                 Instalados
                               </h3>
                               <button
@@ -2635,7 +2677,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                                 </div>
                               ))}
                               {plugins.length === 0 && (
-                                <p className="text-[10px] text-emerald-900 font-black text-center py-4">
+                                <p className="text-[9px] text-emerald-900 font-black text-center py-4">
                                   Nenhum plugin instalado.
                                 </p>
                               )}
@@ -2646,18 +2688,18 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                     </div>
                   )}
                   {editTab === "store" && (
-                    <div className="max-w-2xl mx-auto space-y-8 py-4">
+                    <div className="max-w-2xl mx-auto space-y-4 py-4">
                       <div className="bg-emerald-950/30 p-6 rounded-3xl border border-emerald-900/50 space-y-6">
                         <div className="flex justify-between items-center bg-fuchsia-950/20 p-5 rounded-2xl border border-fuchsia-500/20 shadow-lg">
                           <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-zinc-900 rounded-2xl flex items-center justify-center text-fuchsia-500 shadow-lg border-b-4 border-fuchsia-950">
+                            <div className="w-8 h-8 bg-zinc-900 rounded-2xl flex items-center justify-center text-fuchsia-500 shadow-lg border-b-4 border-fuchsia-950">
                               <Store size={24} />
                             </div>
                             <div>
                               <h3 className="text-sm font-black text-white uppercase tracking-widest leading-none">
                                 Loja Pública (Website)
                               </h3>
-                              <p className="text-[10px] text-fuchsia-400 font-bold mt-1.5 uppercase tracking-widest leading-none">
+                              <p className="text-[9px] text-fuchsia-400 font-bold mt-1.5 uppercase tracking-widest leading-none">
                                 Crie pacotes e comandos via website.
                               </p>
                             </div>
@@ -2690,7 +2732,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                                   onClick={() => {
                                     window.open(`/site`, "_blank");
                                   }}
-                                  className="bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white text-[10px] font-black uppercase tracking-widest px-4 py-2.5 rounded-xl transition-all border border-white/5 active:scale-95 flex items-center gap-2"
+                                  className="bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white text-[9px] font-black uppercase tracking-widest px-4 py-2.5 rounded-xl transition-all border border-white/5 active:scale-95 flex items-center gap-2"
                                 >
                                   Ver Site <ExternalLink size={12} />
                                 </button>
@@ -2698,7 +2740,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                                   onClick={() => {
                                     setActiveTab("settings");
                                   }}
-                                  className="bg-fuchsia-600 hover:bg-fuchsia-500 text-white text-[10px] font-black uppercase tracking-widest px-4 py-2.5 rounded-xl transition-all shadow-md active:scale-95 border-b-2 border-fuchsia-800 flex items-center gap-2"
+                                  className="bg-fuchsia-600 hover:bg-fuchsia-500 text-white text-[9px] font-black uppercase tracking-widest px-4 py-2.5 rounded-xl transition-all shadow-md active:scale-95 border-b-2 border-fuchsia-800 flex items-center gap-2"
                                 >
                                   Opções <Settings size={12} />
                                 </button>
@@ -2709,11 +2751,11 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
 
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
-                            <label className="text-[10px] font-black text-emerald-700 uppercase tracking-widest px-2">
+                            <label className="text-[9px] font-black text-emerald-700 uppercase tracking-widest px-2">
                               Nome da Loja
                             </label>
                             <input
-                              className="w-full bg-black/40 border-2 border-emerald-900/50 rounded-xl px-4 py-3 text-emerald-50 font-bold outline-none focus:border-emerald-500 transition-all text-xs"
+                              className="w-full bg-black/40 border border-emerald-900/50/50 rounded-xl px-4 py-3 text-emerald-50 font-bold outline-none focus:border-emerald-500 transition-all text-xs"
                               value={editingServer.store?.name || ""}
                               onChange={(e) =>
                                 setEditingServer({
@@ -2728,11 +2770,11 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                             />
                           </div>
                           <div className="space-y-2">
-                            <label className="text-[10px] font-black text-emerald-700 uppercase tracking-widest px-2">
+                            <label className="text-[9px] font-black text-emerald-700 uppercase tracking-widest px-2">
                               Cor Principal (Hex)
                             </label>
                             <input
-                              className="w-full bg-black/40 border-2 border-emerald-900/50 rounded-xl px-4 py-3 text-emerald-50 font-bold outline-none focus:border-emerald-500 transition-all text-xs font-mono"
+                              className="w-full bg-black/40 border border-emerald-900/50/50 rounded-xl px-4 py-3 text-emerald-50 font-bold outline-none focus:border-emerald-500 transition-all text-xs font-mono"
                               value={editingServer.store?.color || "#10b981"}
                               onChange={(e) =>
                                 setEditingServer({
@@ -2751,7 +2793,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
 
                       <div className="space-y-4">
                         <div className="flex items-center justify-between px-2">
-                          <h3 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">
+                          <h3 className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">
                             Pacotes à Venda
                           </h3>
                           <button
@@ -2774,7 +2816,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                                 },
                               });
                             }}
-                            className="text-[10px] bg-emerald-900 text-emerald-100 hover:bg-emerald-800 font-black px-4 py-2 rounded-xl transition-colors uppercase"
+                            className="text-[9px] bg-emerald-900 text-emerald-100 hover:bg-emerald-800 font-black px-4 py-2 rounded-xl transition-colors uppercase"
                           >
                             + Adicionar
                           </button>
@@ -2896,7 +2938,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                 </div>
 
                 {/* Modal Footer */}
-                <div className="p-8 bg-emerald-950/40 border-t border-emerald-900/50 flex gap-4">
+                <div className="p-6 bg-emerald-950/40 border-t border-emerald-900/50 flex gap-4">
                   <button
                     onClick={() => setEditingServer(null)}
                     className="flex-1 bg-emerald-950 text-emerald-500 font-black py-4 rounded-2xl transition-all hover:bg-emerald-900"
@@ -2940,7 +2982,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
               exit={{ opacity: 0 }}
               className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-md flex items-center justify-center pointer-events-none"
             >
-              <div className="bg-[#0b251a] p-8 rounded-[2.5rem] border-2 border-emerald-900 shadow-2xl flex flex-col items-center gap-6">
+              <div className="bg-black/40 backdrop-blur-md p-6 rounded-3xl border border-emerald-900/50 shadow-2xl flex flex-col items-center gap-4">
                 <div className="w-20 h-20 bg-emerald-950 rounded-full flex items-center justify-center text-emerald-500 relative">
                   <Moon size={48} fill="currentColor" />
                   <div className="absolute -top-4 -right-4 flex flex-col gap-1 font-black text-emerald-400">
@@ -2972,11 +3014,11 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
         <CreeperPaper className="top-1/4 right-2 rotate-[45deg] scale-50 opacity-10" />
 
         {/* Header Section */}
-        <header className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-10 relative">
-          <div className="flex items-center gap-6">
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10 relative">
+          <div className="flex items-center gap-4">
             <motion.div
               whileHover={{ scale: 1.05 }}
-              className="w-24 h-24 bg-emerald-950 rounded-3xl border-2 border-emerald-500/30 flex items-center justify-center relative shadow-sm transition-all"
+              className="w-24 h-24 bg-emerald-950 rounded-3xl border border-emerald-500/30 flex items-center justify-center relative shadow-sm transition-all"
             >
               <div className="w-16 h-12 flex flex-col gap-2">
                 <div className="flex justify-between px-1">
@@ -3006,7 +3048,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
               </h1>
               <div className="flex items-center gap-3 mt-2">
                 <p
-                  className={`font-black tracking-[0.3em] text-[10px] px-3 py-1 rounded-full w-fit shadow-sm uppercase border ${theme === "dark" ? "bg-emerald-950/50 text-emerald-500/60 border-emerald-900/50" : "bg-zinc-200 text-emerald-700 border-zinc-300"}`}
+                  className={`font-black tracking-[0.3em] text-[9px] px-3 py-1 rounded-full w-fit shadow-sm uppercase border ${theme === "dark" ? "bg-emerald-950/50 text-emerald-500/60 border-emerald-900/50" : "bg-zinc-200 text-emerald-700 border-zinc-300"}`}
                 >
                   {t("panel_active")} (•◡•)
                 </p>
@@ -3035,13 +3077,13 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
         </header>
 
         {/* Dashboard Grid */}
-        <div className="flex flex-col lg:grid lg:grid-cols-12 gap-6 lg:gap-8 relative flex-1">
+        <div className="flex flex-col lg:grid lg:grid-cols-12 gap-4 lg:gap-4 relative flex-1">
           {/* Links Sidebar */}
           <div className="order-1 lg:col-span-3 space-y-6 lg:pr-2 h-auto lg:h-full flex flex-col">
             <div
-              className={`border-2 rounded-3xl p-4 lg:p-6 shadow-sm space-y-4 lg:space-y-5 flex-shrink-0 ${theme === "dark" ? "bg-[#0b251a]/80 border-emerald-900" : "bg-white border-zinc-200"}`}
+              className={`border-2 rounded-3xl p-4 lg:p-6 shadow-sm space-y-4 lg:space-y-5 flex-shrink-0 ${theme === "dark" ? "bg-black/40 backdrop-blur-md border-emerald-900" : "bg-white border-zinc-200"}`}
             >
-              <div className="hidden lg:flex text-[10px] font-black text-emerald-400 uppercase tracking-[0.25em] items-center gap-2">
+              <div className="hidden lg:flex text-[9px] font-black text-emerald-400 uppercase tracking-[0.25em] items-center gap-2">
                 <Star size={12} fill="currentColor" /> {t("menu_magic")}
               </div>
               <nav className="flex lg:flex-col flex-wrap gap-2 lg:gap-0 lg:space-y-1 pb-2 lg:pb-0">
@@ -3115,7 +3157,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                 title="Perguntar para a IA"
               >
                 <Bot size={28} />
-                <span className="hidden group-hover:block font-black uppercase tracking-widest text-[10px] mr-2">I.A Assist</span>
+                <span className="hidden group-hover:block font-black uppercase tracking-widest text-[9px] mr-2">I.A Assist</span>
               </button>
             )}
 
@@ -3127,12 +3169,12 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                   exit={{ opacity: 0, y: -20 }}
                   className="space-y-6"
                 >
-                  <div className="bg-[#0b251a]/80 border-2 border-emerald-900 rounded-[2.5rem] shadow-sm p-8 relative overflow-hidden">
-                    <div className="flex items-center justify-between mb-8">
-                      <h3 className="text-2xl font-black text-white tracking-tighter flex items-center gap-3">
+                  <div className="bg-black/40 backdrop-blur-md border border-emerald-900/50 rounded-3xl shadow-sm p-6 relative overflow-hidden">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-base font-black text-white tracking-tighter flex items-center gap-3">
                         <Server className="text-emerald-400" /> Servidores
                       </h3>
-                      <div className="px-4 py-1.5 bg-emerald-900/50 rounded-full border border-emerald-500/30 text-emerald-400 font-black text-[10px] uppercase tracking-widest shadow-sm">
+                      <div className="px-4 py-1.5 bg-emerald-900/50 rounded-full border border-emerald-500/30 text-emerald-400 font-black text-[9px] uppercase tracking-widest shadow-sm">
                         {servers.length} Criados (•◡•)
                       </div>
                     </div>
@@ -3145,9 +3187,9 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                           onClick={() => setCurrentServerId(srv.id)}
                         >
                           <div className="flex items-center justify-between flex-wrap gap-4">
-                            <div className="flex items-center gap-6">
+                            <div className="flex items-center gap-4">
                               <div
-                                className={`w-16 h-16 rounded-2xl flex items-center justify-center border-2 shadow-lg transition-transform ${currentServerId === srv.id ? "bg-emerald-500 border-emerald-400 rotate-3" : "bg-zinc-800 border-zinc-700"}`}
+                                className={`w-10 h-10 rounded-2xl flex items-center justify-center border-2 shadow-lg transition-transform ${currentServerId === srv.id ? "bg-emerald-500 border-emerald-400 rotate-3" : "bg-zinc-800 border-zinc-700"}`}
                               >
                                 <Server size={32} className="text-white" />
                               </div>
@@ -3195,7 +3237,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                                 <>
                                   <button
                                     onClick={() => setActiveTab("console")}
-                                    className="w-10 h-10 bg-emerald-950 border-2 border-emerald-900 rounded-xl flex items-center justify-center text-emerald-500 hover:border-emerald-500 hover:text-white transition-all shadow-md active:scale-95"
+                                    className="w-10 h-10 bg-emerald-950 border border-emerald-900/50 rounded-xl flex items-center justify-center text-emerald-500 hover:border-emerald-500 hover:text-white transition-all shadow-md active:scale-95"
                                     title="Console"
                                   >
                                     <Terminal size={18} />
@@ -3207,7 +3249,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                                         setCurrentServerId(srv.id);
                                         setActiveTab("files");
                                       }}
-                                      className="w-10 h-10 bg-emerald-950 border-2 border-emerald-900 rounded-xl flex items-center justify-center text-emerald-500 hover:border-emerald-500 hover:text-white transition-all shadow-md active:scale-95"
+                                      className="w-10 h-10 bg-emerald-950 border border-emerald-900/50 rounded-xl flex items-center justify-center text-emerald-500 hover:border-emerald-500 hover:text-white transition-all shadow-md active:scale-95"
                                       title="Arquivos"
                                     >
                                       <Database size={18} />
@@ -3227,7 +3269,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                                           },
                                         });
                                       }}
-                                      className="w-10 h-10 bg-emerald-950 border-2 border-emerald-900 rounded-xl flex items-center justify-center text-emerald-500 hover:border-emerald-500 hover:text-white transition-all shadow-md active:scale-95"
+                                      className="w-10 h-10 bg-emerald-950 border border-emerald-900/50 rounded-xl flex items-center justify-center text-emerald-500 hover:border-emerald-500 hover:text-white transition-all shadow-md active:scale-95"
                                       title="Ajustes"
                                     >
                                       <Settings size={18} />
@@ -3284,7 +3326,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                           <p className="font-black text-white text-sm uppercase italic tracking-tighter">
                             CRIAR NOVO SERVIDOR
                           </p>
-                          <p className="text-[10px] text-emerald-600 font-black uppercase tracking-widest">
+                          <p className="text-[9px] text-emerald-600 font-black uppercase tracking-widest">
                             Uma nova aventura te espera!
                           </p>
                         </div>
@@ -3301,16 +3343,16 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
-                  className="bg-[#0b251a]/80 border-2 border-emerald-900 rounded-[2.5rem] shadow-sm p-4 sm:p-8 relative overflow-hidden flex flex-col items-center justify-center min-h-[500px]"
+                  className="bg-black/40 backdrop-blur-md border border-emerald-900/50 rounded-3xl shadow-sm p-4 sm:p-6 relative overflow-hidden flex flex-col items-center justify-center min-h-[500px]"
                 >
                   <Globe
                     size={64}
-                    className="text-emerald-500 mb-6 opacity-80 animate-pulse"
+                    className="text-emerald-500 mb-4 opacity-80 animate-pulse"
                   />
-                  <h3 className="text-3xl font-black text-white tracking-tighter mb-4 text-center uppercase">
+                  <h3 className="text-base font-black text-white tracking-tighter mb-4 text-center uppercase">
                     Playit.gg
                   </h3>
-                  <p className="text-emerald-500 font-bold mb-8 text-center max-w-lg leading-relaxed mix-blend-screen text-[10px] sm:text-xs uppercase tracking-widest hidden sm:block">
+                  <p className="text-emerald-500 font-bold mb-4 text-center max-w-lg leading-relaxed mix-blend-screen text-[9px] sm:text-xs uppercase tracking-widest hidden sm:block">
                     Túnel de rede público e global.
                     <br />
                     Ative para expor as portas dos seus servidores online sem
@@ -3442,7 +3484,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
 
                     {!playitStatus.running ? (
                       <div className="w-full mt-4 p-5 bg-black/40 border-2 border-zinc-900/80 rounded-2xl text-center">
-                        <p className="text-[10px] text-zinc-500 font-black tracking-widest uppercase mb-1">
+                        <p className="text-[9px] text-zinc-500 font-black tracking-widest uppercase mb-1">
                           Status
                         </p>
                         <div className="text-zinc-600 font-bold text-xs uppercase tracking-widest">
@@ -3450,22 +3492,22 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                         </div>
                       </div>
                     ) : (
-                      <div className="w-full mt-4 p-5 bg-black/40 border-2 border-emerald-900/40 rounded-2xl text-center">
-                        <p className="text-[10px] text-emerald-500/50 mb-3 font-black tracking-widest uppercase">
+                      <div className="w-full mt-4 p-5 bg-black/40 border border-emerald-900/50/40 rounded-2xl text-center">
+                        <p className="text-[9px] text-emerald-500/50 mb-3 font-black tracking-widest uppercase">
                           Status do Único Túnel
                         </p>
 
                         {playitStatus.linked ? (
                           <div className="space-y-4">
                             <div className="flex items-center justify-center p-3 bg-emerald-950/40 rounded-xl border border-emerald-900">
-                              <span className="font-bold text-emerald-400 text-[10px] sm:text-xs tracking-widest uppercase">
+                              <span className="font-bold text-emerald-400 text-[9px] sm:text-xs tracking-widest uppercase">
                                 <div className="flex items-center gap-2">
                                   <CheckCircle2 size={14} /> Conta Vinculada com
                                   Sucesso
                                 </div>
                               </span>
                             </div>
-                            <p className="text-[10px] text-emerald-600 font-bold max-w-sm mx-auto leading-relaxed">
+                            <p className="text-[9px] text-emerald-600 font-bold max-w-sm mx-auto leading-relaxed">
                               Acesse playit.gg para configurar seus túneis. O
                               Playit roteará o tráfego automaticamente para este
                               PC.
@@ -3489,7 +3531,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                               </div>
                             ) : (
                               <div className="p-3 bg-amber-900/20 rounded-xl border border-amber-900/50 flex flex-col px-4 text-center mt-2 cursor-pointer hover:bg-amber-900/40 transition-all" onClick={() => window.open("https://playit.gg/account", "_blank")}>
-                                 <span className="text-amber-500 font-mono text-[10px] font-bold">
+                                 <span className="text-amber-500 font-mono text-[9px] font-bold">
                                    AGUARDANDO ENDEREÇO IP...
                                  </span>
                                  <span className="text-zinc-400 text-[9px] mt-1 leading-relaxed">Playit conectado. Pode demorar alguns segundos. <span className="text-amber-400 underline">Clique aqui</span> para verificar no painel da Playit.gg se ele não aparecer.</span>
@@ -3498,13 +3540,13 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                           </div>
                         ) : playitStatus.claimUrl ? (
                           <div className="space-y-3">
-                            <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest leading-relaxed">
+                            <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-widest leading-relaxed">
                               Conta Playit.gg pendente
                             </p>
                             <a
                               href={playitStatus.claimUrl}
                               target="_blank"
-                              className="block text-center py-4 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[10px] sm:text-xs uppercase rounded-xl shadow-lg border-b-4 border-emerald-800"
+                              className="block text-center py-4 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[9px] sm:text-xs uppercase rounded-xl shadow-lg border-b-4 border-emerald-800"
                             >
                               Vincular Conta Playit Agora
                             </a>
@@ -3526,17 +3568,17 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
-                  className="bg-[#0b251a]/80 border-2 border-emerald-900 rounded-[2.5rem] shadow-sm p-4 sm:p-6 relative flex flex-col items-center w-full h-full max-h-[85vh] overflow-y-auto custom-scrollbar"
+                  className="bg-black/40 backdrop-blur-md border border-emerald-900/50 rounded-3xl shadow-sm p-4 sm:p-6 relative flex flex-col items-center w-full h-full max-h-[85vh] overflow-y-auto custom-scrollbar"
                 >
                   <Map size={48} className="text-emerald-500 mb-4 opacity-80 shrink-0 mt-4" />
-                  <h3 className="text-2xl font-black text-white tracking-tighter mb-2 text-center uppercase shrink-0">
+                  <h3 className="text-base font-black text-white tracking-tighter mb-2 text-center uppercase shrink-0">
                     {t("map_editor_title")}
                   </h3>
-                  <p className="text-emerald-500 font-bold mb-6 text-center max-w-lg leading-relaxed mix-blend-screen text-[10px] uppercase tracking-widest hidden sm:block shrink-0">
+                  <p className="text-emerald-500 font-bold mb-4 text-center max-w-lg leading-relaxed mix-blend-screen text-[9px] uppercase tracking-widest hidden sm:block shrink-0">
                     {t("map_editor_desc")}
                   </p>
 
-                  <div className={`flex flex-col items-center gap-4 w-full ${showEditor3D || showBlueMap ? 'max-w-full' : 'max-w-3xl'} shrink-0`}>
+                  <div className={`flex flex-col items-center gap-4 w-full ${showEditor3D || showBlueMap ? 'max-w-full' : 'max-w-4xl'} shrink-0`}>
                     <div className="flex flex-wrap justify-center gap-2 w-full">
                       <button
                         onClick={() => {
@@ -3623,7 +3665,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                     {showBlueMap && (
                       <div className="w-full mt-4 bg-black/60 border-4 border-emerald-900 rounded-[2rem] overflow-hidden flex flex-col transition-all relative">
                          <div className="bg-emerald-950 px-4 py-2 flex items-center justify-between border-b-2 border-emerald-900">
-                           <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">MAP ENGINE (WEB)</span>
+                           <span className="text-[9px] font-black uppercase tracking-widest text-emerald-400">MAP ENGINE (WEB)</span>
                            <a href={`http://${window.location.hostname}:8100/`} target="_blank" className="bg-emerald-700 hover:bg-emerald-600 text-white px-3 py-1 rounded-lg text-[9px] font-bold uppercase transition flex ">ABRIR NOVO MODO TELA CHEIA</a>
                          </div>
                          
@@ -3672,20 +3714,20 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                       </div>
                     )}
 
-                    <div className="w-full mt-4 p-6 bg-black/40 border-2 border-emerald-900/40 rounded-2xl shrink-0">
+                    <div className="w-full mt-4 p-6 bg-black/40 border border-emerald-900/50/40 rounded-2xl shrink-0">
                       <p className="text-[12px] text-emerald-500 font-black tracking-widest uppercase mb-4 text-center">
                         {t("map_protector_title")}
                       </p>
 
                       <div className="space-y-4">
                         <div>
-                          <label className="text-[10px] uppercase font-black tracking-widest text-emerald-600 block mb-2 px-1">
+                          <label className="text-[9px] uppercase font-black tracking-widest text-emerald-600 block mb-2 px-1">
                             {t("map_region_label")}
                           </label>
                           <input
                             value={mapRegion}
                             onChange={(e) => setMapRegion(e.target.value)}
-                            className="w-full bg-emerald-950/20 border-2 border-emerald-900/50 p-4 rounded-xl text-emerald-400 text-xs font-black uppercase focus:border-emerald-500 transition outline-none"
+                            className="w-full bg-emerald-950/20 border border-emerald-900/50/50 p-4 rounded-xl text-emerald-400 text-xs font-black uppercase focus:border-emerald-500 transition outline-none"
                             placeholder="NOME_DA_REGIAO (EX: SPAWN, VIP_ZONE)"
                           />
                         </div>
@@ -3711,7 +3753,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                               });
                               alert("Permissão aplicada!");
                             }}
-                            className="bg-emerald-900/30 border border-emerald-800 text-emerald-400 p-4 rounded-xl font-black text-[10px] uppercase hover:bg-emerald-800 transition active:scale-95 shadow-lg flex items-center justify-center gap-2"
+                            className="bg-emerald-900/30 border border-emerald-800 text-emerald-400 p-4 rounded-xl font-black text-[9px] uppercase hover:bg-emerald-800 transition active:scale-95 shadow-lg flex items-center justify-center gap-2"
                           >
                             <Shield size={14} /> {t("map_no_pvp")}
                           </button>
@@ -3729,7 +3771,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                               });
                               alert("Permissão aplicada!");
                             }}
-                            className="bg-emerald-900/30 border border-emerald-800 text-emerald-400 p-4 rounded-xl font-black text-[10px] uppercase hover:bg-emerald-800 transition active:scale-95 shadow-lg flex items-center justify-center gap-2"
+                            className="bg-emerald-900/30 border border-emerald-800 text-emerald-400 p-4 rounded-xl font-black text-[9px] uppercase hover:bg-emerald-800 transition active:scale-95 shadow-lg flex items-center justify-center gap-2"
                           >
                             <Hammer size={14} /> {t("map_no_build")}
                           </button>
@@ -3747,7 +3789,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                               });
                               alert("Permissão aplicada!");
                             }}
-                            className="bg-emerald-900/30 border border-emerald-800 text-emerald-400 p-4 rounded-xl font-black text-[10px] uppercase hover:bg-emerald-800 transition active:scale-95 shadow-lg flex items-center justify-center gap-2"
+                            className="bg-emerald-900/30 border border-emerald-800 text-emerald-400 p-4 rounded-xl font-black text-[9px] uppercase hover:bg-emerald-800 transition active:scale-95 shadow-lg flex items-center justify-center gap-2"
                           >
                             <Skull size={14} /> {t("map_no_mobs")}
                           </button>
@@ -3765,7 +3807,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                               });
                               alert("Permissão aplicada!");
                             }}
-                            className="bg-emerald-900/30 border border-emerald-800 text-emerald-400 p-4 rounded-xl font-black text-[10px] uppercase hover:bg-emerald-800 transition active:scale-95 shadow-lg flex items-center justify-center gap-2"
+                            className="bg-emerald-900/30 border border-emerald-800 text-emerald-400 p-4 rounded-xl font-black text-[9px] uppercase hover:bg-emerald-800 transition active:scale-95 shadow-lg flex items-center justify-center gap-2"
                           >
                             <Heart size={14} /> {t("map_immortal")}
                           </button>
@@ -3783,7 +3825,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                               });
                               alert("Permissão aplicada!");
                             }}
-                            className="col-span-2 bg-emerald-900/30 border border-emerald-800 text-emerald-400 p-4 rounded-xl font-black text-[10px] uppercase hover:bg-emerald-800 transition active:scale-95 shadow-lg flex items-center justify-center gap-2"
+                            className="col-span-2 bg-emerald-900/30 border border-emerald-800 text-emerald-400 p-4 rounded-xl font-black text-[9px] uppercase hover:bg-emerald-800 transition active:scale-95 shadow-lg flex items-center justify-center gap-2"
                           >
                             <Hand size={14} /> {t("map_allow_interact")}
                           </button>
@@ -3799,16 +3841,16 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
-                  className="bg-[#0b251a]/80 border-2 border-emerald-900 rounded-[2.5rem] shadow-sm p-4 sm:p-8 relative overflow-hidden flex flex-col items-center justify-center min-h-[500px]"
+                  className="bg-black/40 backdrop-blur-md border border-emerald-900/50 rounded-3xl shadow-sm p-4 sm:p-6 relative overflow-hidden flex flex-col items-center justify-center min-h-[500px]"
                 >
                   <Store
                     size={64}
-                    className="text-emerald-500 mb-6 opacity-80"
+                    className="text-emerald-500 mb-4 opacity-80"
                   />
-                  <h3 className="text-3xl font-black text-white tracking-tighter mb-4 text-center uppercase">
+                  <h3 className="text-base font-black text-white tracking-tighter mb-4 text-center uppercase">
                     {t("store_editor_title") || "Gerenciador de Lojas"}
                   </h3>
-                  <p className="text-emerald-500 font-bold mb-8 text-center max-w-lg leading-relaxed mix-blend-screen text-[10px] sm:text-xs uppercase tracking-widest hidden sm:block">
+                  <p className="text-emerald-500 font-bold mb-4 text-center max-w-lg leading-relaxed mix-blend-screen text-[9px] sm:text-xs uppercase tracking-widest hidden sm:block">
                     {t("store_editor_desc") ||
                       "Crie sua própria loja Skript 100% customizada ou gerencie plugins de Lojas NPC / GUI nativos."}
                   </p>
@@ -3840,7 +3882,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                           setActiveTab("store");
                           setStoreSearch("Shopkeepers");
                         }}
-                        className="w-full py-4 rounded-xl flex flex-col items-center justify-center gap-2 font-black text-[10px] uppercase shadow-lg transition-transform active:scale-95 border-b-4 bg-zinc-800 hover:bg-zinc-700 text-emerald-400 border-zinc-950"
+                        className="w-full py-4 rounded-xl flex flex-col items-center justify-center gap-2 font-black text-[9px] uppercase shadow-lg transition-transform active:scale-95 border-b-4 bg-zinc-800 hover:bg-zinc-700 text-emerald-400 border-zinc-950"
                       >
                         <Users size={16} /> {t("store_npc_shopkeepers")}
                       </button>
@@ -3849,7 +3891,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                           setActiveTab("store");
                           setStoreSearch("EconomyShopGUI");
                         }}
-                        className="w-full py-4 rounded-xl flex flex-col items-center justify-center gap-2 font-black text-[10px] uppercase shadow-lg transition-transform active:scale-95 border-b-4 bg-zinc-800 hover:bg-zinc-700 text-emerald-400 border-zinc-950"
+                        className="w-full py-4 rounded-xl flex flex-col items-center justify-center gap-2 font-black text-[9px] uppercase shadow-lg transition-transform active:scale-95 border-b-4 bg-zinc-800 hover:bg-zinc-700 text-emerald-400 border-zinc-950"
                       >
                         <Store size={16} /> {t("store_gui_economy")}
                       </button>
@@ -3858,14 +3900,14 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                           setActiveTab("store");
                           setStoreSearch("Citizens");
                         }}
-                        className="col-span-2 w-full py-4 rounded-xl flex flex-col items-center justify-center gap-2 font-black text-[10px] uppercase shadow-lg transition-transform active:scale-95 border-b-4 bg-zinc-800 hover:bg-zinc-700 text-emerald-400 border-zinc-950"
+                        className="col-span-2 w-full py-4 rounded-xl flex flex-col items-center justify-center gap-2 font-black text-[9px] uppercase shadow-lg transition-transform active:scale-95 border-b-4 bg-zinc-800 hover:bg-zinc-700 text-emerald-400 border-zinc-950"
                       >
                         <Bot size={16} /> {t("store_npc_commands")}
                       </button>
                     </div>
 
-                    <div className="w-full mt-4 p-5 bg-black/40 border-2 border-emerald-900/40 rounded-2xl text-center">
-                      <p className="text-[10px] text-zinc-500 font-black tracking-widest uppercase mb-1">
+                    <div className="w-full mt-4 p-5 bg-black/40 border border-emerald-900/50/40 rounded-2xl text-center">
+                      <p className="text-[9px] text-zinc-500 font-black tracking-widest uppercase mb-1">
                         {t("store_status_help")}
                       </p>
                       <div className="text-zinc-600 font-normal text-xs leading-relaxed max-w-md mx-auto">
@@ -3880,17 +3922,17 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                 <motion.div
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  className="bg-[#0b251a]/80 backdrop-blur-md rounded-[2.5rem] border-2 border-emerald-900 shadow-sm p-4 lg:p-8 min-h-[600px] lg:min-h-0 h-full flex flex-col relative overflow-hidden"
+                  className="bg-black/40 backdrop-blur-md backdrop-blur-md rounded-3xl border border-emerald-900/50 shadow-sm p-4 lg:p-6 min-h-[600px] lg:min-h-0 h-full flex flex-col relative overflow-hidden"
                 >
-                  <div className="flex items-center gap-4 mb-6">
-                    <div className="p-4 bg-emerald-900/50 rounded-2xl border-2 border-emerald-500/30 text-emerald-400">
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="p-4 bg-emerald-900/50 rounded-2xl border border-emerald-500/30 text-emerald-400">
                       <Code size={32} />
                     </div>
                     <div>
-                      <h2 className="text-3xl font-black text-white tracking-tighter italic uppercase">
+                      <h2 className="text-base font-black text-white tracking-tighter italic uppercase">
                         {t("script_builder_title") || "Fábrica de Scripts"}
                       </h2>
-                      <p className="text-emerald-500 text-[10px] font-black uppercase tracking-widest mt-1">
+                      <p className="text-emerald-500 text-[9px] font-black uppercase tracking-widest mt-1">
                         {t("script_builder_desc") || "I.A. SKRIPT BUILDER (•◡•)"}
                       </p>
                     </div>
@@ -3927,7 +3969,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                           <label className="text-xs font-bold text-emerald-400 uppercase tracking-widest pl-2">Código Gerado</label>
                           <button
                             onClick={handleSavePlugin}
-                            className="px-4 py-2 bg-emerald-900/50 hover:bg-emerald-800 text-emerald-300 font-bold text-[10px] uppercase tracking-widest rounded-lg transition-all flex items-center gap-2 border border-emerald-800"
+                            className="px-4 py-2 bg-emerald-900/50 hover:bg-emerald-800 text-emerald-300 font-bold text-[9px] uppercase tracking-widest rounded-lg transition-all flex items-center gap-2 border border-emerald-800"
                           >
                             <Save size={14} /> {t("script_builder_save_btn") || "Salvar e Injetar no Servidor"}
                           </button>
@@ -3947,183 +3989,112 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className={`rounded-[2.5rem] border-2 shadow-sm p-6 lg:p-10 min-h-[600px] lg:min-h-0 h-full flex flex-col relative overflow-hidden ${theme === "dark" ? "bg-[#0b251a]/80 border-emerald-900" : "bg-white border-zinc-200"}`}
+                  className={`rounded-3xl border-2 shadow-sm p-4 lg:p-6 min-h-[600px] lg:min-h-0 h-full flex flex-col relative overflow-hidden ${theme === "dark" ? "bg-black/40 backdrop-blur-md border-emerald-900" : "bg-white border-zinc-200"}`}
                 >
-                  <div className="flex items-center gap-4 mb-10">
-                    <div className="p-4 bg-emerald-950/20 rounded-2xl text-emerald-500">
-                      <Settings size={32} />
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2 bg-emerald-950/20 rounded-lg text-emerald-500">
+                      <Settings size={18} />
                     </div>
                     <div>
                       <h2
-                        className={`text-3xl font-black tracking-tighter italic uppercase ${theme === "dark" ? "text-white" : "text-emerald-950"}`}
+                        className={`text-base font-black tracking-tighter italic uppercase ${theme === "dark" ? "text-white" : "text-emerald-950"}`}
                       >
                         {t("settings_title")}
                       </h2>
-                      <p className="text-emerald-500 text-[10px] font-black uppercase tracking-widest mt-1">
+                      <p className="text-emerald-500 text-[8px] font-bold uppercase tracking-widest leading-none mt-1">
                         {t("settings_sub")}
                       </p>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                    <section className="space-y-4">
-                      <h4 className="text-xs font-black text-emerald-600 uppercase tracking-widest flex items-center gap-2">
-                        <Languages size={14} /> {t("select_lang")}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 z-10 w-full max-w-2xl mx-auto">
+                    <section className="space-y-1.5 flex flex-col">
+                      <h4 className="text-[8px] font-black text-emerald-600/80 uppercase tracking-widest flex items-center gap-1.5">
+                        <Languages size={10} /> {t("select_lang")}
                       </h4>
-                      <div className="flex gap-2">
+                      <div className="flex gap-1.5 h-6">
                         <button
                           onClick={() => setLanguage("en")}
-                          className={`flex-1 px-4 py-3 rounded-2xl font-black text-xs transition-all border-2 ${language === "en" ? "bg-emerald-600 border-emerald-400 text-white shadow-lg" : "bg-black/10 border-emerald-950/20 text-emerald-900/50 hover:border-emerald-500"}`}
+                          className={`flex-1 rounded font-black text-[8px] transition-all border ${language === "en" ? "bg-emerald-600 border-emerald-400 text-white" : "bg-black/10 border-emerald-950/20 text-emerald-900/50 hover:border-emerald-500"}`}
                         >
-                          ENGLISH
+                          EN
                         </button>
                         <button
                           onClick={() => setLanguage("pt")}
-                          className={`flex-1 px-4 py-3 rounded-2xl font-black text-xs transition-all border-2 ${language === "pt" ? "bg-emerald-600 border-emerald-400 text-white shadow-lg" : "bg-black/10 border-emerald-950/20 text-emerald-900/50 hover:border-emerald-500"}`}
+                          className={`flex-1 rounded font-black text-[8px] transition-all border ${language === "pt" ? "bg-emerald-600 border-emerald-400 text-white" : "bg-black/10 border-emerald-950/20 text-emerald-900/50 hover:border-emerald-500"}`}
                         >
-                          PORTUGUÊS (BR)
+                          PT-BR
+                        </button>
+                      </div>
+                    </section>
+
+                    <section className="space-y-1.5 flex flex-col">
+                      <h4 className="text-[8px] font-black text-emerald-600/80 uppercase tracking-widest flex items-center gap-1.5">
+                        <Palette size={10} /> {t("select_theme")}
+                      </h4>
+                      <div className="flex gap-1.5 h-6">
+                        <button
+                          onClick={() => setTheme("dark")}
+                          className={`flex-1 rounded font-black text-[8px] transition-all border flex items-center justify-center gap-1.5 ${theme === "dark" ? "bg-emerald-600 border-emerald-400 text-white" : "bg-black/10 border-emerald-950/20 text-emerald-900/50 hover:border-emerald-500"}`}
+                        >
+                          <Moon size={8} /> Escuro
+                        </button>
+                        <button
+                          onClick={() => setTheme("light")}
+                          className={`flex-1 rounded font-black text-[8px] transition-all border flex items-center justify-center gap-1.5 ${theme === "light" ? "bg-emerald-600 border-emerald-400 text-white" : "bg-black/10 border-emerald-950/20 text-emerald-900/50 hover:border-emerald-500"}`}
+                        >
+                          <Sun size={8} /> Claro
                         </button>
                       </div>
                     </section>
 
                     {/* Modules Toggles */}
-                    <section className="space-y-4 col-span-1 md:col-span-2">
-                      <h4 className="text-xs font-black text-emerald-600 uppercase tracking-widest flex items-center gap-2">
-                        <Power size={14} /> Ativar/Desativar Módulos
+                    <section className="space-y-1 col-span-1 md:col-span-2">
+                      <h4 className="text-[8px] font-black text-emerald-600/80 uppercase tracking-widest flex items-center gap-1.5 pt-1">
+                        <Power size={8} /> Módulos Cloud
                       </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <button
-                          onClick={() =>
-                            setModules((m) => ({ ...m, ai: !m.ai }))
-                          }
-                          className={`p-4 rounded-2xl flex flex-col items-center justify-center gap-2 font-black text-xs transition-all border-2 ${modules.ai ? "bg-emerald-600 border-emerald-400 text-white shadow-lg" : "bg-black/10 border-emerald-950/20 text-emerald-900/50 hover:border-emerald-500"}`}
-                        >
-                          <Bot size={24} /> ASSISTENTE IA
+                      <div className="flex flex-wrap gap-1">
+                        <button onClick={() => setModules((m) => ({ ...m, ai: !m.ai }))} className={`px-2 py-1 rounded flex items-center gap-1 font-bold text-[8px] transition-all border ${modules.ai ? "bg-emerald-600 border-emerald-400 text-white" : "bg-black/10 border-emerald-950/20 text-emerald-900/50"}`}>
+                          <Bot size={8} /> Assistente IA
                         </button>
-                        <button
-                          onClick={() =>
-                            setModules((m) => ({ ...m, map: !m.map }))
-                          }
-                          className={`p-4 rounded-2xl flex flex-col items-center justify-center gap-2 font-black text-xs transition-all border-2 ${modules.map ? "bg-emerald-600 border-emerald-400 text-white shadow-lg" : "bg-black/10 border-emerald-950/20 text-emerald-900/50 hover:border-emerald-500"}`}
-                        >
-                          <Map size={24} /> EDITOR DE MAPA
+                        <button onClick={() => setModules((m) => ({ ...m, map: !m.map }))} className={`px-2 py-1 rounded flex items-center gap-1 font-bold text-[8px] transition-all border ${modules.map ? "bg-emerald-600 border-emerald-400 text-white" : "bg-black/10 border-emerald-950/20 text-emerald-900/50"}`}>
+                          <Map size={8} /> Editor de Mapa
                         </button>
-                        <button
-                          onClick={() =>
-                            setModules((m) => ({ ...m, store: !m.store }))
-                          }
-                          className={`p-4 rounded-2xl flex flex-col items-center justify-center gap-2 font-black text-xs transition-all border-2 ${modules.store ? "bg-emerald-600 border-emerald-400 text-white shadow-lg" : "bg-black/10 border-emerald-950/20 text-emerald-900/50 hover:border-emerald-500"}`}
-                        >
-                          <Store size={24} /> LOJA IN-GAME
+                        <button onClick={() => setModules((m) => ({ ...m, store: !m.store }))} className={`px-2 py-1 rounded flex items-center gap-1 font-bold text-[8px] transition-all border ${modules.store ? "bg-emerald-600 border-emerald-400 text-white" : "bg-black/10 border-emerald-950/20 text-emerald-900/50"}`}>
+                          <Store size={8} /> Loja In-Game
+                        </button>
+                        <button onClick={() => { setModules((m) => ({ ...m, server_hibernation: !m.server_hibernation })); if (!modules.server_hibernation) setShowHibernationModal(true); }} className={`px-2 py-1 rounded flex items-center gap-1 font-bold text-[8px] transition-all border ${modules.server_hibernation ? "bg-amber-600 border-amber-400 text-white" : "bg-black/10 border-amber-950/20 text-amber-900/50"}`}>
+                          <Moon size={8} /> Hibernação
                         </button>
                       </div>
 
-                      <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-widest flex items-center gap-2 mt-6">
-                        <Globe size={12} /> Habilidades da IA
+                      <h4 className="text-[8px] font-black text-blue-500/80 uppercase tracking-widest flex items-center gap-1.5 pt-1 mt-1">
+                        <Globe size={8} /> Habilidades da IA
                       </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                         <button
-                          onClick={() =>
-                            setModules((m) => ({ ...m, ai_internet: !m.ai_internet }))
-                          }
-                          className={`p-4 rounded-2xl flex flex-col items-center justify-center gap-2 font-black text-[10px] transition-all border-2 ${modules.ai_internet ? "bg-blue-600 border-blue-400 text-white shadow-lg" : "bg-black/10 border-blue-950/20 text-blue-900/50 hover:border-blue-500"}`}
-                        >
-                          <Globe size={20} /> ACESSO À INTERNET
+                      <div className="flex flex-wrap gap-1">
+                         <button onClick={() => setModules((m) => ({ ...m, ai_internet: !m.ai_internet }))} className={`px-2 py-1 rounded flex items-center gap-1 font-bold text-[8px] transition-all border ${modules.ai_internet ? "bg-blue-600 border-blue-400 text-white" : "bg-black/10 border-blue-950/20 text-blue-900/50"}`}>
+                          <Globe size={8} /> Internet
                         </button>
-                        <button
-                          onClick={() =>
-                            setModules((m) => ({ ...m, ai_memory: !m.ai_memory }))
-                          }
-                          className={`p-4 rounded-2xl flex flex-col items-center justify-center gap-2 font-black text-[10px] transition-all border-2 ${modules.ai_memory ? "bg-blue-600 border-blue-400 text-white shadow-lg" : "bg-black/10 border-blue-950/20 text-blue-900/50 hover:border-blue-500"}`}
-                        >
-                          <Save size={20} /> MEMÓRIA PERMANENTE
+                        <button onClick={() => setModules((m) => ({ ...m, ai_memory: !m.ai_memory }))} className={`px-2 py-1 rounded flex items-center gap-1 font-bold text-[8px] transition-all border ${modules.ai_memory ? "bg-blue-600 border-blue-400 text-white" : "bg-black/10 border-blue-950/20 text-blue-900/50"}`}>
+                          <Save size={8} /> Memória
                         </button>
-                         <button
-                          onClick={() =>
-                            setModules((m) => ({ ...m, ai_bot: !m.ai_bot }))
-                          }
-                          className={`p-4 rounded-2xl flex flex-col items-center justify-center gap-2 font-black text-[10px] transition-all border-2 ${modules.ai_bot ? "bg-blue-600 border-blue-400 text-white shadow-lg" : "bg-black/10 border-blue-950/20 text-blue-900/50 hover:border-blue-500"}`}
-                        >
-                          <Bot size={20} /> CRIAR BOT IN-GAME
-                        </button>
-                      </div>
-
-                      <h4 className="text-[10px] font-black text-amber-500 uppercase tracking-widest flex items-center gap-2 mt-6">
-                        <Power size={12} /> Sistema do Painel
-                      </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                         <button
-                          onClick={() => {
-                            setModules((m) => ({ ...m, server_hibernation: !m.server_hibernation }));
-                            if (!modules.server_hibernation) {
-                               alert("⚠️ AVISO IMPORTANTE: O Google Cloud Run suspende servidores sem atividade.\n\nPara que o servidor sobreviva com a página fechada, configure um monitor gratuito no [UptimeRobot.com] apontando para a sua SHARED APP URL.\n\nEssa aba de Hibernação prepara o servidor para manter os processos abertos no background quando o Ping acontecer.");
-                            }
-                          }}
-                          className={`p-4 rounded-2xl flex flex-col items-center justify-center gap-2 font-black text-[10px] transition-all border-2 ${modules.server_hibernation ? "bg-amber-600 border-amber-400 text-white shadow-lg" : "bg-black/10 border-amber-950/20 text-amber-900/50 hover:border-amber-500"}`}
-                        >
-                          <Moon size={20} /> HIBERNAÇÃO (MANTER ONLINE)
+                         <button onClick={() => setModules((m) => ({ ...m, ai_bot: !m.ai_bot }))} className={`px-2 py-1 rounded flex items-center gap-1 font-bold text-[8px] transition-all border ${modules.ai_bot ? "bg-blue-600 border-blue-400 text-white" : "bg-black/10 border-blue-950/20 text-blue-900/50"}`}>
+                          <Bot size={8} /> In-Game Bot
                         </button>
                       </div>
                     </section>
 
-                    <section className="space-y-4">
-                      <h4 className="text-xs font-black text-emerald-600 uppercase tracking-widest flex items-center gap-2">
-                        <Palette size={14} /> {t("select_theme")}
-                      </h4>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => setTheme("dark")}
-                          className={`flex-1 px-4 py-3 rounded-2xl font-black text-xs transition-all border-2 flex items-center justify-center gap-2 ${theme === "dark" ? "bg-emerald-600 border-emerald-400 text-white shadow-lg" : "bg-black/10 border-emerald-950/20 text-emerald-900/50 hover:border-emerald-500"}`}
-                        >
-                          <Moon size={14} /> {t("theme_dark")}
-                        </button>
-                        <button
-                          onClick={() => setTheme("light")}
-                          className={`flex-1 px-4 py-3 rounded-2xl font-black text-xs transition-all border-2 flex items-center justify-center gap-2 ${theme === "light" ? "bg-emerald-600 border-emerald-400 text-white shadow-lg" : "bg-black/10 border-emerald-950/20 text-emerald-900/50 hover:border-emerald-500"}`}
-                        >
-                          <Sun size={14} /> {t("theme_light")}
-                        </button>
-                      </div>
-                    </section>
-
-                    <section className="md:col-span-2 p-8 bg-emerald-500/5 rounded-[2rem] border border-emerald-500/10 flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center text-white shadow-lg border-b-4 border-emerald-800">
-                          <Cpu size={24} />
+                    <section className="md:col-span-2 p-2 bg-black/10 rounded-lg border border-blue-500/10 flex items-center justify-between gap-2 mt-1">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 bg-zinc-900 rounded flex items-center justify-center text-blue-500">
+                          <RefreshCw size={10} className={isSystemUpdating ? "animate-spin" : ""} />
                         </div>
                         <div>
-                          <h5 className="font-black text-emerald-700 text-xs uppercase tracking-tighter">
-                            {t("performance_mode")}
-                          </h5>
-                          <p className="text-[10px] font-black text-emerald-900/40 uppercase tracking-widest">
-                            {t("vps_linux_optimized")}
-                          </p>
-                        </div>
-                      </div>
-                      <div
-                        className={`w-12 h-6 rounded-full flex items-center px-1 cursor-pointer transition-colors ${isVpsOptimized ? "bg-emerald-600" : "bg-emerald-950 border border-emerald-800"}`}
-                        onClick={() => setIsVpsOptimized(!isVpsOptimized)}
-                      >
-                        <div
-                          className={`w-4 h-4 bg-white rounded-full transition-transform ${isVpsOptimized ? "translate-x-6" : "translate-x-0"}`}
-                        />
-                      </div>
-                    </section>
-
-                    <section className="md:col-span-2 p-8 bg-black/20 rounded-[2rem] border border-blue-500/10 flex items-center justify-between flex-wrap gap-4">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-zinc-900 rounded-2xl flex items-center justify-center text-blue-500 shadow-lg border-b-4 border-blue-950">
-                          <RefreshCw
-                            size={24}
-                            className={isSystemUpdating ? "animate-spin" : ""}
-                          />
-                        </div>
-                        <div>
-                          <h5 className="font-black text-blue-700 text-xs uppercase tracking-tighter">
+                          <h5 className="font-black text-blue-700 text-[8px] uppercase tracking-tighter">
                             {t("system_update_title")}
                           </h5>
-                          <p className="text-[10px] font-black text-blue-900/60 uppercase tracking-widest">
-                            {t("system_update_desc")} - Versão Atual: {appVersion}
+                          <p className="text-[7px] font-bold text-blue-900/60 uppercase tracking-widest leading-none">
+                            Versão: {appVersion}
                           </p>
                         </div>
                       </div>
@@ -4132,54 +4103,42 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                           if (isSystemUpdating) return;
                           setIsSystemUpdating(true);
                           try {
-                            const res = await fetch("/api/system/update", {
-                              method: "POST",
-                            });
+                            const res = await fetch("/api/system/update", { method: "POST" });
                             if (res.ok) {
-                              alert(
-                                "Atualização iniciada. O sistema irá reiniciar em breve.\nUpdate initiated. System will restart shortly.",
-                              );
-                              setTimeout(() => {
-                                window.location.reload();
-                              }, 5000);
+                              alert("Atualizando... O sistema irá reiniciar.");
+                              setTimeout(() => window.location.reload(), 5000);
                             } else {
-                              alert("Falha ao atualizar / Update failed");
-                              setIsSystemUpdating(false);
+                              alert("Falha"); setIsSystemUpdating(false);
                             }
                           } catch (e) {
-                            alert("Erro de rede / Network error");
                             setIsSystemUpdating(false);
                           }
                         }}
                         disabled={isSystemUpdating}
-                        className={`font-black text-xs uppercase text-white px-4 py-2 rounded-xl border-b-2 transition-all active:scale-95 ${isSystemUpdating ? "bg-blue-800 border-blue-900 opacity-50 cursor-not-allowed" : "bg-blue-500 border-blue-700 hover:-translate-y-1 hover:shadow-lg"}`}
+                        className="font-bold text-[8px] uppercase text-white px-2 py-1 rounded border-b bg-blue-500 border-blue-700 hover:bg-blue-400 transition-all active:border-b-0"
                       >
-                        {isSystemUpdating
-                          ? t("system_update_running")
-                          : t("system_update_btn")}
+                        {isSystemUpdating ? "Aguarde..." : "Atualizar"}
                       </button>
                     </section>
 
                     {appConfig && setAppConfig && (
-                      <section className="md:col-span-2 p-8 bg-black/20 rounded-[2rem] border border-fuchsia-500/10 flex flex-col gap-6">
-                        <div className="flex items-center justify-between p-5 bg-fuchsia-950/20 rounded-2xl border border-fuchsia-500/20">
-                          <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-zinc-900 rounded-2xl flex items-center justify-center text-fuchsia-500 shadow-lg border-b-4 border-fuchsia-950">
-                              <Store size={24} />
+                      <section className="md:col-span-2 p-2 bg-black/10 rounded-lg border border-fuchsia-500/10 flex flex-col gap-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 bg-zinc-900 rounded flex items-center justify-center text-fuchsia-500">
+                              <Store size={10} />
                             </div>
                             <div>
-                              <h5 className="font-black text-white text-xs uppercase tracking-tighter">
+                              <h5 className="font-black text-white text-[8px] uppercase tracking-tighter">
                                 Portal Web Público
                               </h5>
-                              <p className="text-[10px] font-bold text-fuchsia-400 uppercase tracking-widest leading-none mt-1">
-                                Sincronizado com Store & Auth
+                              <p className="text-[7px] font-bold text-fuchsia-400 uppercase tracking-widest leading-none mb-0.5">
+                                Loja & Painel
                               </p>
                             </div>
                           </div>
-                          <div className="flex items-center gap-3">
-                            <div
-                              className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${appConfig.storeEnabled !== false ? "bg-emerald-500/20 text-emerald-400" : "bg-rose-500/20 text-rose-400"}`}
-                            >
+                          <div className="flex items-center gap-1.5">
+                            <div className={`px-1.5 py-0.5 rounded text-[7px] font-bold uppercase flex items-center gap-1 ${appConfig.storeEnabled !== false ? "bg-emerald-500/20 text-emerald-400" : "bg-rose-500/20 text-rose-400"}`}>
                               <div
                                 className={`w-1 h-1 rounded-full ${appConfig.storeEnabled !== false ? "bg-emerald-400 animate-pulse" : "bg-rose-400"}`}
                               />
@@ -4195,32 +4154,32 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                                     appConfig.storeEnabled === false,
                                 })
                               }
-                              className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center justify-start rounded-full transition-all duration-300 focus:outline-none ring-2 ring-offset-2 ring-offset-black ${appConfig.storeEnabled !== false ? "bg-fuchsia-600 ring-fuchsia-500/20" : "bg-zinc-700 ring-zinc-700/20"}`}
+                              className={`relative inline-flex h-4 w-7 shrink-0 cursor-pointer items-center justify-start rounded-full transition-all duration-300 focus:outline-none ring-1 ring-offset-1 ring-offset-black ${appConfig.storeEnabled !== false ? "bg-fuchsia-600 ring-fuchsia-500/20" : "bg-zinc-700 ring-zinc-700/20"}`}
                             >
                               <span
-                                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition-transform duration-300 ease-in-out ${appConfig.storeEnabled !== false ? "translate-x-6" : "translate-x-1"}`}
+                                className={`pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow-lg ring-0 transition-transform duration-300 ease-in-out ${appConfig.storeEnabled !== false ? "translate-x-3.5" : "translate-x-0.5"}`}
                               />
                             </button>
                           </div>
                         </div>
 
                         {appConfig.storeEnabled !== false && (
-                          <div className="p-5 bg-black/40 rounded-2xl border border-fuchsia-900/50 space-y-4 animate-in fade-in slide-in-from-top-2">
+                          <div className="px-3 py-2 bg-black/40 rounded-xl border border-fuchsia-900/50 space-y-2 animate-in fade-in slide-in-from-top-2">
                             <div className="flex items-center justify-between">
-                              <p className="text-[10px] font-black uppercase text-fuchsia-400 tracking-widest flex items-center gap-2">
-                                <Settings size={12} /> Configurações do Portal
+                              <p className="text-[8px] font-black uppercase text-fuchsia-400 tracking-widest flex items-center gap-1">
+                                <Settings size={8} /> Configurações do Portal
                               </p>
                               <button
                                 onClick={() => window.open("/site", "_blank")}
-                                className="bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center gap-1.5"
+                                className="bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white px-2 py-1 rounded text-[8px] font-black uppercase transition-all flex items-center gap-1"
                               >
-                                <ExternalLink size={10} /> Visitar Site
+                                <ExternalLink size={8} /> Visitar Site
                               </button>
                             </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                               <div>
-                                <label className="block text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-1">
+                                <label className="block text-[8px] font-bold text-zinc-500 uppercase tracking-widest mb-0.5">
                                   Público Alvo / Estilo
                                 </label>
                                 <select
@@ -4233,13 +4192,13 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                                       familyMode: e.target.value === "family",
                                     })
                                   }
-                                  className="w-full bg-zinc-900 border-2 border-white/5 rounded-xl px-3 py-2.5 text-[10px] uppercase text-white font-black outline-none focus:border-fuchsia-500"
+                                  className="w-full bg-zinc-900 border border-white/5 rounded-lg px-2 py-1 text-[9px] uppercase text-white font-black outline-none focus:border-fuchsia-500"
                                 >
                                   <option value="family">
-                                    Aventura / Amigável (Family Friendly)
+                                    Família (Aventura)
                                   </option>
                                   <option value="pro">
-                                    Pro / Hardcore / PvP
+                                    Hardcore / PvP
                                   </option>
                                 </select>
                               </div>
@@ -4247,15 +4206,15 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                           </div>
                         )}
 
-                        <div className="p-4 bg-zinc-950/50 rounded-2xl border border-white/5 flex items-start gap-4">
-                          <div className="mt-1 flex-shrink-0 bg-zinc-900 p-2 rounded-xl text-zinc-600 border-b-2 border-zinc-950">
-                            <Info size={16} />
+                        <div className="p-2 bg-zinc-950/50 rounded-xl border border-white/5 flex items-start gap-2">
+                          <div className="mt-0.5 flex-shrink-0 bg-zinc-900 p-1.5 rounded-lg text-zinc-600 border-b border-zinc-950">
+                            <Info size={10} />
                           </div>
-                          <div className="space-y-1.5">
-                            <div className="text-[10px] font-black text-zinc-400 uppercase tracking-widest leading-none">
+                          <div className="space-y-0.5">
+                            <div className="text-[8px] font-black text-zinc-400 uppercase tracking-widest leading-none">
                               Estimativa de Performance
                             </div>
-                            <p className="text-[9px] text-zinc-500 font-medium uppercase leading-relaxed tracking-wider">
+                            <p className="text-[7px] text-zinc-500 font-medium uppercase leading-relaxed tracking-wider">
                               {appConfig.storeEnabled !== false
                                 ? "Site Ativo: ~25-35MB RAM consumida. CPU oscila apenas durante acessos."
                                 : "Site Offline: Modo de economia total. <2MB RAM (Apenas estáticos)."}
@@ -4274,36 +4233,34 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
 
               {activeTab === "ai" && (
                 <motion.div
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  className="bg-[#0b251a]/80 backdrop-blur-md rounded-[2.5rem] border-2 border-emerald-900 shadow-sm p-4 lg:p-8 min-h-[600px] lg:min-h-0 h-full flex flex-col relative overflow-hidden"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="bg-black/40 backdrop-blur-md backdrop-blur-md rounded-3xl border border-emerald-900/50 shadow-sm p-4 lg:p-6 min-h-[600px] lg:min-h-0 h-full flex flex-col relative overflow-hidden"
                 >
-                  <div className="flex items-center justify-between mb-8">
-                    <div className="flex items-center gap-4">
-                      <div className="p-4 bg-emerald-900/50 rounded-2xl border-2 border-emerald-500/30 text-emerald-400">
-                        <Bot size={32} />
-                      </div>
-                      <div>
-                        <h2 className="text-3xl font-black text-white tracking-tighter italic uppercase">
-                          Assistente
-                        </h2>
-                        <p className="text-emerald-500 text-[10px] font-black uppercase tracking-widest mt-1">
-                          Inteligência Creeper (•◡•)
-                        </p>
-                      </div>
+                  <div className="flex items-center gap-3 mb-3 shrink-0">
+                    <div className="p-2 bg-emerald-950/20 rounded-lg text-emerald-500">
+                      <Bot size={18} />
+                    </div>
+                    <div>
+                      <h2 className="text-base font-black text-white tracking-tighter italic uppercase">
+                        Assistente
+                      </h2>
+                      <p className="text-emerald-500 text-[8px] font-black uppercase tracking-widest mt-0.5">
+                        Inteligência Creeper (•◡•)
+                      </p>
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-4 mb-4">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-black/20 p-4 rounded-2xl border border-emerald-900/50">
-                      <div className="flex flex-wrap gap-2 bg-emerald-950/50 p-1 rounded-xl">
+                  <div className="flex flex-col gap-2 mb-3 shrink-0">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 bg-black/20 p-2 rounded-xl border border-emerald-900/50">
+                      <div className="flex flex-wrap gap-1 bg-emerald-950/50 p-1 rounded-lg">
                         <button
                           onClick={() => { 
                             setAiProvider("remote"); 
                             setAiChat([]); 
                             fetch("/api/ai/local", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "stop" }) }).catch(() => {});
                           }}
-                          className={`px-4 py-2 rounded-lg text-xs font-bold uppercase transition-all ${aiProvider === "remote" ? "bg-emerald-600 text-white shadow-md" : "text-emerald-500 hover:text-emerald-400"}`}
+                          className={`px-3 py-1.5 rounded-md text-[9px] font-bold uppercase transition-all ${aiProvider === "remote" ? "bg-emerald-600 text-white shadow-md" : "text-emerald-500 hover:text-emerald-400"}`}
                         >
                           I.A Remota (Cloud)
                         </button>
@@ -4313,7 +4270,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                             setAiChat([]); 
                             fetch("/api/ai/local", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "start" }) }).catch(() => {});
                           }}
-                          className={`px-4 py-2 rounded-lg text-xs font-bold uppercase transition-all ${aiProvider === "local" ? "bg-emerald-600 text-white shadow-md" : "text-emerald-500 hover:text-emerald-400"}`}
+                          className={`px-3 py-1.5 rounded-md text-[9px] font-bold uppercase transition-all ${aiProvider === "local" ? "bg-emerald-600 text-white shadow-md" : "text-emerald-500 hover:text-emerald-400"}`}
                         >
                           I.A Local (PC)
                         </button>
@@ -4323,7 +4280,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                             setAiChat([]); 
                             fetch("/api/ai/local", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "stop" }) }).catch(() => {});
                           }}
-                          className={`px-4 py-2 rounded-lg text-xs font-bold uppercase transition-all ${aiProvider === "off" ? "bg-zinc-600 text-white shadow-md" : "text-zinc-500 hover:text-zinc-400"}`}
+                          className={`px-3 py-1.5 rounded-md text-[9px] font-bold uppercase transition-all ${aiProvider === "off" ? "bg-zinc-600 text-white shadow-md" : "text-zinc-500 hover:text-zinc-400"}`}
                         >
                           Desativar
                         </button>
@@ -4334,7 +4291,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                           {!showApiKeyInput ? (
                             <button
                               onClick={() => setShowApiKeyInput(true)}
-                              className="font-black text-xs uppercase bg-emerald-900/60 text-emerald-300 px-4 py-2 rounded-xl border border-emerald-800 hover:bg-emerald-800 transition-all flex-1 sm:flex-none"
+                              className="font-black text-[9px] uppercase bg-emerald-900/60 text-emerald-300 px-3 py-1.5 rounded-lg border border-emerald-800 hover:bg-emerald-800 transition-all flex-1 sm:flex-none"
                             >
                               {t("ai_api_key_btn")} (Gemini / OpenAI)
                             </button>
@@ -4366,7 +4323,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                                   alert("Chaves salvas e configuradas para o auto-fallback!");
                                   setShowApiKeyInput(false);
                                 }}
-                                className="font-black text-[10px] uppercase bg-emerald-600 text-white px-3 py-2 rounded-xl hover:bg-emerald-500 transition-all"
+                                className="font-black text-[9px] uppercase bg-emerald-600 text-white px-3 py-2 rounded-xl hover:bg-emerald-500 transition-all"
                               >
                                 {t("save")}
                               </button>
@@ -4399,7 +4356,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                           />
                         </div>
                       ) : (
-                        <div className="flex items-center gap-2 flex-1 w-full sm:w-auto px-4 text-[10px] text-zinc-400 font-bold uppercase tracking-widest">
+                        <div className="flex items-center gap-2 flex-1 w-full sm:w-auto px-4 text-[9px] text-zinc-400 font-bold uppercase tracking-widest">
                           Assistente Desativado
                         </div>
                       )}
@@ -4415,7 +4372,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                   </div>
 
                   <div
-                    className="flex-1 overflow-y-auto pr-4 custom-scrollbar mb-6 space-y-4"
+                    className="flex-1 overflow-y-auto pr-4 custom-scrollbar mb-4 space-y-4"
                     ref={scrollRef}
                     onScroll={handleScroll}
                   >
@@ -4447,7 +4404,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                     ))}
                     {aiLoading && (
                       <div className="flex justify-start">
-                        <div className="bg-black/40 border-2 border-emerald-900 text-emerald-500 p-4 rounded-2xl rounded-tl-none animate-pulse italic font-black text-xs uppercase tracking-widest">
+                        <div className="bg-black/40 border border-emerald-900/50 text-emerald-500 p-4 rounded-2xl rounded-tl-none animate-pulse italic font-black text-xs uppercase tracking-widest">
                           Creeper está pensando... ( ੭•͈ω•͈)੭
                         </div>
                       </div>
@@ -4456,7 +4413,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
 
                   <form onSubmit={handleAskAI} className="relative">
                     <input
-                      className="w-full bg-black/60 border-2 border-emerald-900 rounded-2xl px-6 py-5 text-emerald-50 font-medium outline-none focus:border-emerald-500 transition-all shadow-inner pr-16 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full bg-black/60 border border-emerald-900/50 rounded-2xl px-6 py-5 text-emerald-50 font-medium outline-none focus:border-emerald-500 transition-all shadow-inner pr-16 disabled:opacity-50 disabled:cursor-not-allowed"
                       placeholder={aiProvider === "off" ? "Assistente desativado." : "Pergunte qualquer coisa sobre seu servidor..."}
                       value={aiInput}
                       onChange={(e) => setAiInput(e.target.value)}
@@ -4465,7 +4422,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                     <button
                       type="submit"
                       disabled={!aiInput.trim() || aiLoading || aiProvider === "off"}
-                      className="absolute right-3 top-3 w-12 h-12 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-lg border-b-4 border-emerald-800 transition-all flex items-center justify-center disabled:opacity-50 disabled:grayscale"
+                      className="absolute right-3 top-3 w-8 h-8 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-lg border-b-4 border-emerald-800 transition-all flex items-center justify-center disabled:opacity-50 disabled:grayscale"
                     >
                       <Send size={24} />
                     </button>
@@ -4478,30 +4435,30 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
-                  className="bg-[#0b251a]/80 backdrop-blur-md rounded-3xl border-2 border-emerald-900 shadow-sm p-4 lg:p-8 min-h-[600px] lg:h-[75vh] flex flex-col relative overflow-hidden group"
+                  className="bg-black/40 backdrop-blur-md backdrop-blur-md rounded-3xl border border-emerald-900/50 shadow-sm p-4 lg:p-6 min-h-[600px] lg:h-[75vh] flex flex-col relative overflow-hidden group"
                 >
                   <div className="absolute -top-10 -right-10 text-emerald-950 transition-colors pointer-events-none opacity-20">
                     <Flower2 size={240} />
                   </div>
 
-                  <div className="flex items-center justify-between mb-8 relative z-10 flex-wrap gap-4">
+                  <div className="flex items-center justify-between mb-4 relative z-10 flex-wrap gap-4">
                     <div className="flex items-center gap-4">
                       <div className="p-4 bg-emerald-900/50 rounded-2xl text-emerald-400 flex-shrink-0">
                         <Terminal size={32} />
                       </div>
                       <div>
-                        <h2 className="text-3xl font-black text-white tracking-tighter italic uppercase break-all">
+                        <h2 className="text-base font-black text-white tracking-tighter italic uppercase break-all">
                           Terminal
                         </h2>
                         <div className="flex items-center flex-wrap gap-2 mt-1">
-                          <p className="text-emerald-500 text-[10px] font-black uppercase tracking-[0.2em] whitespace-nowrap">
+                          <p className="text-emerald-500 text-[9px] font-black uppercase tracking-[0.2em] whitespace-nowrap">
                             {currentServerId ? `Conectado: ${servers.find(s => s.id === currentServerId)?.name}` : 'Nenhum servidor selecionado'}
                           </p>
                           {currentServerId && (
                              <button
                                onClick={() => handleAction(serverState.status === "online" ? "stop" : "start")}
                                disabled={serverState.status !== "online" && serverState.status !== "offline"}
-                               className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest text-white shadow-lg transition-transform active:scale-95 flex items-center gap-1.5 border-b-2 disabled:opacity-50 disabled:grayscale ${
+                               className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest text-white shadow-lg transition-transform active:scale-95 flex items-center gap-1.5 border-b-2 disabled:opacity-50 disabled:grayscale ${
                                    serverState.status === "online" ? "bg-red-600 hover:bg-red-500 border-red-800" :
                                    serverState.status === "offline" ? "bg-emerald-600 hover:bg-emerald-500 border-emerald-800" :
                                    "bg-amber-500 hover:bg-amber-400 border-amber-700"
@@ -4518,7 +4475,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                     </div>
                     <div className="flex flex-col gap-2 w-full lg:w-auto">
                        <div className="flex items-center gap-2 overflow-x-auto pb-2 custom-scrollbar">
-                         <span className="text-[10px] font-black uppercase text-emerald-500 tracking-widest mr-2">Multi-Terminais:</span>
+                         <span className="text-[9px] font-black uppercase text-emerald-500 tracking-widest mr-2">Multi-Terminais:</span>
                          {servers.filter(s => s.status === "online").map(srv => {
                            if (srv.id === currentServerId) return null;
                            const active = multiTerminals.includes(srv.id);
@@ -4526,7 +4483,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                              <button
                                key={srv.id}
                                onClick={() => setMultiTerminals(prev => active ? prev.filter(k => k !== srv.id) : [...prev, srv.id])}
-                               className={`px-3 py-1 text-[10px] font-black uppercase rounded-lg border flex items-center gap-1 transition-all ${active ? "bg-emerald-600 border-emerald-500 text-white" : "bg-emerald-900/20 border-emerald-900 text-emerald-700"}`}
+                               className={`px-3 py-1 text-[9px] font-black uppercase rounded-lg border flex items-center gap-1 transition-all ${active ? "bg-emerald-600 border-emerald-500 text-white" : "bg-emerald-900/20 border-emerald-900 text-emerald-700"}`}
                              >
                                 <Terminal size={10} /> {srv.name}
                              </button>
@@ -4541,7 +4498,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                                const res = await fetch("/api/bot/spawn", {
                                  method: "POST",
                                  headers: { "Content-Type": "application/json" },
-                                 body: JSON.stringify({ serverId: currentServerId, botName: "AjudanteIA" })
+                                 body: JSON.stringify({ serverId: currentServerId, botName: "AjudanteIA", apiKey: aiProvider === "remote" && aiKeysList ? aiKeysList.split(",")[0].trim() : "" })
                                });
                                if (res.ok) alert("Ajudante IA ativado e entrando no servidor! Verifique o console.");
                              }}
@@ -4562,7 +4519,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
 
                   <div className={`flex ${multiTerminals.length > 0 ? "flex-col lg:flex-row gap-4 h-full" : "flex-1 flex-col"} overflow-hidden mt-4`}>
                     <div className="flex-1 flex flex-col relative bg-black/80 rounded-2xl border border-emerald-900/50 shadow-inner tech-grid overflow-hidden">
-                      <div className="bg-emerald-900/30 text-[10px] font-black uppercase tracking-widest text-emerald-500 py-1 px-3 border-b border-emerald-900/50">{servers.find(s => s.id === currentServerId)?.name || 'Principal'}</div>
+                      <div className="bg-emerald-900/30 text-[9px] font-black uppercase tracking-widest text-emerald-500 py-1 px-3 border-b border-emerald-900/50">{servers.find(s => s.id === currentServerId)?.name || 'Principal'}</div>
                       <div
                         ref={scrollRef}
                         onScroll={handleScroll}
@@ -4623,13 +4580,13 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                           const sname = servers.find(s => s.id === mId)?.name || mId;
                           return (
                             <div key={mId} className="h-64 lg:h-full lg:flex-1 shrink-0 flex flex-col relative bg-black/80 rounded-2xl border border-emerald-900/50 shadow-inner tech-grid overflow-hidden">
-                              <div className="bg-emerald-900/30 text-[10px] font-black uppercase tracking-widest text-emerald-500 py-1 px-3 border-b border-emerald-900/50 flex justify-between items-center">
+                              <div className="bg-emerald-900/30 text-[9px] font-black uppercase tracking-widest text-emerald-500 py-1 px-3 border-b border-emerald-900/50 flex justify-between items-center">
                                 <span>{sname}</span>
                                 <button onClick={() => setMultiTerminals(prev => prev.filter(k => k !== mId))} className="hover:text-emerald-300">
                                   <Trash2 size={10} />
                                 </button>
                               </div>
-                              <div className="flex-1 overflow-y-auto custom-scrollbar font-mono text-[10px] p-4">
+                              <div className="flex-1 overflow-y-auto custom-scrollbar font-mono text-[9px] p-4">
                                 {state.logs.map((log, i) => (
                                   <div key={i} className="flex gap-2 group hover:bg-emerald-500/5">
                                     <p className={`leading-relaxed break-all ${log.includes("[ERROR]") ? "text-red-400 font-bold" : log.includes("[SUCCESS]") ? "text-emerald-400" : log.includes("[WARN]") ? "text-amber-500" : "text-emerald-500/60"}`}>
@@ -4655,7 +4612,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                                 <span className="text-emerald-700 font-black text-xs">❯</span>
                                 <input
                                   name="cmd"
-                                  className="flex-1 bg-transparent border-none outline-none text-emerald-100 placeholder:text-emerald-900/50 font-black text-[10px]"
+                                  className="flex-1 bg-transparent border-none outline-none text-emerald-100 placeholder:text-emerald-900/50 font-black text-[9px]"
                                   placeholder="Comando..."
                                 />
                               </form>
@@ -4672,7 +4629,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="bg-[#0b251a]/80 backdrop-blur-md rounded-3xl border-2 border-emerald-900 shadow-sm p-4 lg:p-10 min-h-[600px] lg:min-h-0 h-full flex flex-col relative overflow-hidden"
+                  className="bg-black/40 backdrop-blur-md backdrop-blur-md rounded-3xl border border-emerald-900/50 shadow-sm p-4 lg:p-6 min-h-[600px] lg:min-h-0 h-full flex flex-col relative overflow-hidden"
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={handleDrop}
                   onPaste={handlePaste}
@@ -4726,7 +4683,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                         </div>
                       </div>
                       <textarea
-                        className="flex-1 w-full bg-black/60 border-2 border-emerald-900 rounded-3xl p-8 font-mono text-sm text-emerald-50 outline-none focus:border-emerald-500 transition-all resize-none shadow-inner"
+                        className="flex-1 w-full bg-black/60 border border-emerald-900/50 rounded-3xl p-6 font-mono text-sm text-emerald-50 outline-none focus:border-emerald-500 transition-all resize-none shadow-inner"
                         value={editingFile.content}
                         onChange={(e) =>
                           setEditingFile({
@@ -4738,16 +4695,16 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                     </div>
                   ) : (
                     <div className="flex flex-col h-full">
-                      <div className="flex items-center justify-between mb-8">
+                      <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-4">
-                          <div className="p-4 bg-emerald-900/50 rounded-2xl border-2 border-emerald-500/30 text-emerald-400">
+                          <div className="p-4 bg-emerald-900/50 rounded-2xl border border-emerald-500/30 text-emerald-400">
                             <Database size={32} />
                           </div>
                           <div>
-                            <h2 className="text-3xl font-black text-white tracking-tighter italic uppercase">
+                            <h2 className="text-base font-black text-white tracking-tighter italic uppercase">
                               Arquivos
                             </h2>
-                            <div className="flex items-center gap-2 text-emerald-500 text-[10px] font-black uppercase tracking-widest mt-1">
+                            <div className="flex items-center gap-2 text-emerald-500 text-[9px] font-black uppercase tracking-widest mt-1">
                               {currentFolder && (
                                 <button
                                   onClick={() =>
@@ -4858,11 +4815,11 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                                  <div key={`local-${idx}`} className="p-3 bg-black/40 rounded-xl border border-amber-900/30 flex justify-between items-center group">
                                      <div className="flex flex-col">
                                         <span className="text-amber-300 font-mono text-xs">{bak.name}</span>
-                                        <span className="text-zinc-500 font-bold text-[10px]">Total/Local • {(bak.size / 1024 / 1024).toFixed(2)} MB</span>
+                                        <span className="text-zinc-500 font-bold text-[9px]">Total/Local • {(bak.size / 1024 / 1024).toFixed(2)} MB</span>
                                      </div>
                                      <a
                                        href={`/api/server/backup/download?serverId=${currentServerId}&file=${bak.name}`}
-                                       className="px-4 py-2 bg-amber-600/20 hover:bg-amber-600/40 text-amber-500 hover:text-amber-400 font-black text-[10px] rounded-lg tracking-widest uppercase transition-colors"
+                                       className="px-4 py-2 bg-amber-600/20 hover:bg-amber-600/40 text-amber-500 hover:text-amber-400 font-black text-[9px] rounded-lg tracking-widest uppercase transition-colors"
                                      >
                                         Fazer Download
                                      </a>
@@ -4872,11 +4829,11 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                                  <div key={`cloud-${idx}`} className="p-3 bg-black/40 rounded-xl border border-blue-900/40 flex justify-between items-center group">
                                      <div className="flex flex-col">
                                         <span className="text-blue-300 font-mono text-xs">{bak.name}</span>
-                                        <span className="text-zinc-500 font-bold text-[10px]">Cloud (Mapa/Plugins) • {(bak.size / 1024 / 1024).toFixed(2)} MB</span>
+                                        <span className="text-zinc-500 font-bold text-[9px]">Cloud (Mapa/Plugins) • {(bak.size / 1024 / 1024).toFixed(2)} MB</span>
                                      </div>
                                      <a
                                        href={`/api/server/cloud-backup/download?serverId=${currentServerId}&file=${bak.name}`}
-                                       className="px-4 py-2 bg-blue-600/20 hover:bg-blue-600/40 text-blue-500 hover:text-blue-400 font-black text-[10px] rounded-lg tracking-widest uppercase transition-colors"
+                                       className="px-4 py-2 bg-blue-600/20 hover:bg-blue-600/40 text-blue-500 hover:text-blue-400 font-black text-[9px] rounded-lg tracking-widest uppercase transition-colors"
                                      >
                                         Fazer Download (Nuvem)
                                      </a>
@@ -4899,9 +4856,9 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                             exit={{ height: 0, opacity: 0, marginBottom: 0 }}
                             className="overflow-hidden"
                           >
-                            <div className="p-6 bg-emerald-900/20 border-2 border-emerald-500 rounded-3xl flex gap-4">
+                            <div className="p-6 bg-emerald-900/20 border border-emerald-500 rounded-3xl flex gap-4">
                               <input
-                                className="flex-1 bg-black/40 border-2 border-emerald-900 rounded-xl px-4 py-3 text-sm text-emerald-50 font-black outline-none focus:border-emerald-500 transition-all font-mono"
+                                className="flex-1 bg-black/40 border border-emerald-900/50 rounded-xl px-4 py-3 text-sm text-emerald-50 font-black outline-none focus:border-emerald-500 transition-all font-mono"
                                 placeholder="Cole aqui o link direto do arquivo (.jar, .zip, etc)"
                                 value={downloadUrl}
                                 onChange={(e) => setDownloadUrl(e.target.value)}
@@ -4969,7 +4926,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                             .map((item, i) => (
                               <div
                                 key={i}
-                                className="group flex items-center justify-between p-4 bg-emerald-950/30 hover:bg-emerald-900/50 rounded-2xl transition-all border-2 border-emerald-900 hover:border-emerald-500 cursor-pointer"
+                                className="group flex items-center justify-between p-4 bg-emerald-950/30 hover:bg-emerald-900/50 rounded-2xl transition-all border border-emerald-900/50 hover:border-emerald-500 cursor-pointer"
                                 onClick={() =>
                                   item.isDirectory
                                     ? setCurrentFolder(
@@ -4999,7 +4956,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                                       {item.name}
                                     </p>
                                     {!item.isDirectory && (
-                                      <p className="text-[10px] text-emerald-700 font-black uppercase">
+                                      <p className="text-[9px] text-emerald-700 font-black uppercase">
                                         {(item.size / 1024).toFixed(1)} KB
                                       </p>
                                     )}
@@ -5072,7 +5029,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
 
         {/* Footer Credits */}
         <footer className="mt-8 py-4 text-center">
-          <div className="inline-flex items-center gap-3 bg-black/40 backdrop-blur px-6 py-3 rounded-full border-2 border-emerald-900 shadow-sm text-emerald-800 font-black text-xs uppercase tracking-widest">
+          <div className="inline-flex items-center gap-3 bg-black/40 backdrop-blur px-6 py-3 rounded-full border border-emerald-900/50 shadow-sm text-emerald-800 font-black text-xs uppercase tracking-widest">
             {t("vps_hosting")}{" "}
             <span className="text-emerald-500">LINUX POWER</span>{" "}
             <Sparkles
@@ -5112,11 +5069,11 @@ function CircularBtn({
       <button
         onClick={onClick}
         disabled={disabled}
-        className={`w-16 h-16 rounded-[1.5rem] flex items-center justify-center transition-all active:scale-95 shadow-xl border-b-8 disabled:opacity-10 disabled:grayscale disabled:scale-100 disabled:border-b-0 ${styles}`}
+        className={`w-10 h-10 rounded-[1.5rem] flex items-center justify-center transition-all active:scale-95 shadow-xl border-b-8 disabled:opacity-10 disabled:grayscale disabled:scale-100 disabled:border-b-0 ${styles}`}
       >
         {icon}
       </button>
-      <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 bg-black text-emerald-400 text-[10px] font-black px-3 py-1 rounded-lg opacity-0 group-hover/btn:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-xl border border-emerald-900/50">
+      <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 bg-black text-emerald-400 text-[9px] font-black px-3 py-1 rounded-lg opacity-0 group-hover/btn:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-xl border border-emerald-900/50">
         {tooltip}
       </div>
     </div>
@@ -5171,14 +5128,14 @@ function MiniStat({
   return (
     <motion.div
       whileHover={{ scale: 1.02 }}
-      className="bg-[#0b251a]/80 border-2 border-emerald-900 rounded-3xl p-5 flex flex-col gap-3 hover:border-emerald-500/50 transition-all shadow-lg group cursor-default h-full"
+      className="bg-black/40 backdrop-blur-md border border-emerald-900/50 rounded-3xl p-5 flex flex-col gap-3 hover:border-emerald-500/50 transition-all shadow-lg group cursor-default h-full"
     >
       <div className="flex items-center gap-5">
         <div className="w-14 h-14 bg-emerald-950 rounded-2xl flex items-center justify-center group-hover:bg-emerald-900 transition-colors border border-emerald-900/50">
           {icon}
         </div>
         <div>
-          <div className="text-[10px] font-black text-emerald-700 uppercase tracking-[0.2em]">
+          <div className="text-[9px] font-black text-emerald-700 uppercase tracking-[0.2em]">
             {label}
           </div>
           <div className="font-black text-emerald-50 text-xl tracking-tighter">

@@ -592,27 +592,10 @@ async function startServer() {
   });
 
   // --- Mineflayer Bot API ---
-  const activeBots: any = {};
   app.post("/api/bot/spawn", async (req, res) => {
-    const { serverId, botName } = req.body;
+    const { serverId, botName, apiKey } = req.body;
     try {
-      let mineflayer: any, pathfinder: any, Movements: any;
-      try {
-         mineflayer = await import("mineflayer");
-         const pf = await import("mineflayer-pathfinder");
-         pathfinder = pf.pathfinder;
-         Movements = pf.Movements;
-      } catch (err) {
-         return res.json({ error: "Módulos do bot não instalados. Use: npm install mineflayer mineflayer-pathfinder" });
-      }
-
-      if (activeBots[serverId]) {
-        activeBots[serverId].quit("I am restarting...");
-        delete activeBots[serverId];
-      }
-
-      // Check port
-      const config = getSrvConfig(serverId);
+      ensureState(serverId);
       let p = 25565;
       const propsPath = path.join(getServerDir(serverId), "server.properties");
       if (fs.existsSync(propsPath)) {
@@ -621,64 +604,79 @@ async function startServer() {
         if (match) p = parseInt(match[1]);
       }
 
-      const bot = mineflayer.createBot({
-        host: "localhost",
-        port: p,
-        username: botName || "AjudanteIA",
-        version: false as any
-      });
-
-      bot.loadPlugin(pathfinder);
-
-      bot.on("chat", async (username, message) => {
-        if (username === bot.username) return;
-        addLog(serverId, `[CHAT] ${username}: ${message}`);
-        
-        // Simple command handling for the bot to learn
-        if (message.toLowerCase().includes("ajudante")) {
-            addLog(serverId, `[🤖 BOT] Gerando resposta para: ${username}...`);
-            bot.chat("Estou aqui! Pensando...");
-            try {
-               const { GoogleGenAI } = await import("@google/genai");
-               const currentKey = process.env.UNIVERSAL_API_KEY || process.env.GEMINI_API_KEY || "";
-               if (!currentKey) {
-                 bot.chat("Eu não estou com o cérebro conectado no momento (API Key).");
-                 return;
-               }
-               const ai = new GoogleGenAI({ apiKey: currentKey });
-               
-               let memoryData = "{}";
-               try {
-                 const memFile = path.join(process.cwd(), "data", "ai_memory.json");
-                 if (fs.existsSync(memFile)) memoryData = fs.readFileSync(memFile, "utf-8");
-               } catch(e) {}
-
-               const result = await ai.models.generateContent({
-                  model: "gemini-2.5-flash",
-                  contents: `O jogador ${username} disse no servidor de Minecraft: "${message}". Responda a ele. Você é o assistente "AjudanteIA" do servidor PaperCreeper. Você é um robô criado por IA (mineflayer) que joga no mesmo mundo. Pode falar no chat! Seja amigável. Dicas: ${memoryData}`
-               });
-               const reply = result.text || "Algo deu errado na minha mente.";
-               // Bot.chat needs to be short lines
-               const lines = reply.split("\n").filter((l: string) => l.trim().length > 0);
-               for(const l of lines) {
-                   bot.chat(l.substring(0, 200));
-                   await new Promise(r => setTimeout(r, 1000));
-               }
-            } catch(e) {
-               bot.chat("Tive um problema ao pensar: " + e);
-            }
+      await manageBot(serverId, "start", p, botName || "AjudanteIA", apiKey, (msg: string) => {
+        addLog(serverId, msg);
+      }, (cmd: string) => {
+        const proc = serversState[serverId]?.process;
+        if (proc) {
+            proc.stdin.write(cmd + "\n");
         }
       });
-      
-      activeBots[serverId] = bot;
-      addLog(serverId, `[🤖 BOT] IA Conectada como ${bot.username} na porta ${p}!`);
-      res.json({ success: true, message: `Bot ${bot.username} inciado na porta ${p}` });
+      res.json({ success: true, message: `Bot processando spawn na porta ${p}` });
     } catch(e: any) {
       res.json({ error: e.message });
     }
   });
 
   // --- World Editor API ---
+  app.post("/api/world/spawn", async (req, res) => {
+    try {
+      const { serverId, worldName } = req.body;
+      const srvDir = getServerDir(serverId);
+      const levelDatPath = path.join(srvDir, worldName || "world", "level.dat");
+      if (!fs.existsSync(levelDatPath)) {
+        return res.json({ error: "level.dat não encontrado" });
+      }
+      const nbt = await import("prismarine-nbt");
+      const buffer = fs.readFileSync(levelDatPath);
+      const parsed = await nbt.parse(buffer);
+      const data = (parsed.parsed.value.Data as any).value;
+      const x = data.SpawnX?.value || 0;
+      const y = data.SpawnY?.value || 64;
+      const z = data.SpawnZ?.value || 0;
+      res.json({ x, y, z });
+    } catch(e: any) {
+      res.json({ error: e.message });
+    }
+  });
+
+  app.post("/api/world/list", (req, res) => {
+    const { serverId } = req.body;
+    try {
+      const srvDir = getServerDir(serverId);
+      if (!fs.existsSync(srvDir)) return res.json({ worlds: [] });
+      const dirs = fs.readdirSync(srvDir, { withFileTypes: true });
+      const worlds = [];
+      for (const d of dirs) {
+        if (d.isDirectory()) {
+          const levelDat = path.join(srvDir, d.name, "level.dat");
+          if (fs.existsSync(levelDat)) {
+            worlds.push(d.name);
+          }
+        }
+      }
+      res.json({ worlds });
+    } catch(e) {
+      res.json({ worlds: [] });
+    }
+  });
+
+  app.post("/api/server/seed", (req, res) => {
+    const { serverId } = req.body;
+    try {
+       const srvDir = getServerDir(serverId);
+       const propsPath = path.join(srvDir, "server.properties");
+       let seed = "";
+       if(fs.existsSync(propsPath)) {
+         const match = fs.readFileSync(propsPath, "utf-8").match(/level-seed=(.*)/);
+         if(match && match[1]) { seed = match[1].trim(); }
+       }
+       res.json({ seed });
+    } catch(e) {
+       res.json({ seed: "" });
+    }
+  });
+
   app.post("/api/world/load", async (req, res) => {
     const { serverId, worldName, x, y, z, size } = req.body;
     try {
@@ -718,28 +716,45 @@ async function startServer() {
            if (chunk.loadLight) chunk.loadLight(chunkData.light);
            if (chunk.load) chunk.load(chunkData.chunk, chunkData.bitmaps);
            
-           for (let dx = 0; dx < loadSize; dx++) {
-             for (let dy = 0; dy < loadSize; dy++) {
-               for (let dz = 0; dz < loadSize; dz++) {
-                 // Calculate local block coordinate inside this 16x16 chunk area
-                 // Using modulo to ensure it stays within 0-15
-                 const localX = (startX + dx) % 16;
-                 const localZ = (startZ + dz) % 16;
-                 
-                 const bx = (localX < 0 ? localX + 16 : localX);
-                 const by = startY + dy;
-                 const bz = (localZ < 0 ? localZ + 16 : localZ);
-                 
-                 const b = chunk.getBlockStateId({ x: bx, y: by, z: bz } as any);
-                 if (b > 0) { // Air is 0
-                   blocks.push({ pos: [dx, dy, dz], color: 'stone', stateId: b });
-                 }
-               }
-             }
-           }
+           for (let dx = 0; dx < 16; dx++) { // loop full 16x16 chunk horizontally
+              // Load bigger vertical segment centered around startY
+              const loadHeight = 128;
+              const searchStartY = Math.max(0, startY - 64);
+              for (let dy = 0; dy < loadHeight; dy++) {
+                for (let dz = 0; dz < 16; dz++) {
+                  const by = searchStartY + dy;
+                  if (by < 0 || by > 319) continue;
+                  
+                  const b = chunk.getBlockStateId({ x: dx, y: by, z: dz } as any);
+                  if (b > 0) { // Not Air
+                     // Visible culling optimization
+                     let isVisible = false;
+                     if (by < 319 && chunk.getBlockStateId({ x: dx, y: by + 1, z: dz } as any) === 0) isVisible = true;
+                     else if (by > 0 && chunk.getBlockStateId({ x: dx, y: by - 1, z: dz } as any) === 0) isVisible = true;
+                     else if (dx > 0 && chunk.getBlockStateId({ x: dx - 1, y: by, z: dz } as any) === 0) isVisible = true;
+                     else if (dx < 15 && chunk.getBlockStateId({ x: dx + 1, y: by, z: dz } as any) === 0) isVisible = true;
+                     else if (dz > 0 && chunk.getBlockStateId({ x: dx, y: by, z: dz - 1 } as any) === 0) isVisible = true;
+                     else if (dz < 15 && chunk.getBlockStateId({ x: dx, y: by, z: dz + 1 } as any) === 0) isVisible = true;
+                     else if (dx === 0 || dx === 15 || dz === 0 || dz === 15) isVisible = true;
+                     
+                     if (isVisible) {
+                        // Color mapping roughly
+                        let color = 'stone';
+                        if (b === 2 || b === 9 || b === 10) color = 'grass';
+                        else if (b === 3 || b === 11 || b === 12) color = 'dirt';
+                        else if (b === 17 || b === 18) color = 'wood'; // Simplification
+                        blocks.push({ pos: [dx, by, dz], color, stateId: b });
+                     }
+                  }
+                }
+              }
+            }
         }
       } catch (e: any) {
         console.error("Chunk load error", e);
+        if (e && e.code === 'ENOENT') {
+           return res.json({ error: `Nenhum bloco encontrado na coordenada (${startX}, ${startZ}). O Minecraft cria os arquivos apenas quando o jogador passa ou constrói na área.` });
+        }
       }
 
       res.json({ blocks, origin: [startX, startY, startZ] });
@@ -1616,6 +1631,22 @@ command /creeper-ai <text>:
         args.push("-jar", jarPath, "nogui");
       }
 
+      // Pre-startup: Check port from server.properties to prevent "Address already in use"
+      try {
+        let targetPort = 25565;
+        const propsPath = path.join(srvDir, "server.properties");
+        if (fs.existsSync(propsPath)) {
+           const props = fs.readFileSync(propsPath, "utf-8");
+           const match = props.match(/server-port=(\d+)/);
+           if (match) targetPort = parseInt(match[1]);
+        }
+        // Force-kill any lingering process using this port (like a crashed node child)
+        execSync(`fuser -k -9 ${targetPort}/tcp 2>/dev/null`);
+        addLog(serverId, `[SISTEMA] Porta ${targetPort} verificada e liberada.`);
+      } catch (e) {
+        // Ignorar se não existir fuser ou ninguem usando
+      }
+
       console.log(`[SPAWN] Executing: ${command} ${args.join(" ")}`);
       console.log(`[SPAWN] Working Directory: ${srvDir}`);
 
@@ -1746,10 +1777,10 @@ command /creeper-ai <text>:
   });
 
   app.post("/api/bot/control", async (req, res) => {
-    const { serverId, action, port } = req.body;
+    const { serverId, action, port, apiKey } = req.body;
     ensureState(serverId);
     const resolvedPort = port || 25565;
-    await manageBot(serverId, action, resolvedPort, "Ajudante_IA", (msg: string) => {
+    await manageBot(serverId, action, resolvedPort, "Ajudante_IA", apiKey, (msg: string) => {
         addLog(serverId, msg);
     }, (cmd: string) => {
        const proc = serversState[serverId]?.process;

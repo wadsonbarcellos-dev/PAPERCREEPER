@@ -15,7 +15,7 @@ export default function Home({ appConfig, t }: { appConfig: any, t: any }) {
   return (
     <div className="space-y-20 pb-16">
       {/* Hero Section */}
-      <section className="relative overflow-hidden rounded-[2.5rem] bg-indigo-900 text-white shadow-2xl shadow-indigo-900/20">
+      <section className="relative overflow-hidden rounded-3xl bg-indigo-900 text-white shadow-2xl shadow-indigo-900/20">
         {/* Abstract Background elements */}
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute -top-[20%] -right-[10%] w-[70%] h-[70%] rounded-full bg-indigo-500/30 blur-3xl" />

@@ -120,7 +120,7 @@ export default function Store({ config, t }: { config: any, t: any }) {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             key={item.id} 
-            className="bg-white rounded-[2rem] overflow-hidden border border-slate-100 shadow-sm hover:shadow-xl transition-all duration-300 group flex flex-col"
+            className="bg-white rounded-3xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-xl transition-all duration-300 group flex flex-col"
           >
             {/* Image */}
             <div className="h-48 overflow-hidden relative">

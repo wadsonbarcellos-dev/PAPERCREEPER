@@ -93,7 +93,7 @@ export default function Profile({ appConfig, t }: { appConfig: any, t: any }) {
     <div className="grid lg:grid-cols-3 gap-8">
       {/* Sidebar Info */}
       <div className="lg:col-span-1 space-y-6">
-        <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm text-center relative overflow-hidden">
+        <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm text-center relative overflow-hidden">
           <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
              <User size={150} />
           </div>
@@ -135,7 +135,7 @@ export default function Profile({ appConfig, t }: { appConfig: any, t: any }) {
 
       {/* Main Content */}
       <div className="lg:col-span-2 space-y-8">
-        <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm">
+        <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
           <h3 className="text-2xl font-black text-slate-800 mb-6 flex items-center gap-3">
             <Package className="w-6 h-6 text-indigo-500" /> 
             {t.profile.inventory_normal}
@@ -167,7 +167,7 @@ export default function Profile({ appConfig, t }: { appConfig: any, t: any }) {
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-indigo-900 to-purple-900 p-8 rounded-[2rem] text-white shadow-xl flex items-center justify-between">
+        <div className="bg-gradient-to-br from-indigo-900 to-purple-900 p-8 rounded-3xl text-white shadow-xl flex items-center justify-between">
           <div>
             <h4 className="text-xl font-bold mb-2">{t.profile.need_coins}</h4>
             <p className="text-indigo-200 max-w-sm">{t.profile.need_coins_desc}</p>
