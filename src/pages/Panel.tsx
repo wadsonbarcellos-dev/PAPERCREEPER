@@ -369,7 +369,7 @@ interface ServerState {
   };
 }
 
-const CreeperPaper = ({ className = "" }: { className?: string }) => (
+const CreeperPaper = ({ className = "", isPig = false }: { className?: string, isPig?: boolean }) => (
   <motion.div
     animate={{
       y: [0, -10, 0],
@@ -379,16 +379,34 @@ const CreeperPaper = ({ className = "" }: { className?: string }) => (
     transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
     className={`absolute pointer-events-none select-none opacity-30 -z-10 ${className}`}
   >
-    <div className="w-10 h-10 bg-emerald-500 rounded-sm relative shadow-[4px_4px_0_0_#064e3b]">
-      {/* Face */}
-      <div className="absolute top-4 left-3 w-3 h-3 bg-black" />
-      <div className="absolute top-4 right-3 w-3 h-3 bg-black" />
-      <div className="absolute top-6 left-6 w-4 h-6 bg-black" />
-      <div className="absolute top-10 left-4 w-2 h-4 bg-black" />
-      <div className="absolute top-10 right-4 w-2 h-4 bg-black" />
-      {/* Paper Fold Texture */}
-      <div className="absolute inset-0 border-t border-l border-emerald-400/30" />
-    </div>
+    {isPig ? (
+      <div className="w-10 h-10 bg-pink-400 rounded-sm relative shadow-[4px_4px_0_0_#9d174d]">
+        {/* Pig Eye Left */}
+        <div className="absolute top-4 left-2 w-2 h-2 bg-black" />
+        <div className="absolute top-4 left-2 w-1 h-1 bg-white" />
+        {/* Pig Eye Right */}
+        <div className="absolute top-4 right-2 w-2 h-2 bg-black" />
+        <div className="absolute top-4 right-3 w-1 h-1 bg-white" />
+        {/* Pig Snout */}
+        <div className="absolute top-6 left-3 w-4 h-3 bg-pink-300 rounded-[1px] shadow-sm border border-pink-500/50">
+          <div className="absolute top-1 left-[2px] w-1 h-1.5 bg-black/60 rounded-[1px]" />
+          <div className="absolute top-1 right-[2px] w-1 h-1.5 bg-black/60 rounded-[1px]" />
+        </div>
+        {/* Paper Fold Texture */}
+        <div className="absolute inset-0 border-t border-l border-pink-300/50" />
+      </div>
+    ) : (
+      <div className="w-10 h-10 bg-emerald-500 rounded-sm relative shadow-[4px_4px_0_0_#064e3b]">
+        {/* Face */}
+        <div className="absolute top-4 left-3 w-3 h-3 bg-black" />
+        <div className="absolute top-4 right-3 w-3 h-3 bg-black" />
+        <div className="absolute top-6 left-6 w-4 h-6 bg-black" />
+        <div className="absolute top-10 left-4 w-2 h-4 bg-black" />
+        <div className="absolute top-10 right-4 w-2 h-4 bg-black" />
+        {/* Paper Fold Texture */}
+        <div className="absolute inset-0 border-t border-l border-emerald-400/30" />
+      </div>
+    )}
   </motion.div>
 );
 
@@ -487,6 +505,7 @@ export default function App({
   const [storeSearch, setStoreSearch] = useState("");
   const [showBlueMap, setShowBlueMap] = useState(false);
   const [showEditor3D, setShowEditor3D] = useState(false);
+  const [editorWorld, setEditorWorld] = useState("");
   const [storeResults, setStoreResults] = useState<any[]>([]);
   const [isSearchingStore, setIsSearchingStore] = useState(false);
   const [storeFolder, setStoreFolder] = useState<"plugins" | "mods">("plugins");
@@ -593,6 +612,16 @@ export default function App({
   useEffect(() => {
     localStorage.setItem("ppc_modules", JSON.stringify(modules));
   }, [modules]);
+
+  const isPaperPig = !modules.ai && !modules.map && !modules.store && !modules.server_hibernation && !modules.ai_internet && !modules.ai_memory && !modules.ai_bot;
+
+  useEffect(() => {
+    if (isPaperPig) {
+      document.body.classList.add("paper-pig");
+    } else {
+      document.body.classList.remove("paper-pig");
+    }
+  }, [isPaperPig]);
 
   const [plugins, setPlugins] = useState<
     { name: string; version: string; filename: string }[]
@@ -3038,9 +3067,9 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
         </div>
 
         {/* Creepers de Papel Enfeite */}
-        <CreeperPaper className="top-40 left-10 rotate-[-15deg] blur-[1px]" />
-        <CreeperPaper className="bottom-40 left-20 rotate-[15deg] scale-75 blur-[2px]" />
-        <CreeperPaper className="top-1/4 right-2 rotate-[45deg] scale-50 opacity-10" />
+        <CreeperPaper isPig={isPaperPig} className="top-40 left-10 rotate-[-15deg] blur-[1px]" />
+        <CreeperPaper isPig={isPaperPig} className="bottom-40 left-20 rotate-[15deg] scale-75 blur-[2px]" />
+        <CreeperPaper isPig={isPaperPig} className="top-1/4 right-2 rotate-[45deg] scale-50 opacity-10" />
 
         {/* Header Section */}
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10 relative">
@@ -3069,9 +3098,9 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
 
             <div>
               <h1 className="text-5xl font-black tracking-tighter flex items-center gap-2 italic">
-                PAPER<span className="text-emerald-500">CREEPER</span>{" "}
+                PAPER<span className={isPaperPig ? "text-pink-500" : "text-emerald-500"}>{isPaperPig ? "PIG" : "CREEPER"}</span>{" "}
                 <Sparkles
-                  className="text-emerald-500 animate-pulse"
+                  className={`${isPaperPig ? "text-pink-500" : "text-emerald-500"} animate-pulse`}
                   size={32}
                 />
               </h1>
@@ -3739,7 +3768,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
 
                     {showEditor3D && (
                       <div className="w-full mt-4 min-h-[600px] flex flex-col">
-                         <MapEditor3D serverId={currentServerId} />
+                         <MapEditor3D serverId={currentServerId} initialWorldName={editorWorld} />
                       </div>
                     )}
 
@@ -4036,93 +4065,100 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 z-10 w-full max-w-2xl mx-auto">
-                    <section className="space-y-1.5 flex flex-col">
-                      <h4 className="text-[8px] font-black text-emerald-600/80 uppercase tracking-widest flex items-center gap-1.5">
-                        <Languages size={10} /> {t("select_lang")}
-                      </h4>
-                      <div className="flex gap-1.5 h-6">
-                        <button
-                          onClick={() => setLanguage("en")}
-                          className={`flex-1 rounded font-black text-[8px] transition-all border ${language === "en" ? "bg-emerald-600 border-emerald-400 text-white" : "bg-black/10 border-emerald-950/20 text-emerald-900/50 hover:border-emerald-500"}`}
-                        >
-                          EN
-                        </button>
-                        <button
-                          onClick={() => setLanguage("pt")}
-                          className={`flex-1 rounded font-black text-[8px] transition-all border ${language === "pt" ? "bg-emerald-600 border-emerald-400 text-white" : "bg-black/10 border-emerald-950/20 text-emerald-900/50 hover:border-emerald-500"}`}
-                        >
-                          PT-BR
-                        </button>
-                      </div>
-                    </section>
+                  <div className="flex flex-col gap-6 z-10 w-full max-w-2xl mx-auto h-full overflow-y-auto pr-2 custom-scrollbar">
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <section className="space-y-3 flex flex-col bg-black/10 p-5 rounded-2xl border border-white/5 shadow-inner">
+                        <h4 className="text-xs font-black text-emerald-600/80 uppercase tracking-widest flex items-center gap-2">
+                          <Languages size={14} /> {t("select_lang")}
+                        </h4>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setLanguage("en")}
+                            className={`flex-1 rounded-xl font-bold text-xs py-2 transition-all border-b-2 active:scale-95 ${language === "en" ? "bg-emerald-600 border-emerald-800 text-white shadow-md shadow-emerald-900/20" : "bg-black/20 border-black/40 text-emerald-900/50 hover:bg-black/30"}`}
+                          >
+                            EN
+                          </button>
+                          <button
+                            onClick={() => setLanguage("pt")}
+                            className={`flex-1 rounded-xl font-bold text-xs py-2 transition-all border-b-2 active:scale-95 ${language === "pt" ? "bg-emerald-600 border-emerald-800 text-white shadow-md shadow-emerald-900/20" : "bg-black/20 border-black/40 text-emerald-900/50 hover:bg-black/30"}`}
+                          >
+                            PT-BR
+                          </button>
+                        </div>
+                      </section>
 
-                    <section className="space-y-1.5 flex flex-col">
-                      <h4 className="text-[8px] font-black text-emerald-600/80 uppercase tracking-widest flex items-center gap-1.5">
-                        <Palette size={10} /> {t("select_theme")}
-                      </h4>
-                      <div className="flex gap-1.5 h-6">
-                        <button
-                          onClick={() => setTheme("dark")}
-                          className={`flex-1 rounded font-black text-[8px] transition-all border flex items-center justify-center gap-1.5 ${theme === "dark" ? "bg-emerald-600 border-emerald-400 text-white" : "bg-black/10 border-emerald-950/20 text-emerald-900/50 hover:border-emerald-500"}`}
-                        >
-                          <Moon size={8} /> Escuro
-                        </button>
-                        <button
-                          onClick={() => setTheme("light")}
-                          className={`flex-1 rounded font-black text-[8px] transition-all border flex items-center justify-center gap-1.5 ${theme === "light" ? "bg-emerald-600 border-emerald-400 text-white" : "bg-black/10 border-emerald-950/20 text-emerald-900/50 hover:border-emerald-500"}`}
-                        >
-                          <Sun size={8} /> Claro
-                        </button>
-                      </div>
-                    </section>
+                      <section className="space-y-3 flex flex-col bg-black/10 p-5 rounded-2xl border border-white/5 shadow-inner">
+                        <h4 className="text-xs font-black text-emerald-600/80 uppercase tracking-widest flex items-center gap-2">
+                          <Palette size={14} /> {t("select_theme")}
+                        </h4>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setTheme("dark")}
+                            className={`flex-1 rounded-xl font-bold text-xs py-2 transition-all border-b-2 active:scale-95 flex items-center justify-center gap-2 ${theme === "dark" ? "bg-emerald-600 border-emerald-800 text-white shadow-md shadow-emerald-900/20" : "bg-black/20 border-black/40 text-emerald-900/50 hover:bg-black/30"}`}
+                          >
+                            <Moon size={12} /> Escuro
+                          </button>
+                          <button
+                            onClick={() => setTheme("light")}
+                            className={`flex-1 rounded-xl font-bold text-xs py-2 transition-all border-b-2 active:scale-95 flex items-center justify-center gap-2 ${theme === "light" ? "bg-emerald-600 border-emerald-800 text-white shadow-md shadow-emerald-900/20" : "bg-black/20 border-black/40 text-emerald-900/50 hover:bg-black/30"}`}
+                          >
+                            <Sun size={12} /> Claro
+                          </button>
+                        </div>
+                      </section>
+                    </div>
 
                     {/* Modules Toggles */}
-                    <section className="space-y-1 col-span-1 md:col-span-2">
-                      <h4 className="text-[8px] font-black text-emerald-600/80 uppercase tracking-widest flex items-center gap-1.5 pt-1">
-                        <Power size={8} /> Módulos Cloud
-                      </h4>
-                      <div className="flex flex-wrap gap-1">
-                        <button onClick={() => setModules((m) => ({ ...m, ai: !m.ai }))} className={`px-2 py-1 rounded flex items-center gap-1 font-bold text-[8px] transition-all border ${modules.ai ? "bg-emerald-600 border-emerald-400 text-white" : "bg-black/10 border-emerald-950/20 text-emerald-900/50"}`}>
-                          <Bot size={8} /> Assistente IA
-                        </button>
-                        <button onClick={() => setModules((m) => ({ ...m, map: !m.map }))} className={`px-2 py-1 rounded flex items-center gap-1 font-bold text-[8px] transition-all border ${modules.map ? "bg-emerald-600 border-emerald-400 text-white" : "bg-black/10 border-emerald-950/20 text-emerald-900/50"}`}>
-                          <Map size={8} /> Editor de Mapa
-                        </button>
-                        <button onClick={() => setModules((m) => ({ ...m, store: !m.store }))} className={`px-2 py-1 rounded flex items-center gap-1 font-bold text-[8px] transition-all border ${modules.store ? "bg-emerald-600 border-emerald-400 text-white" : "bg-black/10 border-emerald-950/20 text-emerald-900/50"}`}>
-                          <Store size={8} /> Loja In-Game
-                        </button>
-                        <button onClick={() => { setModules((m) => ({ ...m, server_hibernation: !m.server_hibernation })); if (!modules.server_hibernation) setShowHibernationModal(true); }} className={`px-2 py-1 rounded flex items-center gap-1 font-bold text-[8px] transition-all border ${modules.server_hibernation ? "bg-amber-600 border-amber-400 text-white" : "bg-black/10 border-amber-950/20 text-amber-900/50"}`}>
-                          <Moon size={8} /> Hibernação
-                        </button>
-                      </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <section className="space-y-3 bg-black/10 p-5 rounded-2xl border border-white/5 shadow-inner">
+                        <h4 className="text-xs font-black text-emerald-600/80 uppercase tracking-widest flex items-center gap-2">
+                          <Power size={14} /> Módulos Cloud
+                        </h4>
+                        <div className="flex flex-col gap-2">
+                          <button onClick={() => setModules((m) => ({ ...m, ai: !m.ai }))} className={`px-4 py-3 rounded-xl flex items-center gap-3 font-bold text-xs transition-all border-b-2 active:scale-[0.98] ${modules.ai ? "bg-emerald-600 border-emerald-800 text-white" : "bg-black/20 border-black/40 text-zinc-500 hover:bg-black/30 text-left"}`}>
+                            <div className="p-1.5 bg-black/20 rounded-lg"><Bot size={14} /></div> Assistente IA
+                          </button>
+                          <button onClick={() => setModules((m) => ({ ...m, map: !m.map }))} className={`px-4 py-3 rounded-xl flex items-center gap-3 font-bold text-xs transition-all border-b-2 active:scale-[0.98] ${modules.map ? "bg-emerald-600 border-emerald-800 text-white" : "bg-black/20 border-black/40 text-zinc-500 hover:bg-black/30 text-left"}`}>
+                            <div className="p-1.5 bg-black/20 rounded-lg"><Map size={14} /></div> Editor de Mapa
+                          </button>
+                          <button onClick={() => setModules((m) => ({ ...m, store: !m.store }))} className={`px-4 py-3 rounded-xl flex items-center gap-3 font-bold text-xs transition-all border-b-2 active:scale-[0.98] ${modules.store ? "bg-emerald-600 border-emerald-800 text-white" : "bg-black/20 border-black/40 text-zinc-500 hover:bg-black/30 text-left"}`}>
+                            <div className="p-1.5 bg-black/20 rounded-lg"><Store size={14} /></div> Loja In-Game
+                          </button>
+                          <button onClick={() => { setModules((m) => ({ ...m, server_hibernation: !m.server_hibernation })); if (!modules.server_hibernation) setShowHibernationModal(true); }} className={`px-4 py-3 rounded-xl flex items-center gap-3 font-bold text-xs transition-all border-b-2 active:scale-[0.98] ${modules.server_hibernation ? "bg-amber-600 border-amber-800 text-white" : "bg-black/20 border-black/40 text-zinc-500 hover:bg-black/30 text-left"}`}>
+                            <div className="p-1.5 bg-black/20 rounded-lg"><Moon size={14} /></div> Hibernação
+                          </button>
+                        </div>
+                      </section>
 
-                      <h4 className="text-[8px] font-black text-blue-500/80 uppercase tracking-widest flex items-center gap-1.5 pt-1 mt-1">
-                        <Globe size={8} /> Habilidades da IA
-                      </h4>
-                      <div className="flex flex-wrap gap-1">
-                         <button onClick={() => setModules((m) => ({ ...m, ai_internet: !m.ai_internet }))} className={`px-2 py-1 rounded flex items-center gap-1 font-bold text-[8px] transition-all border ${modules.ai_internet ? "bg-blue-600 border-blue-400 text-white" : "bg-black/10 border-blue-950/20 text-blue-900/50"}`}>
-                          <Globe size={8} /> Internet
-                        </button>
-                        <button onClick={() => setModules((m) => ({ ...m, ai_memory: !m.ai_memory }))} className={`px-2 py-1 rounded flex items-center gap-1 font-bold text-[8px] transition-all border ${modules.ai_memory ? "bg-blue-600 border-blue-400 text-white" : "bg-black/10 border-blue-950/20 text-blue-900/50"}`}>
-                          <Save size={8} /> Memória
-                        </button>
-                         <button onClick={() => setModules((m) => ({ ...m, ai_bot: !m.ai_bot }))} className={`px-2 py-1 rounded flex items-center gap-1 font-bold text-[8px] transition-all border ${modules.ai_bot ? "bg-blue-600 border-blue-400 text-white" : "bg-black/10 border-blue-950/20 text-blue-900/50"}`}>
-                          <Bot size={8} /> In-Game Bot
-                        </button>
-                      </div>
-                    </section>
+                      <section className="space-y-3 bg-black/10 p-5 rounded-2xl border border-white/5 shadow-inner">
+                        <h4 className="text-xs font-black text-blue-500/80 uppercase tracking-widest flex items-center gap-2">
+                          <Globe size={14} /> Habilidades da IA
+                        </h4>
+                        <div className="flex flex-col gap-2">
+                           <button onClick={() => setModules((m) => ({ ...m, ai_internet: !m.ai_internet }))} className={`px-4 py-3 rounded-xl flex items-center gap-3 font-bold text-xs transition-all border-b-2 active:scale-[0.98] ${modules.ai_internet ? "bg-blue-600 border-blue-800 text-white" : "bg-black/20 border-black/40 text-zinc-500 hover:bg-black/30"}`}>
+                            <div className="p-1.5 bg-black/20 rounded-lg"><Globe size={14} /></div> Busca na Internet
+                          </button>
+                          <button onClick={() => setModules((m) => ({ ...m, ai_memory: !m.ai_memory }))} className={`px-4 py-3 rounded-xl flex items-center gap-3 font-bold text-xs transition-all border-b-2 active:scale-[0.98] ${modules.ai_memory ? "bg-blue-600 border-blue-800 text-white" : "bg-black/20 border-black/40 text-zinc-500 hover:bg-black/30"}`}>
+                            <div className="p-1.5 bg-black/20 rounded-lg"><Save size={14} /></div> Memória RAG
+                          </button>
+                           <button onClick={() => setModules((m) => ({ ...m, ai_bot: !m.ai_bot }))} className={`px-4 py-3 rounded-xl flex items-center gap-3 font-bold text-xs transition-all border-b-2 active:scale-[0.98] ${modules.ai_bot ? "bg-blue-600 border-blue-800 text-white" : "bg-black/20 border-black/40 text-zinc-500 hover:bg-black/30"}`}>
+                            <div className="p-1.5 bg-black/20 rounded-lg"><Bot size={14} /></div> In-Game Bot
+                          </button>
+                        </div>
+                      </section>
+                    </div>
 
-                    <section className="md:col-span-2 p-2 bg-black/10 rounded-lg border border-blue-500/10 flex items-center justify-between gap-2 mt-1">
-                      <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 bg-zinc-900 rounded flex items-center justify-center text-blue-500">
-                          <RefreshCw size={10} className={isSystemUpdating ? "animate-spin" : ""} />
+                    <section className="p-5 bg-black/10 rounded-2xl border border-blue-500/10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-inner">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-zinc-900 rounded-xl flex items-center justify-center text-blue-500 border border-blue-900/30 shadow-inner">
+                          <RefreshCw size={20} className={isSystemUpdating ? "animate-spin" : ""} />
                         </div>
                         <div>
-                          <h5 className="font-black text-blue-700 text-[8px] uppercase tracking-tighter">
+                          <h5 className="font-black text-blue-700 text-sm uppercase tracking-tighter">
                             {t("system_update_title")}
                           </h5>
-                          <p className="text-[7px] font-bold text-blue-900/60 uppercase tracking-widest leading-none">
+                          <p className="text-xs font-bold text-blue-900/60 uppercase tracking-widest leading-none mt-1">
                             Versão: {appVersion}
                           </p>
                         </div>
@@ -4144,32 +4180,33 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                           }
                         }}
                         disabled={isSystemUpdating}
-                        className="font-bold text-[8px] uppercase text-white px-2 py-1 rounded border-b bg-blue-500 border-blue-700 hover:bg-blue-400 transition-all active:border-b-0"
+                        className="w-full md:w-auto font-bold text-xs uppercase text-white px-6 py-3 rounded-xl border-b-4 bg-blue-500 border-blue-700 hover:bg-blue-400 transition-all active:scale-95 shadow-lg shadow-blue-900/20"
                       >
-                        {isSystemUpdating ? "Aguarde..." : "Atualizar"}
+                        {isSystemUpdating ? "Aguarde..." : "Atualizar Sistema"}
                       </button>
                     </section>
 
                     {appConfig && setAppConfig && (
-                      <section className="md:col-span-2 p-2 bg-black/10 rounded-lg border border-fuchsia-500/10 flex flex-col gap-2">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 bg-zinc-900 rounded flex items-center justify-center text-fuchsia-500">
-                              <Store size={10} />
+                      <section className="p-5 bg-black/10 rounded-2xl border border-fuchsia-500/10 flex flex-col gap-4 shadow-inner">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                          <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-zinc-900 rounded-xl flex items-center justify-center text-fuchsia-500 border border-fuchsia-900/30 shadow-inner">
+                              <Store size={20} />
                             </div>
                             <div>
-                              <h5 className="font-black text-white text-[8px] uppercase tracking-tighter">
+                              <h5 className="font-black text-white text-sm uppercase tracking-tighter">
                                 Portal Web Público
                               </h5>
-                              <p className="text-[7px] font-bold text-fuchsia-400 uppercase tracking-widest leading-none mb-0.5">
+                              <p className="text-xs font-bold text-fuchsia-400 uppercase tracking-widest leading-none mt-1">
                                 Loja & Painel
                               </p>
                             </div>
                           </div>
-                          <div className="flex items-center gap-1.5">
-                            <div className={`px-1.5 py-0.5 rounded text-[7px] font-bold uppercase flex items-center gap-1 ${appConfig.storeEnabled !== false ? "bg-emerald-500/20 text-emerald-400" : "bg-rose-500/20 text-rose-400"}`}>
+                          
+                          <div className="flex items-center gap-3">
+                            <div className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase flex items-center gap-2 border ${appConfig.storeEnabled !== false ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-rose-500/10 text-rose-400 border-rose-500/20"}`}>
                               <div
-                                className={`w-1 h-1 rounded-full ${appConfig.storeEnabled !== false ? "bg-emerald-400 animate-pulse" : "bg-rose-400"}`}
+                                className={`w-2 h-2 rounded-full ${appConfig.storeEnabled !== false ? "bg-emerald-400 animate-[pulse_2s_ease-in-out_infinite]" : "bg-rose-400"}`}
                               />
                               {appConfig.storeEnabled !== false
                                 ? "Online"
@@ -4183,32 +4220,32 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                                     appConfig.storeEnabled === false,
                                 })
                               }
-                              className={`relative inline-flex h-4 w-7 shrink-0 cursor-pointer items-center justify-start rounded-full transition-all duration-300 focus:outline-none ring-1 ring-offset-1 ring-offset-black ${appConfig.storeEnabled !== false ? "bg-fuchsia-600 ring-fuchsia-500/20" : "bg-zinc-700 ring-zinc-700/20"}`}
+                              className={`relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center justify-start rounded-full transition-all duration-300 focus:outline-none shadow-inner border-2 ${appConfig.storeEnabled !== false ? "bg-fuchsia-600 border-fuchsia-400" : "bg-zinc-800 border-zinc-700"}`}
                             >
                               <span
-                                className={`pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow-lg ring-0 transition-transform duration-300 ease-in-out ${appConfig.storeEnabled !== false ? "translate-x-3.5" : "translate-x-0.5"}`}
+                                className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-lg transition-transform duration-300 ease-in-out ${appConfig.storeEnabled !== false ? "translate-x-6" : "translate-x-1"}`}
                               />
                             </button>
                           </div>
                         </div>
 
                         {appConfig.storeEnabled !== false && (
-                          <div className="px-3 py-2 bg-black/40 rounded-xl border border-fuchsia-900/50 space-y-2 animate-in fade-in slide-in-from-top-2">
+                          <div className="px-5 py-4 bg-black/20 rounded-xl border border-fuchsia-900/30 space-y-4">
                             <div className="flex items-center justify-between">
-                              <p className="text-[8px] font-black uppercase text-fuchsia-400 tracking-widest flex items-center gap-1">
-                                <Settings size={8} /> Configurações do Portal
+                              <p className="text-xs font-black uppercase text-fuchsia-400 tracking-widest flex items-center gap-2">
+                                <Settings size={12} /> Configurações do Portal
                               </p>
                               <button
                                 onClick={() => window.open("/site", "_blank")}
-                                className="bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white px-2 py-1 rounded text-[8px] font-black uppercase transition-all flex items-center gap-1"
+                                className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all flex items-center gap-2 active:scale-95 shadow-md"
                               >
-                                <ExternalLink size={8} /> Visitar Site
+                                <ExternalLink size={12} /> Visitar Site
                               </button>
                             </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                               <div>
-                                <label className="block text-[8px] font-bold text-zinc-500 uppercase tracking-widest mb-0.5">
+                                <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-1.5 pl-1">
                                   Público Alvo / Estilo
                                 </label>
                                 <select
@@ -4221,7 +4258,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                                       familyMode: e.target.value === "family",
                                     })
                                   }
-                                  className="w-full bg-zinc-900 border border-white/5 rounded-lg px-2 py-1 text-[9px] uppercase text-white font-black outline-none focus:border-fuchsia-500"
+                                  className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-3 text-xs uppercase text-white font-black outline-none focus:border-fuchsia-500 shadow-inner"
                                 >
                                   <option value="family">
                                     Família (Aventura)
@@ -4235,18 +4272,18 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                           </div>
                         )}
 
-                        <div className="p-2 bg-zinc-950/50 rounded-xl border border-white/5 flex items-start gap-2">
-                          <div className="mt-0.5 flex-shrink-0 bg-zinc-900 p-1.5 rounded-lg text-zinc-600 border-b border-zinc-950">
-                            <Info size={10} />
+                        <div className="p-4 bg-zinc-950/50 rounded-xl border border-white/5 flex items-start gap-4 shadow-inner mt-2">
+                          <div className="flex-shrink-0 bg-zinc-900 p-2 rounded-xl text-zinc-500 border border-zinc-800 shadow-sm">
+                            <Info size={16} />
                           </div>
-                          <div className="space-y-0.5">
-                            <div className="text-[8px] font-black text-zinc-400 uppercase tracking-widest leading-none">
+                          <div className="space-y-1">
+                            <div className="text-xs font-black text-zinc-400 uppercase tracking-widest leading-tight">
                               Estimativa de Performance
                             </div>
-                            <p className="text-[7px] text-zinc-500 font-medium uppercase leading-relaxed tracking-wider">
+                            <p className="text-[10px] text-zinc-500 font-bold uppercase leading-relaxed tracking-wider">
                               {appConfig.storeEnabled !== false
-                                ? "Site Ativo: ~25-35MB RAM consumida. CPU oscila apenas durante acessos."
-                                : "Site Offline: Modo de economia total. <2MB RAM (Apenas estáticos)."}
+                                ? "Site Ativo: ~35-50MB RAM consumida. CPU oscila apenas durante acessos concorrentes."
+                                : "Site Offline: Modo de economia total. <2MB RAM (Apenas arquivos estáticos mínimos)."}
                             </p>
                           </div>
                         </div>
@@ -4254,8 +4291,8 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                     )}
                   </div>
 
-                  <div className="mt-auto flex justify-center">
-                    <CreeperPaper className="relative opacity-20 scale-150 rotate-0 bottom-0 left-0" />
+                  <div className="mt-8 flex justify-center pb-4">
+                    <CreeperPaper isPig={isPaperPig} className="relative opacity-20 scale-150 rotate-0 bottom-0 left-0" />
                   </div>
                 </motion.div>
               )}
@@ -5038,6 +5075,20 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                                   >
                                     <Edit2 size={18} />
                                   </button>
+                                  {item.isDirectory && (modules.map ?? true) && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setEditorWorld(currentFolder ? `${currentFolder}/${item.name}` : item.name);
+                                        setActiveTab("map");
+                                        setShowEditor3D(true);
+                                      }}
+                                      className="p-3 text-emerald-900 hover:text-emerald-500 font-black"
+                                      title="Abrir no Mapa 3D"
+                                    >
+                                      <Box size={18} />
+                                    </button>
+                                  )}
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();

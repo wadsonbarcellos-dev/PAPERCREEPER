@@ -89,7 +89,7 @@ function CameraRepositioner({ coords }: { coords: { x: number, y: number, z: num
   return null;
 }
 
-export default function MapEditor3D({ serverId }: { serverId?: string }) {
+export default function MapEditor3D({ serverId, initialWorldName }: { serverId?: string, initialWorldName?: string }) {
   const [history, setHistory] = useState<{ past: {pos: [number, number, number], color: string}[][], present: {pos: [number, number, number], color: string}[], future: {pos: [number, number, number], color: string}[][] }>({
     past: [], present: [], future: []
   });
@@ -122,24 +122,19 @@ export default function MapEditor3D({ serverId }: { serverId?: string }) {
   
   const [clipboard, setClipboard] = useState<{pos: [number, number, number], color: string}[]>([]);
   const [loading, setLoading] = useState(false);
-  const [worldName, setWorldName] = useState('world');
-  const [worlds, setWorlds] = useState<string[]>([]);
+  const [worldName, setWorldName] = useState(initialWorldName || 'world');
   const [serverSeed, setServerSeed] = useState("");
   const [coords, setCoords] = useState({ x: 0, y: 64, z: 0 });
   const [blockType, setBlockType] = useState('stone');
 
   useEffect(() => {
-    if (!serverId) return;
-    fetch("/api/world/list", {
-      method: "POST", headers:{"Content-Type": "application/json"},
-      body: JSON.stringify({ serverId })
-    }).then(r => r.json()).then(data => {
-      if (data.worlds && data.worlds.length > 0) {
-        setWorlds(data.worlds);
-        setWorldName(data.worlds[0]);
-      }
-    });
+    if (initialWorldName && initialWorldName !== worldName) {
+      setWorldName(initialWorldName);
+    }
+  }, [initialWorldName]);
 
+  useEffect(() => {
+    if (!serverId) return;
     fetch("/api/server/seed", {
       method: "POST", headers:{"Content-Type": "application/json"},
       body: JSON.stringify({ serverId })
@@ -317,14 +312,9 @@ export default function MapEditor3D({ serverId }: { serverId?: string }) {
                  <MapIcon size={12}/> Seed Map
                </a>
              )}
-             <select 
-                value={worldName} 
-                onChange={e => setWorldName(e.target.value)} 
-                className="bg-[#1e1e1e] border border-zinc-700 rounded px-2 py-0.5 text-[10px] sm:text-xs text-white outline-none w-20 sm:w-32"
-             >
-                {worlds.map(w => <option key={w} value={w}>{w}</option>)}
-                {worlds.length === 0 && <option value="world">world</option>}
-             </select>
+             <span className="bg-[#1e1e1e] border border-zinc-700 rounded px-2 py-0.5 text-[10px] sm:text-xs text-emerald-400">
+               {worldName || 'world'}
+             </span>
              <button onClick={() => loadWorldChunk(coords.x, coords.y, coords.z, worldName)} disabled={loading} className="bg-emerald-600/80 hover:bg-emerald-500 text-white text-[10px] sm:text-xs px-2 sm:px-3 py-1 rounded flex items-center gap-1 shrink-0"><Upload size={12}/> <span className="hidden sm:inline">Load Chunk</span></button>
              <button onClick={saveWorldChunk} disabled={loading} className="bg-blue-600/80 hover:bg-blue-500 text-white text-[10px] sm:text-xs px-2 sm:px-3 py-1 rounded flex items-center gap-1 shrink-0"><Save size={12}/> <span className="hidden sm:inline">Save</span></button>
          </div>
