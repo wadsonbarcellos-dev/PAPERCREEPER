@@ -64,6 +64,7 @@ const translations: any = {
     servers: "Servers",
     terminal: "Terminal",
     ai_assistant: "AI Assistant",
+    script_builder_menu: "Script Builder",
     map_editor: "Map Editor",
     internal_store: "In-Game Store UI",
     settings: "Settings",
@@ -200,6 +201,11 @@ const translations: any = {
     script_builder_status_save_error: "Error saving script.",
     script_builder_status_saving: "Plugin Saved! Restarting scripts...",
     script_builder_save_btn: "SAVE SCRIPT (.SK)",
+    script_builder_status_idle: "Waiting for idea...",
+    script_builder_status_consulting: "Consulting AI (May take a few seconds)...",
+    script_builder_status_saving_file: "Saving File...",
+    script_builder_status_req_error: "Request error. Check console.",
+    script_builder_placeholder: "Ex: I want a system where if a player breaks dirt, they have a 5% chance of getting a diamond...",
     java_settings: "Java Configuration",
     java_path_label: "Custom Java Execution Path (.exe / bin/java)",
     java_detect_btn: "SCAN SYSTEM",
@@ -213,6 +219,7 @@ const translations: any = {
     servers: "Servidores",
     terminal: "Terminal",
     ai_assistant: "Assistente IA",
+    script_builder_menu: "Criador de Scripts",
     map_editor: "Mapa / MCEdit",
     internal_store: "Loja In-Game",
     settings: "Configurações",
@@ -351,6 +358,18 @@ const translations: any = {
     script_builder_status_save_error: "Erro ao salvar script.",
     script_builder_status_saving: "Script Injetado e Salvo com Sucesso!",
     script_builder_save_btn: "SALVAR SCRIPT (.SK)",
+    script_builder_status_idle: "Aguardando ideia...",
+    script_builder_status_consulting: "Consultando IA (Pode demorar alguns segundos)...",
+    script_builder_status_saving_file: "Salvando Arquivo...",
+    script_builder_status_req_error: "Erro na requisição. Verifique o console.",
+    script_builder_placeholder: "Ex: Quero um sistema onde se o jogador quebrar terra, ele tem 5% de chance de ganhar um dima...",
+    java_settings: "Configuração do Java",
+    java_path_label: "Executável Customizado (.exe / bin/java)",
+    java_detect_btn: "ESCANEAR SISTEMA",
+    java_download_btn: "BAIXAR JRE",
+    java_found_list: "Encontrados nesta máquina:",
+    java_active_tag: "Runtime",
+    java_path_desc: "Diretório manual para versões antigas (Java 8) ou muito novas (Java 25+). Deixe em branco caso deseje que o painel detecte sozinho.",
   },
 };
 
@@ -487,7 +506,7 @@ export default function App({
   const [pluginDescription, setPluginDescription] = useState("");
   const [isGeneratingPlugin, setIsGeneratingPlugin] = useState(false);
   const [pluginCode, setPluginCode] = useState("");
-  const [pluginGenStatus, setPluginGenStatus] = useState("Aguardando ideia...");
+  const [pluginGenStatus, setPluginGenStatus] = useState("idle");
   
   useEffect(() => {
     localStorage.setItem("creeper_ai_provider", aiProvider);
@@ -1867,7 +1886,7 @@ Por favor, explique ou detalhe esse resultado para mim de forma natural e amigá
   const handleGeneratePlugin = async () => {
     if (!pluginDescription.trim() || isGeneratingPlugin) return;
     setIsGeneratingPlugin(true);
-    setPluginGenStatus("Consultando IA (Pode demorar alguns segundos)...");
+    setPluginGenStatus(t("script_builder_status_consulting") || "Consultando IA (Pode demorar alguns segundos)...");
     setPluginCode("");
 
     try {
@@ -1894,7 +1913,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
 
   const handleSavePlugin = async () => {
     if (!pluginCode || !currentServerId) return;
-    setPluginGenStatus("Salvando Arquivo...");
+    setPluginGenStatus(t("script_builder_status_saving_file") || "Salvando Arquivo...");
     try {
       const fileName = `plugin_${Date.now()}_aigen.sk`;
       const res = await fetch("/api/server/files/save", {
@@ -1913,7 +1932,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
         setPluginGenStatus(t("script_builder_status_save_error") || "Erro ao salvar plugin.");
       }
     } catch (e) {
-      setPluginGenStatus("Erro na requisição. Verifique o console.");
+      setPluginGenStatus(t("script_builder_status_req_error") || "Erro na requisição. Verifique o console.");
     }
   };
 
@@ -3201,7 +3220,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                     />
                     <MenuLink
                       icon={<Code size={20} />}
-                      label="Criador de Scripts"
+                      label={t("script_builder_menu") || "Criador de Scripts"}
                       active={activeTab === "plugin-factory"}
                       onClick={() => setActiveTab("plugin-factory")}
                     />
@@ -4030,12 +4049,14 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                        <textarea
                          value={pluginDescription}
                          onChange={(e) => setPluginDescription(e.target.value)}
-                         placeholder="Ex: Quero um sistema onde se o jogador quebrar terra, ele tem 5% de chance de ganhar um dima..."
+                         placeholder={t("script_builder_placeholder")}
                          className="w-full bg-black/40 border border-emerald-900 rounded-2xl p-4 text-emerald-100 placeholder:text-emerald-900/50 font-medium resize-none focus:outline-none focus:border-emerald-500 min-h-[120px]"
                        />
                     </div>
                     <div className="flex items-center justify-between">
-                       <p className="text-xs font-mono text-emerald-500/70">{pluginGenStatus}</p>
+                       <p className="text-xs font-mono text-emerald-500/70">
+                         {pluginGenStatus === "idle" ? t("script_builder_status_idle") : pluginGenStatus}
+                       </p>
                        <button
                          onClick={handleGeneratePlugin}
                          disabled={isGeneratingPlugin || !pluginDescription.trim()}
