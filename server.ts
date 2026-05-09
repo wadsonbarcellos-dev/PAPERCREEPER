@@ -659,6 +659,94 @@ async function startServer() {
     }
   });
 
+  app.post("/api/world/set-spawn", async (req, res) => {
+    try {
+      const { serverId, worldName, x, y, z } = req.body;
+      const srvDir = getServerDir(serverId);
+      const levelDatPath = path.join(srvDir, worldName || "world", "level.dat");
+      if (!fs.existsSync(levelDatPath)) {
+        return res.json({ error: "level.dat não encontrado" });
+      }
+      const nbt = await import("prismarine-nbt");
+      const zlib = await import("zlib");
+      const buffer = fs.readFileSync(levelDatPath);
+      const parsed = await nbt.parse(buffer);
+      const data = (parsed.parsed.value.Data as any).value;
+      if (data.SpawnX) data.SpawnX.value = Math.floor(x);
+      if (data.SpawnY) data.SpawnY.value = Math.floor(y);
+      if (data.SpawnZ) data.SpawnZ.value = Math.floor(z);
+      
+      const newBuffer = nbt.writeUncompressed(parsed.parsed);
+      const compressed = zlib.gzipSync(newBuffer);
+      fs.writeFileSync(levelDatPath, compressed);
+      
+      res.json({ success: true });
+    } catch(e: any) {
+      res.json({ error: e.message });
+    }
+  });
+
+  app.post("/api/world/export-schematic", async (req, res) => {
+    try {
+      const { serverId, blocks } = req.body;
+      const srvDir = getServerDir(serverId);
+      if (!fs.existsSync(srvDir)) return res.json({ error: "Servidor não encontrado" });
+      if (!blocks || blocks.length === 0) return res.json({ error: "Nenhum bloco" });
+
+      let minX = Infinity, minY = Infinity, minZ = Infinity;
+      let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+
+      for (const b of blocks) {
+         minX = Math.min(minX, b.pos[0]);
+         minY = Math.min(minY, b.pos[1]);
+         minZ = Math.min(minZ, b.pos[2]);
+         maxX = Math.max(maxX, b.pos[0]);
+         maxY = Math.max(maxY, b.pos[1]);
+         maxZ = Math.max(maxZ, b.pos[2]);
+      }
+
+      const Schematic = (await import("prismarine-schematic")).Schematic;
+      const vec3 = (await import("vec3")).default;
+      const BlockConstructor = (await import("prismarine-block")).default('1.16.4');
+      const mcData = (await import("minecraft-data")).default('1.16.4');
+      
+      const width = maxX - minX + 1;
+      const height = maxY - minY + 1;
+      const depth = maxZ - minZ + 1;
+
+      const schem = new Schematic('1.16.4', new vec3(width, height, depth), new vec3(0,0,0));
+      for (const b of blocks) {
+         const color = b.color;
+         let blockId = 1; // stone
+         
+         const name = b.name;
+         if (name && mcData.blocksByName[name]) {
+            blockId = mcData.blocksByName[name].id;
+         } else {
+           if (color === 'dirt') blockId = 3;
+           else if (color === 'grass' || color === 'grass_block') blockId = 2;
+           else if (color === 'wood') blockId = 17;
+           else if (color === 'leaves') blockId = 18;
+           else if (color === 'water') blockId = 9;
+         }
+         
+         const mcBlock = new BlockConstructor(blockId, 1, 0);
+         schem.setBlock(new vec3(b.pos[0] - minX, b.pos[1] - minY, b.pos[2] - minZ), mcBlock);
+      }
+      const buffer = await schem.write();
+      
+      const plugsPath = path.join(srvDir, "plugins", "WorldEdit", "schematics");
+      if (!fs.existsSync(plugsPath)) fs.mkdirSync(plugsPath, { recursive: true });
+      const name = `mcedit_${Date.now()}`;
+      const fpath = path.join(plugsPath, `${name}.schem`);
+      fs.writeFileSync(fpath, buffer);
+      
+      res.json({ success: true, name, file: fpath });
+    } catch(e: any) {
+      res.json({ error: e.message });
+    }
+  });
+
   app.post("/api/world/list", (req, res) => {
     const { serverId } = req.body;
     try {
@@ -766,7 +854,8 @@ async function startServer() {
                         const absX = (chunkX * 16) + dx;
                         const absZ = (chunkZ * 16) + dz;
                         
-                        blocks.push({ pos: [absX, by, absZ], color, stateId: b });
+                        const blockObj = chunk.getBlock(new (await import('vec3')).default(dx, by, dz));
+                        blocks.push({ pos: [absX, by, absZ], color, stateId: b, name: blockObj?.name || 'stone' });
                      }
                   }
                 }

@@ -184,8 +184,12 @@ export default function MapEditor3D({ serverId, initialWorldName }: { serverId?:
      } else if (activeTool === 'brush') {
          const newBlocks = [...blocks];
          const idx = newBlocks.findIndex(b => b.pos[0]===pos[0] && b.pos[1]===pos[1]+1 && b.pos[2]===pos[2]);
-         if (idx >= 0) newBlocks[idx].color = blockType;
-         else newBlocks.push({pos: [pos[0], pos[1]+1, pos[2]], color: blockType});
+         const mapName = (col: string) => col === 'wood' ? 'oak_log' : col === 'grass' ? 'grass_block' : col;
+         if (idx >= 0) {
+            newBlocks[idx].color = blockType;
+            newBlocks[idx].name = mapName(blockType);
+         }
+         else newBlocks.push({pos: [pos[0], pos[1]+1, pos[2]], color: blockType, name: mapName(blockType)});
          updateBlocks(newBlocks);
      } else if (activeTool === 'eraser') {
          const newBlocks = blocks.filter(b => !(b.pos[0]===pos[0] && b.pos[1]===pos[1] && b.pos[2]===pos[2]));
@@ -199,14 +203,14 @@ export default function MapEditor3D({ serverId, initialWorldName }: { serverId?:
     const minY = Math.min(pos1[1], pos2[1]); const maxY = Math.max(pos1[1], pos2[1]);
     const minZ = Math.min(pos1[2], pos2[2]); const maxZ = Math.max(pos1[2], pos2[2]);
     const selected = blocks.filter(b => b.pos[0] >= minX && b.pos[0] <= maxX && b.pos[1] >= minY && b.pos[1] <= maxY && b.pos[2] >= minZ && b.pos[2] <= maxZ);
-    setClipboard(selected.map(b => ({ pos: [b.pos[0] - pos1[0], b.pos[1] - pos1[1], b.pos[2] - pos1[2]], color: b.color })));
+    setClipboard(selected.map(b => ({ pos: [b.pos[0] - pos1[0], b.pos[1] - pos1[1], b.pos[2] - pos1[2]], color: b.color, name: b.name })));
     alert(`Copiado ${selected.length} blocos!`);
   };
 
   const handlePaste = () => {
      if (clipboard.length === 0) { alert("Clipboard vazio."); return; }
      if (!pos1) { alert("Selecione a posição (Pos 1) para colar."); return; }
-     const newBlocks = clipboard.map(b => ({ pos: [b.pos[0] + pos1[0], b.pos[1] + pos1[1], b.pos[2] + pos1[2]] as [number, number, number], color: b.color }));
+     const newBlocks = clipboard.map(b => ({ pos: [b.pos[0] + pos1[0], b.pos[1] + pos1[1], b.pos[2] + pos1[2]] as [number, number, number], color: b.color, name: b.name }));
      const merged = [...blocks];
      newBlocks.forEach(nb => {
         const idx = merged.findIndex(mb => mb.pos[0] === nb.pos[0] && mb.pos[1] === nb.pos[1] && mb.pos[2] === nb.pos[2]);
@@ -215,13 +219,26 @@ export default function MapEditor3D({ serverId, initialWorldName }: { serverId?:
      updateBlocks(merged);
   };
 
-  const handleExportSchematic = () => {
+  const handleExportSchematic = async () => {
      if (clipboard.length === 0) { alert("Use Copy para copiar a área primeiro."); return; }
-     const data = JSON.stringify(clipboard, null, 2);
-     const blob = new Blob([data], { type: 'application/json' });
-     const url = URL.createObjectURL(blob);
-     const a = document.createElement('a'); a.href = url; a.download = `mcedit_schem_${Date.now()}.json`;
-     a.click(); URL.revokeObjectURL(url);
+     const data = JSON.stringify(clipboard);
+     try {
+       setLoading(true);
+       const res = await fetch("/api/world/export-schematic", {
+          method: "POST", headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({ serverId, blocks: clipboard })
+       });
+       const result = await res.json();
+       if (result.success) {
+         alert(`Schematic salva no servidor! Arquivo: ${result.file}\nUse no jogo: //schem load ${result.name}`);
+       } else {
+         alert("Erro ao salvar schematic: " + result.error);
+       }
+     } catch(e) {
+       alert("Erro ao conectar com API de schematics.");
+     } finally {
+       setLoading(false);
+     }
   };
 
   const handleImportSchematic = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -252,7 +269,8 @@ export default function MapEditor3D({ serverId, initialWorldName }: { serverId?:
       if (data.blocks) {
          const mapped = data.blocks.map((b: any) => ({
             pos: [b.pos[0], b.pos[1], b.pos[2]], 
-            color: b.stateId === 2 ? 'grass' : b.stateId === 3 ? 'dirt' : 'stone'
+            color: b.color,
+            name: b.name
          }));
          updateBlocks(mapped);
       }
@@ -286,6 +304,25 @@ export default function MapEditor3D({ serverId, initialWorldName }: { serverId?:
     }
   };
 
+  const setWorldSpawn = async () => {
+    if (!serverId) { alert("Selecione um servidor primeiro."); return; }
+    if (!hoverPos) { alert("Use o mouse para apontar para um bloco que será o novo Spawn."); return; }
+    setLoading(true);
+    try {
+      const res = await fetch("/api/world/set-spawn", { 
+         method: "POST", headers: {"Content-Type": "application/json"},
+         body: JSON.stringify({ serverId, worldName, x: hoverPos[0], y: hoverPos[1], z: hoverPos[2] }) 
+      });
+      const data = await res.json();
+      if (data.success) alert(`Spawn salvo com sucesso em: X:${hoverPos[0]} Y:${hoverPos[1]} Z:${hoverPos[2]}`);
+      else alert(data.error || "Erro ao salvar spawn.");
+    } catch(e) {
+      alert("Erro ao salvar spawn mapa.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const applyFill = () => {
       if (!pos1 || !pos2) { alert("Selecione a área primeiro (Clique 2 pontos)"); return; }
       const newBlocks = [...blocks];
@@ -293,12 +330,16 @@ export default function MapEditor3D({ serverId, initialWorldName }: { serverId?:
       const minY = Math.min(pos1[1], pos2[1]); const maxY = Math.max(pos1[1], pos2[1]);
       const minZ = Math.min(pos1[2], pos2[2]); const maxZ = Math.max(pos1[2], pos2[2]);
       
+      const mapName = (col: string) => col === 'wood' ? 'oak_log' : col === 'grass' ? 'grass_block' : col;
       for (let x=minX; x<=maxX; x++) {
         for (let y=minY; y<=maxY; y++) {
           for (let z=minZ; z<=maxZ; z++) {
             const idx = newBlocks.findIndex(b => b.pos[0]===x && b.pos[1]===y && b.pos[2]===z);
-            if (idx>=0) newBlocks[idx].color = blockType;
-            else newBlocks.push({pos:[x,y,z], color:blockType});
+            if (idx>=0) {
+              newBlocks[idx].color = blockType;
+              newBlocks[idx].name = mapName(blockType);
+            }
+            else newBlocks.push({pos:[x,y,z], color:blockType, name: mapName(blockType)});
           }
         }
       }
@@ -343,6 +384,12 @@ export default function MapEditor3D({ serverId, initialWorldName }: { serverId?:
              </span>
              <button onClick={() => loadWorldChunk(coords.x, coords.y, coords.z, worldName)} disabled={loading} className="bg-emerald-600/80 hover:bg-emerald-500 text-white text-[10px] sm:text-xs px-2 sm:px-3 py-1 rounded flex items-center gap-1 shrink-0"><Upload size={12}/> <span className="hidden sm:inline">Load Chunk</span></button>
              <button onClick={saveWorldChunk} disabled={loading} className="bg-blue-600/80 hover:bg-blue-500 text-white text-[10px] sm:text-xs px-2 sm:px-3 py-1 rounded flex items-center gap-1 shrink-0"><Save size={12}/> <span className="hidden sm:inline">Save</span></button>
+             <button onClick={setWorldSpawn} disabled={loading} className="bg-amber-600/80 hover:bg-amber-500 text-white text-[10px] sm:text-xs px-2 sm:px-3 py-1 rounded flex items-center gap-1 shrink-0"><MapIcon size={12}/> <span className="hidden sm:inline">Set Spawn</span></button>
+             {hoverPos && (
+               <span className="ml-auto bg-black/50 text-emerald-300 font-mono text-[10px] sm:text-xs px-2 py-1 rounded">
+                 X:{hoverPos[0]} Y:{hoverPos[1]} Z:{hoverPos[2]}
+               </span>
+             )}
          </div>
       </div>
 

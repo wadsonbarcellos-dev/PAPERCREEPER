@@ -3075,9 +3075,11 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
         </AnimatePresence>
 
         {/* Decorations Section */}
-        <div className="fixed top-20 right-10 text-emerald-900/10 -z-10 cursor-default opacity-50 hover:opacity-100 transition-opacity">
-          <Sparkles size={120} />
-        </div>
+        {!isPaperPig && (
+          <div className="fixed top-20 right-10 text-emerald-900/10 -z-10 cursor-default opacity-50 hover:opacity-100 transition-opacity">
+            <Sparkles size={120} />
+          </div>
+        )}
 
         {/* Creepers de Papel Enfeite removidos */}
 
@@ -5039,19 +5041,19 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                               <div
                                 key={i}
                                 className="group flex items-center justify-between p-4 bg-emerald-950/30 hover:bg-emerald-900/50 rounded-2xl transition-all border border-emerald-900/50 hover:border-emerald-500 cursor-pointer"
-                                onClick={() =>
-                                  item.isDirectory
-                                    ? setCurrentFolder(
-                                        currentFolder
-                                          ? `${currentFolder}/${item.name}`
-                                          : item.name,
-                                      )
-                                    : openFile(
-                                        currentFolder
-                                          ? `${currentFolder}/${item.name}`
-                                          : item.name,
-                                      )
-                                }
+                                onClick={() => {
+                                  if (item.isDirectory) {
+                                    setCurrentFolder(currentFolder ? `${currentFolder}/${item.name}` : item.name);
+                                  } else {
+                                    if (item.name === "level.dat") {
+                                      const wName = currentFolder ? currentFolder.split('/').pop() : "world";
+                                      setEditorWorld(wName || "world");
+                                      setActiveTab("map");
+                                    } else {
+                                      openFile(currentFolder ? `${currentFolder}/${item.name}` : item.name);
+                                    }
+                                  }
+                                }}
                               >
                                 <div className="flex items-center gap-4 min-w-0">
                                   <div
