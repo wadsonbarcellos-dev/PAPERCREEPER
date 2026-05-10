@@ -993,6 +993,147 @@ async function startServer() {
     }
   });
 
+  app.post("/api/ai/stream", async (req, res) => {
+    try {
+      const { prompt, context, serverId, provider, endpoint, history, modelName, apiKeys, options } = req.body;
+      const sId = serverId || "default";
+
+      let keysToTry = [];
+      if (apiKeys && Array.isArray(apiKeys) && apiKeys.length > 0) {
+        keysToTry = [...apiKeys];
+      }
+      
+      const envKey = process.env.UNIVERSAL_API_KEY || process.env.GEMINI_API_KEY || "";
+      if (envKey && envKey !== "AIza_fallback" && !keysToTry.includes(envKey)) {
+         keysToTry.push(envKey);
+      }
+
+      if (provider !== "local" && keysToTry.length === 0) {
+        res.write(JSON.stringify({ error: "Nenhuma API Key configurada. Configure no menu de IA ou nas Configurações." }));
+        return res.end();
+      }
+
+      const currentKey = keysToTry.length > 0 ? keysToTry[0] : "";
+      
+      const systemInstruction = `
+Você é o "PaperCreeper AI", o OPERADOR SUPREMO e ENGENHEIRO de servidores Minecraft.
+Personalidade: Técnico, eficiente, prestativo e com um toque de humor "Minecrafter". Use emojis como ⛏️, 💎, 🔥, 🧨, 🛡️.
+
+SUAS CAPACIDADES (Nomes das ferramentas suportadas):
+- "startServer": Iniciar o servidor
+- "stopServer": Parar o servidor
+- "sendTerminalCommand": Enviar comando pro console
+- "readMemory": Consultar memória
+- "saveMemory": Salvar memória
+- "searchInternet": Pesquisar na internet web
+
+Tente ajudar o usuário. Se você precisar agir em algo do servidor, DEVOLVA APENAS A TAG DA ACTION COMO SE FOSSE MAGIA!
+Exemplo: "Vou deixar de dia! <call:sendTerminalCommand>time set day</call>"
+Exemplo 2: "Deixe-me pesquisar: <call:PESQUISAR>mcMMO setup</call>"
+`;
+
+      const messages = [{ role: "system", content: systemInstruction }];
+      if (history && Array.isArray(history)) {
+         messages.push(...history.map(h => ({ role: h.role === "assistant" ? "assistant" : "user", content: h.text })));
+      }
+      const finalContent = context ? `CONTEXTO ATUAL:\n${context}\n\nPERGUNTA: ${prompt}` : prompt;
+      messages.push({ role: "user", content: finalContent });
+
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+
+      if (provider === "local" || provider === "custom" || (currentKey && !currentKey.startsWith("AIzaSy"))) {
+        let targetEndpoint = endpoint || "http://127.0.0.1:11434/v1/chat/completions";
+        let model = modelName || "llama3";
+        
+        if (provider === "remote" && currentKey) {
+           targetEndpoint = "https://api.openai.com/v1/chat/completions";
+           model = modelName || "gpt-4o-mini";
+           if (currentKey.startsWith("gsk_")) {
+             targetEndpoint = "https://api.groq.com/openai/v1/chat/completions";
+             model = modelName || "llama-3.3-70b-versatile"; 
+           } else if (currentKey.startsWith("xai-")) {
+             targetEndpoint = "https://api.x.ai/v1/chat/completions";
+             model = modelName || "grok-2-latest";
+           } else if (currentKey.startsWith("nvapi-")) {
+             targetEndpoint = "https://integrate.api.nvidia.com/v1/chat/completions";
+             model = modelName || "deepseek-ai/deepseek-r1";
+           }
+        }
+
+        const fetchHeaders: any = { "Content-Type": "application/json" };
+        if (currentKey) fetchHeaders["Authorization"] = `Bearer ${currentKey}`;
+
+        const fetchPayload: any = { model, messages, temperature: 0.7, stream: true };
+        if (targetEndpoint.includes("nvidia.com") && typeof model === "string" && model.includes("deepseek")) {
+          fetchPayload.chat_template_kwargs = { thinking: false };
+        }
+
+        const controller = new AbortController();
+        req.on("close", () => controller.abort());
+
+        try {
+          const fetchRes = await fetch(targetEndpoint, {
+            method: "POST", headers: fetchHeaders, body: JSON.stringify(fetchPayload), signal: controller.signal
+          });
+          
+          if (!fetchRes.ok) {
+             const erTxt = await fetchRes.text();
+             res.write(`data: ${JSON.stringify({ error: "Erro na IA: " + fetchRes.status + " " + erTxt })}\n\n`);
+             return res.end();
+          }
+
+          if (fetchRes.body) {
+             const reader = fetchRes.body.getReader();
+             const decoder = new TextDecoder("utf-8");
+             let done = false;
+             while (!done) {
+                const { value, done: doneReading } = await reader.read();
+                done = doneReading;
+                if (value) {
+                   res.write(decoder.decode(value));
+                }
+             }
+          }
+        } catch (e: any) {
+          if (e.name !== 'AbortError') {
+             res.write(`data: ${JSON.stringify({ error: e.message })}\n\n`);
+          }
+        }
+        res.end();
+      } else {
+         // Gemini stream
+         const { GoogleGenAI } = await import("@google/genai");
+         const ai = new GoogleGenAI({ apiKey: currentKey });
+         try {
+           const historyFormatted = messages.map(m => ({
+              role: m.role === "assistant" ? "model" : "user",
+              parts: [{ text: m.content }]
+           }));
+           
+           const stream = await ai.models.generateContentStream({
+             model: "gemini-2.5-flash",
+             contents: historyFormatted
+           });
+           
+           req.on("close", () => { /* cannot easily abort genai sdk but client disconnected */ });
+
+           for await (const chunk of stream) {
+              res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: chunk.text } }] })}\n\n`);
+           }
+         } catch(e: any) {
+           res.write(`data: ${JSON.stringify({ error: e.message })}\n\n`);
+         }
+         res.write("data: [DONE]\n\n");
+         res.end();
+      }
+    } catch(e: any) {
+      res.write(`data: ${JSON.stringify({ error: e.message })}\n\n`);
+      res.end();
+    }
+  });
+
   app.post("/api/ai", async (req, res) => {
     try {
       const { prompt, context, serverId, provider, endpoint, history, modelName, apiKeys, options } = req.body;

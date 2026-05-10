@@ -9,9 +9,74 @@ export const askAI = async (
   history?: any[],
   modelName?: string,
   apiKeys?: string[],
-  options?: any
+  options?: any,
+  onChunk?: (text: string) => void
 ) => {
   try {
+    if (onChunk) {
+      const response = await fetch("/api/ai/stream", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt, context, serverId, provider, endpoint, history, modelName, apiKeys, options })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erro no servidor: ${response.status}`);
+      }
+
+      if (!response.body) throw new Error("Sem body na resposta");
+      
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let done = false;
+      let fullText = "";
+      
+      while (!done) {
+        const { value, done: doneReading } = await reader.read();
+        done = doneReading;
+        if (value) {
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split("\n");
+          for (const line of lines) {
+             if (line.startsWith("data: ")) {
+                const dataStr = line.slice(6).trim();
+                if (dataStr === "[DONE]") continue;
+                try {
+                   const data = JSON.parse(dataStr);
+                   if (data.error) throw new Error(data.error);
+                   const content = data.choices ? (data.choices[0].delta?.content || "") : "";
+                   if (content) {
+                      fullText += content;
+                      onChunk(fullText);
+                   }
+                } catch(e) {}
+             }
+          }
+        }
+      }
+      
+      let call = null;
+      const pesquisarMatch = fullText.match(/<call:PESQUISAR>(.*?)<\/call>/i);
+      if (pesquisarMatch) {
+         call = { name: "searchInternet", args: { query: pesquisarMatch[1].trim() } };
+         fullText = fullText.replace(pesquisarMatch[0], "").trim();
+      } else {
+         const consultarMatch = fullText.match(/<call:CONSULTAR>(.*?)<\/call>/i);
+         if (consultarMatch) {
+            call = { name: "readMemory", args: { query: consultarMatch[1].trim() } };
+            fullText = fullText.replace(consultarMatch[0], "").trim();
+         } else {
+            const genericCallMatch = fullText.match(/<call:([A-Za-z0-9_]+)>(.*?)<\/call>/s);
+            if (genericCallMatch) {
+                call = { name: genericCallMatch[1].trim(), args: { command: genericCallMatch[2].trim() } };
+                fullText = fullText.replace(genericCallMatch[0], "").trim();
+            }
+         }
+      }
+      
+      return { text: fullText, call };
+    }
+
     const response = await fetch("/api/ai", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

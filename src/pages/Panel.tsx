@@ -527,9 +527,9 @@ export default function App({
       if (saved) return JSON.parse(saved);
     } catch(e) {}
     return [
-      { id: "nvidia_v4", name: "DeepSeek V4 Pro (Nvidia)", endpoint: "https://integrate.api.nvidia.com/v1/chat/completions", model: "deepseek-ai/deepseek-v4-pro", apiKey: "" },
+      { id: "nv_deepseek", name: "DeepSeek R1 (Nvidia)", endpoint: "https://integrate.api.nvidia.com/v1/chat/completions", model: "deepseek-ai/deepseek-r1", apiKey: "" },
       { id: "groq_33", name: "LLaMA 3.3 (Groq)", endpoint: "https://api.groq.com/openai/v1/chat/completions", model: "llama-3.3-70b-versatile", apiKey: "" },
-      { id: "ollama", name: "Ollama Local", endpoint: "http://127.0.0.1:11434/v1/chat/completions", model: "llama3", apiKey: "" }
+      { id: "ollama", name: "Ollama (Local)", endpoint: "http://127.0.0.1:11434/v1/chat/completions", model: "llama3", apiKey: "" }
     ];
   });
   
@@ -1896,18 +1896,30 @@ export default function App({
           call: { name: "readMemory", args: { query: consultMatch[1].trim() } }
         };
       } else {
-         firstResult = await askAI(finalMsg, context, currentServerId, aiProvider, aiEndpoint, aiChat.slice(-10), aiLocalModel, keysArray, modules);
+         setAiChat((prev) => [...prev, { role: "assistant", text: "..." }]);
+         firstResult = await askAI(finalMsg, context, currentServerId, aiProvider, aiEndpoint, aiChat.slice(-10), aiLocalModel, keysArray, modules, { stream: true }, (chunk) => {
+            setAiChat((prev) => {
+               const n = [...prev];
+               n[n.length - 1].text = chunk;
+               return n;
+            });
+         });
       }
 
       if (firstResult.call) {
-        setAiChat((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            text: `⚙️ Entendido. Executando ação: ${firstResult.call!.name}...`,
-          },
-        ]);
+        setAiChat((prev) => {
+          const n = [...prev];
+          if (n[n.length - 1].role === "assistant") n[n.length - 1].text = `⚙️ Entendido. Executando ação: ${firstResult.call!.name}...`;
+          else n.push({ role: "assistant", text: `⚙️ Entendido. Executando ação: ${firstResult.call!.name}...` });
+          return n;
+        });
         const toolResult = await executeAITool(firstResult.call);
+
+        setAiChat((prev) => {
+           const n = [...prev];
+           n[n.length - 1].text = `⚙️ Ação concluída. Analisando resultado...`;
+           return n;
+        });
 
         // Pass the result back to the IA for a final natural language response
         const secondResult = await askAI(
@@ -1922,23 +1934,27 @@ Por favor, explique ou detalhe esse resultado para mim de forma natural e amigá
           aiChat.slice(-10),
           aiLocalModel,
           keysArray,
-          modules
+          modules,
+          { stream: true },
+          (chunk) => {
+             setAiChat((prev) => {
+                const n = [...prev];
+                n[n.length - 1].text = chunk;
+                return n;
+             });
+          }
         );
-        setAiChat((prev) => [
-          ...prev.slice(0, -1),
-          {
-            role: "assistant",
-            text: secondResult.text || "Ação concluída com sucesso! 💎",
-          },
-        ]);
-      } else {
-        setAiChat((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            text: firstResult.text || "Não entendi bem, pode repetir? (｡•́︿•̀｡)",
-          },
-        ]);
+        setAiChat((prev) => {
+           const n = [...prev];
+           n[n.length - 1].text = secondResult.text || "Ação concluída com sucesso! 💎";
+           return n;
+        });
+      } else if (!firstResult.text) {
+        setAiChat((prev) => {
+           const n = [...prev];
+           n[n.length - 1].text = "Não entendi bem, pode repetir? (｡•́︿•̀｡)";
+           return n;
+        });
       }
     } catch (error) {
       console.error("AI Error:", error);
@@ -2142,6 +2158,15 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                     </h3>
                   </div>
                   <button onClick={() => setShowAiCustomConfigModal(false)} className="text-emerald-500 hover:text-emerald-300 transition"><X size={24} /></button>
+                </div>
+                
+                <div className="flex flex-wrap gap-2 mb-4">
+                  <span className="text-[10px] text-emerald-500 font-bold uppercase w-full">Adicionar Rápido:</span>
+                  <button onClick={() => setCustomAIs([...customAIs, { id: "ollama_" + Date.now(), name: "Ollama (Local)", endpoint: "http://127.0.0.1:11434/v1/chat/completions", model: "llama3", apiKey: "" }])} className="bg-emerald-900/40 hover:bg-emerald-800 text-emerald-300 text-[10px] px-3 py-1 rounded">Ollama</button>
+                  <button onClick={() => setCustomAIs([...customAIs, { id: "lmstudio_" + Date.now(), name: "LM Studio (Local)", endpoint: "http://127.0.0.1:1234/v1/chat/completions", model: "local-model", apiKey: "lm-studio" }])} className="bg-emerald-900/40 hover:bg-emerald-800 text-emerald-300 text-[10px] px-3 py-1 rounded">LM Studio</button>
+                  <button onClick={() => setCustomAIs([...customAIs, { id: "nvidia_" + Date.now(), name: "Nvidia NIM", endpoint: "https://integrate.api.nvidia.com/v1/chat/completions", model: "deepseek-ai/deepseek-r1", apiKey: "" }])} className="bg-emerald-900/40 hover:bg-emerald-800 text-emerald-300 text-[10px] px-3 py-1 rounded">Nvidia NIM</button>
+                  <button onClick={() => setCustomAIs([...customAIs, { id: "groq_" + Date.now(), name: "Groq", endpoint: "https://api.groq.com/openai/v1/chat/completions", model: "llama-3.3-70b-versatile", apiKey: "" }])} className="bg-emerald-900/40 hover:bg-emerald-800 text-emerald-300 text-[10px] px-3 py-1 rounded">Groq</button>
+                  <button onClick={() => setCustomAIs([...customAIs, { id: "openai_" + Date.now(), name: "OpenAI", endpoint: "https://api.openai.com/v1/chat/completions", model: "gpt-4o-mini", apiKey: "" }])} className="bg-emerald-900/40 hover:bg-emerald-800 text-emerald-300 text-[10px] px-3 py-1 rounded">OpenAI</button>
                 </div>
                 
                 <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
