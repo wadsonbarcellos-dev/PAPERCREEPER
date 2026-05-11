@@ -35,7 +35,7 @@ function CursorHighlight({ position }: { position: [number, number, number] | nu
   );
 }
 
-function BlockGroup({ blocks, colorStr, hex, onSelect, onHover }: { blocks: any[], colorStr: string, hex: string, onSelect: (pos: [number, number, number]) => void, onHover: (pos: [number, number, number] | null) => void }) {
+function BlockGroup({ blocks, colorStr, hex, onSelect, onHover, onRemove }: { blocks: any[], colorStr: string, hex: string, onSelect: (pos: [number, number, number]) => void, onHover: (pos: [number, number, number] | null) => void, onRemove?: (pos: [number, number, number]) => void }) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const filteredBlocks = useMemo(() => blocks.filter(b => b.color === colorStr), [blocks, colorStr]);
 
@@ -60,6 +60,12 @@ function BlockGroup({ blocks, colorStr, hex, onSelect, onHover }: { blocks: any[
         e.stopPropagation();
         if (e.instanceId !== undefined && onSelect) {
            onSelect(filteredBlocks[e.instanceId].pos);
+        }
+      }}
+      onContextMenu={(e) => {
+        e.stopPropagation();
+        if (e.instanceId !== undefined && onRemove) {
+           onRemove(filteredBlocks[e.instanceId].pos);
         }
       }}
       onPointerMove={(e) => {
@@ -198,6 +204,11 @@ export default function MapEditor3D({ serverId, initialWorldName }: { serverId?:
          const newBlocks = blocks.filter(b => !(b.pos[0]===pos[0] && b.pos[1]===pos[1] && b.pos[2]===pos[2]));
          updateBlocks(newBlocks);
      }
+  };
+
+  const handleRemove = (pos: [number, number, number]) => {
+     const newBlocks = blocks.filter(b => !(b.pos[0]===pos[0] && b.pos[1]===pos[1] && b.pos[2]===pos[2]));
+     updateBlocks(newBlocks);
   };
 
   const handleCopy = () => {
@@ -441,14 +452,14 @@ export default function MapEditor3D({ serverId, initialWorldName }: { serverId?:
              {pos1 && pos2 && <SelectionBox start={pos1} end={pos2} />}
              {pos1 && !pos2 && <CursorHighlight position={pos1} />}
 
-             <BlockGroup blocks={blocks} colorStr="grass" hex="#55aa55" onSelect={handleSelect} onHover={setHoverPos} />
-             <BlockGroup blocks={blocks} colorStr="dirt" hex="#855522" onSelect={handleSelect} onHover={setHoverPos} />
-             <BlockGroup blocks={blocks} colorStr="stone" hex="#888888" onSelect={handleSelect} onHover={setHoverPos} />
-             <BlockGroup blocks={blocks} colorStr="wood" hex="#5c4033" onSelect={handleSelect} onHover={setHoverPos} />
-             <BlockGroup blocks={blocks} colorStr="leaves" hex="#228b22" onSelect={handleSelect} onHover={setHoverPos} />
-             <BlockGroup blocks={blocks} colorStr="glass" hex="#aaddff" onSelect={handleSelect} onHover={setHoverPos} />
-             <BlockGroup blocks={blocks} colorStr="water" hex="#3333ff" onSelect={handleSelect} onHover={setHoverPos} />
-             <BlockGroup blocks={blocks} colorStr="sand" hex="#c2b280" onSelect={handleSelect} onHover={setHoverPos} />
+             <BlockGroup blocks={blocks} colorStr="grass" hex="#55aa55" onSelect={handleSelect} onHover={setHoverPos} onRemove={handleRemove} />
+             <BlockGroup blocks={blocks} colorStr="dirt" hex="#855522" onSelect={handleSelect} onHover={setHoverPos} onRemove={handleRemove} />
+             <BlockGroup blocks={blocks} colorStr="stone" hex="#888888" onSelect={handleSelect} onHover={setHoverPos} onRemove={handleRemove} />
+             <BlockGroup blocks={blocks} colorStr="wood" hex="#5c4033" onSelect={handleSelect} onHover={setHoverPos} onRemove={handleRemove} />
+             <BlockGroup blocks={blocks} colorStr="leaves" hex="#228b22" onSelect={handleSelect} onHover={setHoverPos} onRemove={handleRemove} />
+             <BlockGroup blocks={blocks} colorStr="glass" hex="#aaddff" onSelect={handleSelect} onHover={setHoverPos} onRemove={handleRemove} />
+             <BlockGroup blocks={blocks} colorStr="water" hex="#3333ff" onSelect={handleSelect} onHover={setHoverPos} onRemove={handleRemove} />
+             <BlockGroup blocks={blocks} colorStr="sand" hex="#c2b280" onSelect={handleSelect} onHover={setHoverPos} onRemove={handleRemove} />
              
           </Canvas>
 

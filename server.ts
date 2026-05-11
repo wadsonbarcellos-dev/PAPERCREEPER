@@ -821,15 +821,24 @@ async function startServer() {
       try {
         chunkData = await worldProvider.load(chunkX, chunkZ);
       } catch (err: any) {
+        if (err && err.code === 'ENOENT') {
+           if (typeof worldProvider.close === 'function') await worldProvider.close();
+           return res.json({ blocks: [], origin: [startX, startY, startZ], info: "Empty chunk created." });
+        }
         console.warn(`Aviso de leitura de chunk NBT: ${err.message}. Assumindo chunk vazio.`);
       }
 
+      const PrisChunk = ChunkPkg.default ? ChunkPkg.default(registry) : ChunkPkg(registry);
+      const chunk: any = new PrisChunk(null);
+
       if (chunkData) {
-         const PrisChunk = ChunkPkg.default ? ChunkPkg.default(registry) : ChunkPkg(registry);
-         const chunk: any = new PrisChunk(null);
+         try {
            if (chunk.loadLight) chunk.loadLight(chunkData.light);
            if (chunk.load) chunk.load(chunkData.chunk, chunkData.bitmaps);
-           
+         } catch(e: any) {
+           console.warn(`Aviso ao parsear chunk: ${e.message}. Assumindo vazio.`);
+         }
+      }
            for (let dx = 0; dx < 16; dx++) { // loop full 16x16 chunk horizontally
               // Load bigger vertical segment centered around startY
               const loadHeight = 128;
@@ -874,15 +883,6 @@ async function startServer() {
                 }
               }
             }
-        }
-      } catch (e: any) {
-        console.error("Chunk load error", e);
-        if (e && e.code === 'ENOENT') {
-           if (typeof worldProvider.close === 'function') await worldProvider.close();
-           return res.json({ blocks: [], origin: [startX, startY, startZ], info: "Empty chunk created." });
-        }
-      }
-
       if (typeof worldProvider.close === 'function') await worldProvider.close();
       res.json({ blocks, origin: [startX, startY, startZ] });
     } catch(e: any) {
@@ -939,8 +939,10 @@ async function startServer() {
 
          const chunk: any = new PrisChunk(null);
          if (chunkData) {
-           if (chunk.loadLight) chunk.loadLight(chunkData.light);
-           if (chunk.load) chunk.load(chunkData.chunk, chunkData.bitmaps);
+           try {
+             if (chunk.loadLight) chunk.loadLight(chunkData.light);
+             if (chunk.load) chunk.load(chunkData.chunk, chunkData.bitmaps);
+           } catch(e) {}
          }
 
          for (const b of chunkBlocks) {
@@ -1082,9 +1084,6 @@ Exemplo 2: "Deixe-me pesquisar: <call:PESQUISAR>mcMMO setup</call>"
         if (currentKey) fetchHeaders["Authorization"] = `Bearer ${currentKey}`;
 
         const fetchPayload: any = { model, messages, temperature: 0.7, stream: true };
-        if (targetEndpoint.includes("nvidia.com") && typeof model === "string" && model.includes("deepseek")) {
-          fetchPayload.chat_template_kwargs = { thinking: false };
-        }
 
         const controller = new AbortController();
         req.on("close", () => controller.abort());
@@ -1248,10 +1247,6 @@ Exemplo: "Deixe-me procurar isso: <call:PESQUISAR>mcMMO setup</call>"
         }
 
         const fetchPayload: any = { model, messages, temperature: 0.7 };
-        
-        if (targetEndpoint.includes("nvidia.com") && typeof model === "string" && model.includes("deepseek")) {
-          fetchPayload.chat_template_kwargs = { thinking: false };
-        }
 
         const oaiRes = await fetch(targetEndpoint, {
           method: "POST",
