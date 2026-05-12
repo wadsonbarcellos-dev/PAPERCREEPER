@@ -1061,22 +1061,29 @@ Exemplo 2: "Deixe-me pesquisar: <call:PESQUISAR>mcMMO setup</call>"
       res.setHeader("Cache-Control", "no-cache");
       res.setHeader("Connection", "keep-alive");
 
-      if (provider === "local" || provider === "custom" || !isGeminiKey) {
+      const isLocalOrCustom = provider === "local" || provider === "custom";
+      const isRemoteOpenAICompat = provider === "remote" || (!provider && !isGeminiKey) || (currentKey && !isGeminiKey && provider !== "gemini");
+
+      if (isLocalOrCustom || isRemoteOpenAICompat) {
+        let aiMode = provider || "remote";
+        if (!provider && !isGeminiKey) aiMode = "remote";
+        
+        // Local/Custom AI via OpenAI API compatible endpoint OR External Remote (Groq, xAI, OpenAI)
         let targetEndpoint = endpoint || "http://127.0.0.1:11434/v1/chat/completions";
         let model = modelName || "llama3";
         
-        if (provider === "remote" && currentKey) {
+        if (aiMode === "remote" && currentKey) {
            targetEndpoint = "https://api.openai.com/v1/chat/completions";
-           model = "gpt-4o-mini";
+           model = modelName || "gpt-4o-mini";
            if (currentKey.startsWith("gsk_")) {
              targetEndpoint = "https://api.groq.com/openai/v1/chat/completions";
-             model = "llama-3.3-70b-versatile"; 
+             model = modelName || "llama-3.3-70b-versatile"; 
            } else if (currentKey.startsWith("xai-")) {
              targetEndpoint = "https://api.x.ai/v1/chat/completions";
-             model = "grok-2-latest";
+             model = modelName || "grok-2-latest";
            } else if (currentKey.startsWith("nvapi-")) {
              targetEndpoint = "https://integrate.api.nvidia.com/v1/chat/completions";
-             model = "deepseek-ai/deepseek-r1";
+             model = modelName || "deepseek-ai/deepseek-r1";
            }
         }
 
@@ -1208,24 +1215,30 @@ Exemplo: "Deixe-me procurar isso: <call:PESQUISAR>mcMMO setup</call>"
 
       let text = "";
 
-      if (provider === "local" || provider === "custom" || !isGeminiKey) {
+      const isLocalOrCustom = provider === "local" || provider === "custom";
+      const isRemoteOpenAICompat = provider === "remote" || (!provider && !isGeminiKey) || (currentKey && !isGeminiKey && provider !== "gemini");
+
+      if (isLocalOrCustom || isRemoteOpenAICompat) {
+        let aiMode = provider || "remote";
+        if (!provider && !isGeminiKey) aiMode = "remote";
+
         // Local/Custom AI via OpenAI API compatible endpoint OR External Remote (Groq, xAI, OpenAI)
         let targetEndpoint = endpoint || "http://127.0.0.1:11434/v1/chat/completions";
         let model = modelName || "llama3";
         const currentKey = keysToTry.length > 0 ? keysToTry[0] : "";
 
-        if (provider === "remote" && currentKey) {
+        if (aiMode === "remote" && currentKey) {
            targetEndpoint = "https://api.openai.com/v1/chat/completions";
-           model = "gpt-4o-mini";
+           model = modelName || "gpt-4o-mini";
            if (currentKey.startsWith("gsk_")) {
              targetEndpoint = "https://api.groq.com/openai/v1/chat/completions";
-             model = "llama-3.3-70b-versatile"; 
+             model = modelName || "llama-3.3-70b-versatile"; 
            } else if (currentKey.startsWith("xai-")) {
              targetEndpoint = "https://api.x.ai/v1/chat/completions";
-             model = "grok-2-latest";
+             model = modelName || "grok-2-latest";
            } else if (currentKey.startsWith("nvapi-")) {
              targetEndpoint = "https://integrate.api.nvidia.com/v1/chat/completions";
-             model = "deepseek-ai/deepseek-v4-pro"; // Default Nvidia model
+             model = modelName || "deepseek-ai/deepseek-v4-pro"; // Default Nvidia model
            }
         }
 

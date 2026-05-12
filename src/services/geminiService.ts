@@ -58,20 +58,34 @@ export const askAI = async (
       }
       
       let call = null;
-      const pesquisarMatch = fullText.match(/<call:PESQUISAR>(.*?)<\/call>/i);
-      if (pesquisarMatch) {
-         call = { name: "searchInternet", args: { query: pesquisarMatch[1].trim() } };
-         fullText = fullText.replace(pesquisarMatch[0], "").trim();
-      } else {
-         const consultarMatch = fullText.match(/<call:CONSULTAR>(.*?)<\/call>/i);
-         if (consultarMatch) {
-            call = { name: "readMemory", args: { query: consultarMatch[1].trim() } };
-            fullText = fullText.replace(consultarMatch[0], "").trim();
+
+      const actionRegex = /\[ACTION:\s*({[\s\S]+?})\s*]/i;
+      const actionMatch = fullText.match(actionRegex);
+      if (actionMatch) {
+         try {
+            let jsonStr = actionMatch[1].trim();
+            jsonStr = jsonStr.replace(/```json/gi, "").replace(/```/g, "").trim();
+            call = JSON.parse(jsonStr);
+            fullText = fullText.replace(actionMatch[0], "").trim();
+         } catch(e) {}
+      }
+
+      if (!call) {
+         const pesquisarMatch = fullText.match(/<call:PESQUISAR>(.*?)<\/call>/i);
+         if (pesquisarMatch) {
+            call = { name: "searchInternet", args: { query: pesquisarMatch[1].trim() } };
+            fullText = fullText.replace(pesquisarMatch[0], "").trim();
          } else {
-            const genericCallMatch = fullText.match(/<call:([A-Za-z0-9_]+)>(.*?)<\/call>/s);
-            if (genericCallMatch) {
-                call = { name: genericCallMatch[1].trim(), args: { command: genericCallMatch[2].trim() } };
-                fullText = fullText.replace(genericCallMatch[0], "").trim();
+            const consultarMatch = fullText.match(/<call:CONSULTAR>(.*?)<\/call>/i);
+            if (consultarMatch) {
+               call = { name: "readMemory", args: { query: consultarMatch[1].trim() } };
+               fullText = fullText.replace(consultarMatch[0], "").trim();
+            } else {
+               const genericCallMatch = fullText.match(/<call:([A-Za-z0-9_]+)>(.*?)<\/call>/s);
+               if (genericCallMatch) {
+                   call = { name: genericCallMatch[1].trim(), args: { command: genericCallMatch[2].trim() } };
+                   fullText = fullText.replace(genericCallMatch[0], "").trim();
+               }
             }
          }
       }

@@ -88,18 +88,29 @@ PaperCreeper features a highly capable Intelligence available through two format
 
 ### Supported IA Providers
 
-**1. Cloud AI (Gemini / OpenAI / Groq)**
-We support multiple keys for automatic Quota fallback. 
-1. Get a free API Key from [Google AI Studio](https://aistudio.google.com/app/apikey).
+**1. Cloud AI (Gemini / OpenAI / Groq / NVIDIA / xAI)**
+We support multiple providers using OpenAI-compatible endpoints or the native Gemini SDK.
+1. Obtain an API Key from your preferred provider:
+   - **Google AI Studio (Gemini):** Starts with `AIza`.
+   - **NVIDIA AI (DeepSeek / Llama3):** Starts with `nvapi-`. Go to build.nvidia.com. 
+   - **Groq:** Starts with `gsk_`. Excellent for fast Llama3 responses.
+   - **xAI (Grok):** Starts with `xai-`.
+   - **OpenAI:** Starts with `sk-`.
 2. Go to **Panel Settings > AI**.
-3. Select "Cloud AI" and paste your keys separated by commas: `AIzaSyX..., AIzaSyY...`
-4. Choose the model and test! The panel will automatically distribute usage.
+3. Insert your key. The panel automatically detects the provider (NVIDIA, Groq, xAI, etc.) based on your key prefix!
+4. If you want to force a specific model, type the model name (e.g., `deepseek-ai/deepseek-r1` for NVIDIA) in the Model Name field!
 
-**2. Local AI (Ollama - 100% Offline)**
-1. Install [Ollama](https://ollama.com/) on the server running PaperCreeper.
-2. Run your preferred model in your OS terminal: `ollama run llama3.2` or `ollama run qwen2.5-coder`
+**2. Local AI (Ollama / LM Studio) - Windows & Linux**
+Run AI entirely offline with zero cost.
+1. Download [Ollama](https://ollama.com/) or [LM Studio](https://lmstudio.ai/).
+2. Run your preferred model in your OS:
+   - **Linux/WSL:** `ollama run llama3.2` or `ollama run qwen2.5-coder`
+   - **Windows:** You can run LM Studio and click "Start Local Server" (usually runs on port 1234).
 3. In Panel Settings, switch the provider to "Local AI".
-4. Set Endpoint to: `http://127.0.0.1:11434/v1/chat/completions` (or `http://YOUR_HOST_IP:11434` depending on your setup).
+4. Set Endpoint to your local URL: 
+   - Ollama: `http://127.0.0.1:11434/v1/chat/completions`
+   - LM Studio: `http://127.0.0.1:1234/v1/chat/completions`
+5. *(Tip for Windows hosted Ollama accessed from WSL)*: Use your Windows machine's IP (e.g., `http://192.168.1.10:11434/v1/chat/completions`) instead of 127.0.0.1!
 
 ### Using The "Ajudante IA" In-Game Bot
 1. From the Terminal tab, click **"Ativar IA Ajudante"**.
