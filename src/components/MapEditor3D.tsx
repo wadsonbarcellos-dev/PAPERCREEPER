@@ -1,8 +1,8 @@
 import React, { useRef, useState, useMemo, useEffect, useCallback } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls, Box, Sky, Stars, Edges, FlyControls } from '@react-three/drei';
+import { MapControls, Box, Sky, Stars, Edges } from '@react-three/drei';
 import * as THREE from 'three';
-import { MousePointer2, Move, Eraser, Focus, Copy, ClipboardPaste, Save, Upload, Download, Map as MapIcon, Hammer } from 'lucide-react';
+import { MousePointer2, Move, Eraser, Focus, Copy, ClipboardPaste, Save, Upload, Download, Map as MapIcon, Hammer, RefreshCw } from 'lucide-react';
 
 const _object = new THREE.Object3D();
 
@@ -84,17 +84,40 @@ function BlockGroup({ blocks, colorStr, hex, onSelect, onHover, onRemove }: { bl
   );
 }
 
+function DynamicChunkLoader({ coords, onChunkChange }: { coords: {x:number, z:number}, onChunkChange: (cx: number, cz: number) => void }) {
+  const { camera } = useThree();
+  const lastCX = useRef<number | null>(null);
+  const lastCZ = useRef<number | null>(null);
+
+  useFrame(() => {
+     // Camera target center is roughly where we are looking
+     // Since MapControls uses ortographic/perspective top-down, camera x, z is close to target x, z
+     const cx = Math.floor(camera.position.x / 16);
+     const cz = Math.floor(camera.position.z / 16);
+     
+     if (cx !== lastCX.current || cz !== lastCZ.current) {
+        lastCX.current = cx;
+        lastCZ.current = cz;
+        onChunkChange(cx, cz);
+     }
+  });
+  return null;
+}
+
 function CameraRepositioner({ coords }: { coords: { x: number, y: number, z: number } }) {
   const { camera, controls } = useThree();
+  const initialized = useRef(false);
   useEffect(() => {
-    camera.position.set(coords.x + 10, coords.y + 15, coords.z + 20);
+    if (initialized.current) return;
+    initialized.current = true;
+    camera.position.set(coords.x, coords.y + 100, coords.z + 50);
     if (controls) {
       (controls as any).target.set(coords.x, coords.y, coords.z);
       (controls as any).update();
     } else {
       camera.lookAt(coords.x, coords.y, coords.z);
     }
-  }, [coords.x, Math.floor(coords.y / 16), coords.z, camera, controls]);
+  }, [coords.x, coords.y, coords.z, camera, controls]);
   return null;
 }
 
@@ -168,15 +191,15 @@ export default function MapEditor3D({ serverId, serverName, initialWorldName }: 
     }).then(r => r.json()).then(data => {
       if (!data.error) {
         setCoords({ x: data.x, y: data.y, z: data.z });
-        loadWorldChunk(data.x, data.y, data.z, worldName);
+        loadWorldChunk(Math.floor(data.x / 16), Math.floor(data.z / 16), worldName);
       } else {
         console.warn("Failed to read level.dat, loading default coordinates 0, 64, 0. Error:", data.error);
         setCoords({ x: 0, y: 64, z: 0 });
-        loadWorldChunk(0, 64, 0, worldName);
+        loadWorldChunk(0, 0, worldName);
       }
     }).catch(err => {
       console.warn("Fetch error for world/spawn", err);
-      loadWorldChunk(0, 64, 0, worldName);
+      loadWorldChunk(0, 0, worldName);
     });
   }, [serverId, worldName]);
 
@@ -270,25 +293,29 @@ export default function MapEditor3D({ serverId, serverName, initialWorldName }: 
      reader.readAsText(file);
   };
 
-  const loadWorldChunk = async (cx = coords.x, cy = coords.y, cz = coords.z, wn = worldName) => {
-    if (!serverId) { alert("Selecione um servidor primeiro."); return; }
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  const loadWorldChunk = async (cx: number, cz: number, wn = worldName) => {
+    if (!serverId) return;
     setLoading(true);
     try {
-      const res = await fetch("/api/world/load", { 
+      const res = await fetch("/api/world/load-region", { 
          method: "POST", headers: {"Content-Type": "application/json"},
-         body: JSON.stringify({ serverId, worldName: wn, x: cx, y: cy, z: cz, size: 16 }) 
+         body: JSON.stringify({ serverId, worldName: wn, cx, cz, radius: 2 }) // Loads 5x5 chunks! (25 chunks)
       });
       const data = await res.json();
       if (data.error) { 
-         alert("Não foi possível carregar o mapa: " + data.error);
+         console.warn("Error loading chunk region:", data.error);
          return; 
       }
-      if (data.blocks) {
-         if (data.blocks.length === 0) {
-            alert("Atenção: A chunk carregada está vazia (0 blocos). O servidor gerou esse mundo? Tente ligar o servidor, explorar a área ou mudar as coordenadas.");
-         }
-         const mapped = data.blocks.map((b: any) => ({
-            pos: [b.pos[0], b.pos[1], b.pos[2]], 
+      if (data.chunks) {
+         let allBlocks: any[] = [];
+         data.chunks.forEach((c: any) => {
+           allBlocks = allBlocks.concat(c.blocks);
+         });
+         
+         const mapped = allBlocks.map((b: any) => ({
+            pos: [b.pos[0], b.pos[1], b.pos[2]] as [number, number, number], 
             color: b.color,
             name: b.name
          }));
@@ -300,6 +327,14 @@ export default function MapEditor3D({ serverId, serverName, initialWorldName }: 
       setLoading(false);
     }
   };
+
+  const handleChunkChange = useCallback(
+    (cx: number, cz: number) => {
+      // Fetch new chunks seamlessly
+      loadWorldChunk(cx, cz, worldName);
+    },
+    [serverId, worldName]
+  );
 
   const saveWorldChunk = async () => {
     if (!serverId) { alert("Selecione um servidor primeiro."); return; }
@@ -403,7 +438,9 @@ export default function MapEditor3D({ serverId, serverName, initialWorldName }: 
                  </select>
                )}
              </span>
-             <button onClick={() => loadWorldChunk(coords.x, coords.y, coords.z, worldName)} disabled={loading} className="bg-emerald-600/80 hover:bg-emerald-500 text-white text-[10px] sm:text-xs px-2 sm:px-3 py-1 rounded flex items-center gap-1 shrink-0"><Upload size={12}/> <span className="hidden sm:inline">Load Chunk</span></button>
+             <button onClick={() => loadWorldChunk(Math.floor(coords.x/16), Math.floor(coords.z/16), worldName)} disabled={loading} className="bg-emerald-600/80 hover:bg-emerald-500 text-white text-[10px] sm:text-xs px-2 sm:px-3 py-1 rounded flex items-center gap-1 shrink-0">
+                <RefreshCw size={12} className={loading ? "animate-spin" : ""} /> <span className="hidden sm:inline">Reload Region</span>
+             </button>
              <button onClick={saveWorldChunk} disabled={loading} className="bg-blue-600/80 hover:bg-blue-500 text-white text-[10px] sm:text-xs px-2 sm:px-3 py-1 rounded flex items-center gap-1 shrink-0"><Save size={12}/> <span className="hidden sm:inline">Save</span></button>
              <button onClick={setWorldSpawn} disabled={loading} className="bg-amber-600/80 hover:bg-amber-500 text-white text-[10px] sm:text-xs px-2 sm:px-3 py-1 rounded flex items-center gap-1 shrink-0"><MapIcon size={12}/> <span className="hidden sm:inline">Set Spawn</span></button>
              {hoverPos && (
@@ -436,22 +473,23 @@ export default function MapEditor3D({ serverId, serverName, initialWorldName }: 
 
         {/* 3D Viewport */}
         <div className="flex-1 relative bg-[#1a1a1a]">
-          <Canvas frameloop="demand" camera={{ position: [coords.x + 10, coords.y + 15, coords.z + 20], fov: 60 }} gl={{ antialias: true }}>
+          <Canvas frameloop="demand" camera={{ position: [coords.x, coords.y + 100, coords.z + 50], fov: 60 }} gl={{ antialias: true }}>
+             <DynamicChunkLoader coords={coords} onChunkChange={handleChunkChange} />
              <CameraRepositioner coords={coords} />
              <ambientLight intensity={0.6} />
              <directionalLight position={[100, 200, 50]} intensity={1.5} castShadow />
              <Sky sunPosition={[100, 20, 100]} turbidity={0.1} rayleigh={0.5} />
              
-             <OrbitControls makeDefault enableDamping={false} maxPolarAngle={Math.PI / 2} />
+             <MapControls makeDefault enableDamping={false} maxPolarAngle={Math.PI / 2} />
              
-             <gridHelper args={[100, 100, 0x444444, 0x222222]} position={[coords.x, coords.y - 1, coords.z]} />
+             <gridHelper args={[200, 200, 0x444444, 0x222222]} position={[coords.x, coords.y - 1, coords.z]} />
              
              <mesh rotation={[-Math.PI / 2, 0, 0]} position={[coords.x, coords.y - 1, coords.z]} 
                 onClick={(e) => { e.stopPropagation(); handleSelect([Math.round(e.point.x), coords.y, Math.round(e.point.z)]); }}
                 onPointerMove={(e) => { e.stopPropagation(); setHoverPos([Math.round(e.point.x), coords.y, Math.round(e.point.z)]); }}
                 onPointerOut={() => setHoverPos(null)}
              >
-               <planeGeometry args={[100, 100]} />
+               <planeGeometry args={[2000, 2000]} />
                <meshBasicMaterial visible={false} />
              </mesh>
 

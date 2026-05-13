@@ -53,6 +53,8 @@ import {
   Code,
   Save,
   Box,
+  Scissors,
+  ClipboardPaste,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { askAI } from "../services/geminiService";
@@ -720,6 +722,7 @@ export default function App({
   const [isCheckingUpdates, setIsCheckingUpdates] = useState(false);
   const [fileList, setFileList] = useState<any[]>([]);
   const [currentFolder, setCurrentFolder] = useState("");
+  const [clipboardState, setClipboardState] = useState<{ path: string; action: "copy" | "cut" } | null>(null);
   const [editingFile, setEditingFile] = useState<{
     path: string;
     content: string;
@@ -1421,6 +1424,47 @@ export default function App({
       });
       if (res.ok) fetchFiles(currentFolder);
       else alert("Erro ao renomear arquivo.");
+    } catch (e) {}
+  };
+
+  const handleCopiedPaste = async () => {
+    if (!currentServerId || !clipboardState) return;
+    
+    const { path: sourcePath, action } = clipboardState;
+    const fileName = sourcePath.split('/').pop();
+    const destPath = currentFolder ? `${currentFolder}/${fileName}` : fileName;
+
+    if (sourcePath === destPath) {
+       alert("A origem e o destino são os mesmos.");
+       return;
+    }
+
+    try {
+      if (action === "copy") {
+        const res = await fetch("/api/server/files/copy", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ serverId: currentServerId, sourcePath, destPath }),
+        });
+        if (res.ok) {
+           setClipboardState(null);
+           fetchFiles(currentFolder);
+        } else {
+           alert("Erro ao copiar.");
+        }
+      } else if (action === "cut") {
+        const res = await fetch("/api/server/files/rename", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ serverId: currentServerId, oldPath: sourcePath, newPath: destPath }),
+        });
+        if (res.ok) {
+           setClipboardState(null);
+           fetchFiles(currentFolder);
+        } else {
+           alert("Erro ao mover.");
+        }
+      }
     } catch (e) {}
   };
 
@@ -5144,6 +5188,16 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                             <Folder size={16} />
                             NOVA PASTA
                           </button>
+                          {clipboardState && (
+                            <button
+                              onClick={handleCopiedPaste}
+                              className="px-6 py-4 bg-blue-900/50 hover:bg-blue-900 text-blue-400 rounded-2xl font-black text-xs shadow-lg shadow-blue-950/20 transition-all active:scale-95 border-b-4 border-blue-950 flex items-center gap-2"
+                              title="Colar Arquivo"
+                            >
+                              <ClipboardPaste size={16} />
+                              COLAR {clipboardState.action === "copy" ? "(CÓPIA)" : "(MOVER)"}
+                            </button>
+                          )}
                         </div>
                       </div>
 
@@ -5330,6 +5384,32 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                                       <Download size={18} />
                                     </a>
                                   )}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setClipboardState({
+                                         path: currentFolder ? `${currentFolder}/${item.name}` : item.name,
+                                         action: "copy"
+                                      });
+                                    }}
+                                    className="p-3 text-emerald-900 hover:text-blue-400 font-black"
+                                    title="Copiar"
+                                  >
+                                    <Copy size={18} />
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setClipboardState({
+                                         path: currentFolder ? `${currentFolder}/${item.name}` : item.name,
+                                         action: "cut"
+                                      });
+                                    }}
+                                    className="p-3 text-emerald-900 hover:text-orange-400 font-black"
+                                    title="Recortar"
+                                  >
+                                    <Scissors size={18} />
+                                  </button>
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();

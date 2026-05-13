@@ -82,6 +82,19 @@ async function startServer() {
   const getServerDir = (id: string) => path.join(SERVERS_ROOT, id);
   const getSrvConfigPath = (id: string) =>
     path.join(getServerDir(id), "panel-config.json");
+    
+  // --- SEGURANÇA CONTRA LFI E OTIMIZAÇÃO (RESOLUÇÃO DE PATH) ---
+  const resolveSafePath = (serverId: string, subPath: string) => {
+     const safeBase = path.resolve(getServerDir(serverId));
+     if (!subPath) return safeBase;
+     const resolved = path.resolve(safeBase, subPath);
+     if (!resolved.startsWith(safeBase) && resolved !== safeBase) {
+        throw new Error("Acesso proibido: Tentativa de Path Traversal abortada.");
+     }
+     return resolved;
+  };
+  // -----------------------------------------------------------
+
   const DEFAULT_CONFIG = {
     name: "Novo Servidor",
     ram: 4,
@@ -901,7 +914,103 @@ async function startServer() {
     }
   });
 
-  app.post("/api/world/save", async (req, res) => {
+  app.post("/api/world/load-region", async (req, res) => {
+    const { serverId, worldName, cx, cz, radius } = req.body;
+    try {
+      const srvDir = getServerDir(serverId);
+      const worldPath = path.join(srvDir, worldName || "world");
+      if (!fs.existsSync(worldPath)) return res.json({ error: "Mundo não encontrado ou servidor não gerou o world." });
+
+      const isNether = worldName?.includes("nether") || worldName?.endsWith("_nether");
+      const isEnd = worldName?.includes("end") || worldName?.endsWith("_the_end");
+      let regionPath = path.join(worldPath, "region");
+      if (isNether && fs.existsSync(path.join(worldPath, "DIM-1", "region"))) {
+         regionPath = path.join(worldPath, "DIM-1", "region");
+      } else if (isEnd && fs.existsSync(path.join(worldPath, "DIM1", "region"))) {
+         regionPath = path.join(worldPath, "DIM1", "region");
+      }
+
+      let AnvilPkg: any, ChunkPkg: any, registry: any, Vec3Class: any;
+      try {
+        AnvilPkg = await import("prismarine-provider-anvil");
+        ChunkPkg = await import("prismarine-chunk");
+        const registryAll = await import("prismarine-registry");
+        registry = registryAll.default ? registryAll.default("1.20.1") : (registryAll as any)("1.20.1");
+        Vec3Class = (await import('vec3')).default || await import('vec3') as any;
+      } catch (err: any) {
+        return res.json({ error: "Módulos de mapa não encontrados." });
+      }
+
+      const Anvil = AnvilPkg.default ? AnvilPkg.default.Anvil : AnvilPkg.Anvil;
+      const AnvilWorld = Anvil("1.20.1");
+      const worldProvider = new AnvilWorld(regionPath);
+
+      const r = Math.min(radius || 1, 3); // Max 7x7 chunks
+      const chunksData = [];
+
+      const PrisChunk = ChunkPkg.default ? ChunkPkg.default(registry) : ChunkPkg(registry);
+
+      for (let dx = -r; dx <= r; dx++) {
+        for (let dz = -r; dz <= r; dz++) {
+          const targetCX = cx + dx;
+          const targetCZ = cz + dz;
+          let chunkData = null;
+          try {
+            chunkData = await worldProvider.load(targetCX, targetCZ);
+          } catch (err: any) {}
+
+          if (chunkData) {
+            const chunk: any = new PrisChunk(null);
+            try {
+              if (chunk.loadLight) chunk.loadLight(chunkData.light);
+              if (chunk.load) chunk.load(chunkData.chunk, chunkData.bitmaps);
+              
+              const blocks = [];
+              const searchStartY = -64;
+              for (let cdx = 0; cdx < 16; cdx++) { 
+                for (let cdz = 0; cdz < 16; cdz++) {
+                  // Only get highest non-air block for super fast region load, or culling
+                  // To be accurate, we'll do simple top-down scanning for visible surface
+                  // Actually, MCEdit lets you slice Y. But top-surface is fastest.
+                  for (let cy = 319; cy >= -64; cy--) {
+                    const b = chunk.getBlockStateId({ x: cdx, y: cy, z: cdz } as any);
+                    if (b > 0 && b !== 10408) { // basic air skip
+                       const blockObj = chunk.getBlock(new Vec3Class(cdx, cy, cdz));
+                       const name = blockObj?.name || 'stone';
+                       if (name.includes('air') || name.includes('cave_air')) continue;
+                       
+                       let color = 'stone';
+                       if (name.includes('grass')) color = 'grass';
+                       else if (name.includes('dirt')) color = 'dirt';
+                       else if (name.includes('log') || name.includes('wood')) color = 'wood';
+                       else if (name.includes('leaves')) color = 'leaves';
+                       else if (name.includes('water')) color = 'water';
+                       else if (name.includes('sand')) color = 'sand';
+                       else if (name.includes('glass')) color = 'glass';
+
+                       blocks.push({
+                         pos: [(targetCX * 16) + cdx, cy, (targetCZ * 16) + cdz],
+                         color, name
+                       });
+                       break; // Only the top-most visible block per x,z column
+                    }
+                  }
+                }
+              }
+              chunksData.push({ cx: targetCX, cz: targetCZ, blocks });
+            } catch(e) {}
+          }
+        }
+      }
+
+      if (typeof worldProvider.close === 'function') await worldProvider.close();
+      res.json({ chunks: chunksData });
+    } catch(e: any) {
+      res.json({ error: e.message });
+    }
+  });
+
+  app.post("/api/server/map/write", async (req, res) => {
     const { serverId, worldName, blocks } = req.body;
     try {
       const srvDir = getServerDir(serverId);
@@ -1053,6 +1162,9 @@ async function startServer() {
       const currentKey = keysToTry.length > 0 ? keysToTry[0] : "";
       const isGeminiKey = currentKey && (currentKey.startsWith("AIza") || currentKey === "AIza_fallback");
       
+      const opts = options || { ai_internet: true, ai_memory: true, ai_bot: true };
+
+      // Instrução de sistema para manter a personalidade
       const systemInstruction = `
 Você é o "PaperCreeper AI", o OPERADOR SUPREMO e ENGENHEIRO de servidores Minecraft.
 Personalidade: Técnico, eficiente, prestativo e com um toque de humor "Minecrafter". Use emojis como ⛏️, 💎, 🔥, 🧨, 🛡️.
@@ -1060,15 +1172,30 @@ Personalidade: Técnico, eficiente, prestativo e com um toque de humor "Minecraf
 SUAS CAPACIDADES (Nomes das ferramentas suportadas):
 - "startServer": Iniciar o servidor
 - "stopServer": Parar o servidor
-- "sendTerminalCommand": Enviar comando pro console
-- "readMemory": Consultar memória
-- "saveMemory": Salvar memória
-- "searchInternet": Pesquisar na internet web
+- "sendTerminalCommand": Executar comando in-game (args: { "command": "cmd" })
+- "updateRAM": Ajustar RAM em GB (args: { "ram": 4 })
+- "readFile": Ler arquivo (args: { "path": "server.properties" })
+- "saveFile": Escrever arquivo (args: { "path": "arquivo", "content": "conteudo" })
+- "listFiles": Listar pasta (args: { "folder": "plugins" })
+- "executeTerminal": Shell linux no host (args: { "command": "ls" })
+${opts.ai_internet ? `- "searchInternet": Busca na web para autoaprendizado/códigos (args: { "query": "..." })
+- "fetchUrl": Lê um site da internet (args: { "url": "..." })` : ''}
+${opts.ai_memory ? `- "saveMemory": Salva um fato ou informação importante no cérebro a longo prazo (args: { "key": "...", "content": "..." })
+- "readMemory": Consulta sua memória de longo prazo (args: { "query": "..." })` : ''}
+${opts.ai_bot ? `- "spawnBot": Cria um Bot In-Game virtual para jogar e ler chat (args: { "botName": "..." })` : ''}
 
-Tente ajudar o usuário. Se você precisar agir em algo do servidor, DEVOLVA APENAS A TAG DA ACTION COMO SE FOSSE MAGIA!
-Exemplo: "Vou deixar de dia! <call:sendTerminalCommand>time set day</call>"
-Exemplo 2: "Deixe-me pesquisar: <call:PESQUISAR>mcMMO setup</call>"
-`;
+FORMATO DE RESPOSTA OBRIGATÓRIO PARA AÇÕES:
+MÉTODO 1 (Padrão JSON):
+Quando decidir realizar uma ação técnica, inclua no final da sua resposta estritamente este bloco JSON:
+[ACTION:{"name": "nomeDaFerramenta", "args": {"parametro": "valor"}}]
+Exemplo: "Vou deixar de dia! [ACTION:{"name": "sendTerminalCommand", "args": {"command": "time set day"}}]"
+
+MÉTODO 2 (Pesquisa Rápida na Web e Memória):
+Você também pode usar diretamente as seguintes tags para acessar a internet ou a memória:
+- Internet: <call:PESQUISAR>termo_de_busca</call>
+- Memória local: <call:CONSULTAR>termo_de_busca</call>
+Exemplo: "Deixe-me procurar isso: <call:PESQUISAR>mcMMO setup</call>"
+      `;
 
       const messages = [{ role: "system", content: systemInstruction }];
       if (history && Array.isArray(history)) {
@@ -1149,14 +1276,20 @@ Exemplo 2: "Deixe-me pesquisar: <call:PESQUISAR>mcMMO setup</call>"
          const { GoogleGenAI } = await import("@google/genai");
          const ai = new GoogleGenAI({ apiKey: currentKey });
          try {
-           const historyFormatted = messages.map(m => ({
-              role: m.role === "assistant" ? "model" : "user",
-              parts: [{ text: m.content }]
-           }));
+           const historyFormatted = messages
+              .filter(m => m.role !== "system")
+              .map(m => ({
+                role: m.role === "assistant" ? "model" : "user",
+                parts: [{ text: m.content }]
+              }));
            
            const stream = await ai.models.generateContentStream({
-             model: "gemini-2.5-flash",
-             contents: historyFormatted
+             model: "gemini-3.1-flash-lite",
+             contents: historyFormatted,
+             config: {
+               systemInstruction: systemInstruction,
+               temperature: 0.7
+             }
            });
            
            req.on("close", () => { /* cannot easily abort genai sdk but client disconnected */ });
@@ -1296,6 +1429,7 @@ Exemplo: "Deixe-me procurar isso: <call:PESQUISAR>mcMMO setup</call>"
       } else {
         // Gemini
         const tryKey = async (key: string) => {
+          const { GoogleGenAI } = await import("@google/genai");
           const localAi = new GoogleGenAI({ apiKey: key });
           
           const formattedHistory = (history || []).map((msg: any) => ({
@@ -1303,20 +1437,20 @@ Exemplo: "Deixe-me procurar isso: <call:PESQUISAR>mcMMO setup</call>"
             parts: [{ text: msg.text }]
           }));
 
-          const chat = localAi.chats.create({
-            model: "gemini-2.5-flash",
+          const msg = `${context ? `CONTEXTO ATUAL DO SERVIDOR:\n${context}\n\n` : ""}${prompt}`;
+          formattedHistory.push({ role: "user", parts: [{ text: msg }] });
+
+          const result = await localAi.models.generateContent({
+            model: "gemini-3.1-flash-lite",
+            contents: formattedHistory,
             config: {
-              systemInstruction,
+              systemInstruction: systemInstruction,
               temperature: 0.8,
               topP: 0.95,
               topK: 64,
-            },
-            history: formattedHistory
+            }
           });
           
-          const result = await chat.sendMessage({ 
-            message: `${context ? `CONTEXTO ATUAL DO SERVIDOR:\n${context}\n\n` : ""}${prompt}` 
-          });
           return result.text;
         };
 
@@ -1683,17 +1817,18 @@ command /creeper-ai <text>:
     res.json({ success: true });
   });
 
-  app.get("/api/ai/test", async (req, res) => {
-    try {
-      const currentKey = process.env.GEMINI_API_KEY || "AIza_fallback";
-      const localAi = new GoogleGenAI({ apiKey: currentKey });
-      const result = await localAi.models.generateContent({
-        model: "gemini-1.5-flash",
-        contents: "Say hello",
-      });
-      res.json({ success: true, text: result.text });
-    } catch (e: any) {
-      res.status(500).json({
+    app.get("/api/ai/test", async (req, res) => {
+      try {
+        const currentKey = process.env.GEMINI_API_KEY || "AIza_fallback";
+        const { GoogleGenAI } = await import("@google/genai");
+        const localAi = new GoogleGenAI({ apiKey: currentKey });
+        const result = await localAi.models.generateContent({
+          model: "gemini-3.1-flash-lite",
+          contents: "Say hello",
+        });
+        res.json({ success: true, text: result.text });
+      } catch (e: any) {
+        res.status(500).json({
         error: e.message,
         envKeyType: typeof process.env.GEMINI_API_KEY,
         envKeyLen: process.env.GEMINI_API_KEY?.length,
@@ -2027,9 +2162,10 @@ command /creeper-ai <text>:
                 const apiKey = process.env.GEMINI_API_KEY;
                 if (apiKey && !apiKey.startsWith("AIza_fallback")) {
                   try {
+                    const { GoogleGenAI } = await import("@google/genai");
                     const localAi = new GoogleGenAI({ apiKey });
                     const res = await localAi.models.generateContent({
-                      model: "gemini-1.5-flash",
+                      model: "gemini-3.1-flash-lite",
                       contents: `Como assistente técnico do Minecraft, o servidor encontrou os seguintes erros recentes nas logs:\n\n${errors}\n\nAnalise em 1 ou 2 frases curtas o que pode estar errado e dê a solução ou comando necessário. Você é um ajudante automático, responda com algo como "Problema detectado: [X]. Solução: [Y]". Dicas curtas são as melhores.`,
                     });
                     if (res.text) {
@@ -2958,79 +3094,65 @@ command /creeper-ai <text>:
     }
   });
 
-  app.get("/api/server/files/list", (req, res) => {
+  app.get("/api/server/files/list", async (req, res) => {
     const serverId = (req.query.serverId as string) || "default";
     const folder = (req.query.folder as string) || "";
-    const safeBase = getServerDir(serverId);
-    const targetDir = path.join(safeBase, folder);
-    console.log(
-      "[FILE LIST API] folder:",
-      folder,
-      "targetDir:",
-      targetDir,
-      "safeBase:",
-      safeBase,
-    );
-
-    // Security check
-    if (!targetDir.startsWith(safeBase))
-      return res.status(403).json({ error: "Acesso proibido." });
-
-    if (!fs.existsSync(targetDir))
-      return res.status(404).json({ error: "Pasta não encontrada." });
+    
     try {
-      const items = fs.readdirSync(targetDir).map((name) => {
-        const stats = fs.statSync(path.join(targetDir, name));
+      const targetDir = resolveSafePath(serverId, folder);
+
+      if (!fs.existsSync(targetDir)) {
+        return res.status(404).json({ error: "Pasta não encontrada." });
+      }
+
+      const dirContents = await fs.promises.readdir(targetDir);
+      const items = await Promise.all(dirContents.map(async (name) => {
+        const stats = await fs.promises.stat(path.join(targetDir, name));
         return { name, isDirectory: stats.isDirectory(), size: stats.size };
-      });
+      }));
       res.json({ items });
-    } catch (e) {
-      res.status(500).json({ error: "Erro." });
+    } catch (e: any) {
+      console.error("[FILE LIST ERROR]", e.message);
+      res.status(e.message.includes("Acesso proibido") ? 403 : 500).json({ error: "Erro: " + e.message });
     }
   });
 
-  app.get("/api/server/files/content", (req, res) => {
+  app.get("/api/server/files/content", async (req, res) => {
     const serverId = (req.query.serverId as string) || "default";
     const filePath = req.query.path as string;
-    const safeBase = getServerDir(serverId);
-    const fullPath = path.join(safeBase, filePath);
-
-    if (!fullPath.startsWith(safeBase))
-      return res.status(403).json({ error: "Acesso proibido." });
-
+    
     try {
-      res.json({ content: fs.readFileSync(fullPath, "utf-8") });
-    } catch (e) {
-      res.status(500).json({ error: "Erro." });
+      const fullPath = resolveSafePath(serverId, filePath);
+      const content = await fs.promises.readFile(fullPath, "utf-8");
+      res.json({ content });
+    } catch (e: any) {
+      res.status(e.message.includes("Acesso proibido") ? 403 : 500).json({ error: "Erro." });
     }
   });
 
   app.get("/api/server/files/download", (req, res) => {
     const serverId = (req.query.serverId as string) || "default";
     const filePath = req.query.path as string;
-    const safeBase = getServerDir(serverId);
-    const fullPath = path.join(safeBase, filePath);
-
-    if (!fullPath.startsWith(safeBase) || !fs.existsSync(fullPath))
-      return res.status(403).json({ error: "Acesso proibido ou arquivo não localizado." });
-
-    res.download(fullPath);
+    
+    try {
+      const fullPath = resolveSafePath(serverId, filePath);
+      if (!fs.existsSync(fullPath)) return res.status(404).json({ error: "Não localizado." });
+      res.download(fullPath);
+    } catch (e: any) {
+      res.status(403).json({ error: "Acesso proibido." });
+    }
   });
 
-  app.post("/api/server/files/save", (req, res) => {
+  app.post("/api/server/files/save", async (req, res) => {
     const { serverId, path: filePath, content } = req.body;
-    const safeBase = getServerDir(serverId);
-    const fullPath = path.join(safeBase, filePath);
-
-    if (!fullPath.startsWith(safeBase))
-      return res.status(403).json({ error: "Acesso proibido." });
-
+    
     try {
+      const fullPath = resolveSafePath(serverId, filePath);
       const parentDir = path.dirname(fullPath);
       if (!fs.existsSync(parentDir)) {
-        fs.mkdirSync(parentDir, { recursive: true });
+        await fs.promises.mkdir(parentDir, { recursive: true });
       }
-      fs.writeFileSync(fullPath, content);
+      await fs.promises.writeFile(fullPath, content);
       res.json({ success: true });
     } catch (e: any) {
       console.error("[FS] Erro ao salvar arquivo:", e.message);
@@ -3038,52 +3160,57 @@ command /creeper-ai <text>:
     }
   });
 
-  app.post("/api/server/files/mkdir", (req, res) => {
+  app.post("/api/server/files/mkdir", async (req, res) => {
     const { serverId, path: folderPath } = req.body;
-    const safeBase = getServerDir(serverId);
-    const fullPath = path.join(safeBase, folderPath);
-
-    if (!fullPath.startsWith(safeBase))
-      return res.status(403).json({ error: "Acesso proibido." });
-
     try {
-      if (!fs.existsSync(fullPath)) fs.mkdirSync(fullPath, { recursive: true });
+      const fullPath = resolveSafePath(serverId, folderPath);
+      if (!fs.existsSync(fullPath)) await fs.promises.mkdir(fullPath, { recursive: true });
       res.json({ success: true });
-    } catch (e) {
+    } catch (e: any) {
       res.status(500).json({ error: "Erro ao criar pasta." });
     }
   });
 
-  app.delete("/api/server/files/delete", (req, res) => {
+  app.delete("/api/server/files/delete", async (req, res) => {
     const serverId = (req.query.serverId as string) || "default";
     const filePath = req.query.path as string;
-    const safeBase = getServerDir(serverId);
-    const fullPath = path.join(safeBase, filePath);
-
-    if (!fullPath.startsWith(safeBase))
-      return res.status(403).json({ error: "Acesso proibido." });
-
     try {
-      if (fs.lstatSync(fullPath).isDirectory())
-        fs.rmSync(fullPath, { recursive: true, force: true });
-      else fs.unlinkSync(fullPath);
+      const fullPath = resolveSafePath(serverId, filePath);
+      if (fs.existsSync(fullPath)) {
+        if (fs.lstatSync(fullPath).isDirectory())
+          await fs.promises.rm(fullPath, { recursive: true, force: true });
+        else await fs.promises.unlink(fullPath);
+      }
       res.json({ success: true });
-    } catch (e) {
+    } catch (e: any) {
       res.status(500).json({ error: "Erro." });
     }
   });
 
-  app.post("/api/server/files/rename", (req, res) => {
-    const { serverId, oldPath, newPath } = req.body;
-    const safeBase = getServerDir(serverId);
-    const fullOldPath = path.join(safeBase, oldPath);
-    const fullNewPath = path.join(safeBase, newPath);
-
-    if (!fullOldPath.startsWith(safeBase) || !fullNewPath.startsWith(safeBase))
-      return res.status(403).json({ error: "Acesso proibido." });
-
+  app.post("/api/server/files/copy", async (req, res) => {
+    const { serverId, sourcePath, destPath } = req.body;
     try {
-      fs.renameSync(fullOldPath, fullNewPath);
+      const fullSourcePath = resolveSafePath(serverId, sourcePath);
+      const fullDestPath = resolveSafePath(serverId, destPath);
+
+      if (fs.lstatSync(fullSourcePath).isDirectory()) {
+         await fs.promises.cp(fullSourcePath, fullDestPath, { recursive: true });
+      } else {
+         await fs.promises.copyFile(fullSourcePath, fullDestPath);
+      }
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message || "Erro." });
+    }
+  });
+
+  app.post("/api/server/files/rename", async (req, res) => {
+    const { serverId, oldPath, newPath } = req.body;
+    try {
+      const fullOldPath = resolveSafePath(serverId, oldPath);
+      const fullNewPath = resolveSafePath(serverId, newPath);
+
+      await fs.promises.rename(fullOldPath, fullNewPath);
       res.json({ success: true });
     } catch (e) {
       res.status(500).json({ error: "Erro ao renomear." });

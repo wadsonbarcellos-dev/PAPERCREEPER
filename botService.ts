@@ -108,7 +108,7 @@ export async function manageBot(
           
           if (currentKey.startsWith("AIza") || currentKey === "AIza_fallback") {
              // We can use Google endpoint directly with REST API
-             targetEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${currentKey}`;
+             targetEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${currentKey}`;
           } else if (currentKey.startsWith("gsk_")) {
              targetEndpoint = "https://api.groq.com/openai/v1/chat/completions";
              model = "llama-3.3-70b-versatile"; 
