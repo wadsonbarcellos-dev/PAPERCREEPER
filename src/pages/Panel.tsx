@@ -1,5 +1,14 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as ChartTooltip,
+  ResponsiveContainer,
+} from "recharts";
+import {
   Heart,
   Play,
   Square,
@@ -55,6 +64,25 @@ import {
   Box,
   Scissors,
   ClipboardPaste,
+  ChevronRight,
+  Home,
+  Plus,
+  Trash,
+  Inbox,
+  FileCode,
+  Activity,
+  Zap,
+  LayoutDashboard,
+  ArrowRight,
+  Mic,
+  Brain,
+  History,
+  ShieldAlert,
+  Pickaxe,
+  Ghost,
+  Sword,
+  Wrench,
+  Monitor,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { askAI } from "../services/geminiService";
@@ -460,6 +488,8 @@ export default function App({
 
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [pendingSettings, setPendingSettings] = useState<any>(null);
+  const [geminiApiKey, setGeminiApiKey] = useState(() => localStorage.getItem("creeper_gemini_key") || "");
+  const [geminiModel, setGeminiModel] = useState(() => localStorage.getItem("creeper_gemini_model") || "gemini-3-flash-preview");
   
   const [aiChat, setAiChat] = useState<{ role: "user" | "assistant"; text: string }[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
@@ -536,7 +566,119 @@ export default function App({
   const [currentServerId, setCurrentServerId] = useState<string>("");
   const [javas, setJavas] = useState<{ version: string; path: string; type: string }[]>([]);
   const [scanningJavas, setScanningJavas] = useState(false);
-  const [activeTab, setActiveTab] = useState<string>("servers");
+  const [activeTab, setActiveTab] = useState<string>("dashboard");
+  const [systemDiag, setSystemDiag] = useState<any>(null);
+  const [systemHistory, setSystemHistory] = useState<any[]>([]);
+  const [isOptimizing, setIsOptimizing] = useState(false);
+  const [isAnalyzingLogs, setIsAnalyzingLogs] = useState(false);
+  const [suggestedCommand, setSuggestedCommand] = useState<string | null>(null);
+  const [isFileLoading, setIsFileLoading] = useState(false);
+  const [fileItems, setFileItems] = useState<{ name: string; isDirectory: boolean; size: number }[]>([]);
+  const [fileFolder, setFileFolder] = useState("");
+  const [editingFile, setEditingFile] = useState<any>(null);
+  const [editingContent, setEditingContent] = useState("");
+
+  const fetchFileList = async () => {
+    if (!currentServerId) return;
+    setIsFileLoading(true);
+    try {
+      const res = await fetch(`/api/server/files/list?serverId=${currentServerId}&folder=${encodeURIComponent(fileFolder)}`);
+      const data = await res.json();
+      if (data.items) setFileItems(data.items);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsFileLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "files") fetchFileList();
+  }, [activeTab, fileFolder, currentServerId]);
+
+  const handleSuggestCommand = async () => {
+    if (!currentServerId || serverState.logs.length === 0) return;
+    setIsAnalyzingLogs(true);
+    setSuggestedCommand(null);
+    try {
+      const lastLogs = serverState.logs.slice(-20).join("\n");
+      const prompt = `Analise os últimos logs do servidor Minecraft abaixo e sugira apenas um único comando útil (sem explicações, apenas o comando, ex: /save-all ou /stop) para resolver problemas ou otimizar algo:\n\n${lastLogs}`;
+      const suggestion = await askAI(prompt, aiProvider === "gemini" ? "gemini" : "off", customAIs.find(a => a.id === activeCustomAiId)?.apiKey || "");
+      if (suggestion && suggestion.text) {
+        // Limpar a sugestão para pegar apenas o comando (removendo markdown se houver)
+        const clean = suggestion.text.replace(/[`\/]/g, "").trim();
+        setSuggestedCommand("/" + clean);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsAnalyzingLogs(false);
+    }
+  };
+
+  const handleOpenEditor = async (path: string) => {
+    setEditingFile(path);
+    try {
+      const res = await fetch(`/api/server/files/content?serverId=${currentServerId}&path=${encodeURIComponent(fileFolder ? `${fileFolder}/${path}` : path)}`);
+      const data = await res.json();
+      setEditingContent(data.content || "");
+    } catch (e) {
+      alert("Erro ao ler arquivo");
+    }
+  };
+
+  const handleSaveFile = async (path: string, content: string) => {
+    try {
+      const res = await fetch("/api/server/files/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          serverId: currentServerId,
+          path: fileFolder ? `${fileFolder}/${path}` : path,
+          content
+        })
+      });
+      if (res.ok) {
+        alert("Salvo com sucesso!");
+        setEditingFile(null);
+        fetchFileList();
+      }
+    } catch (e) {
+      alert("Erro ao salvar");
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "system" || activeTab === "dashboard") {
+      fetch("/api/system/diagnostics")
+        .then(res => res.json())
+        .then(setSystemDiag)
+        .catch(console.error);
+    }
+    if (activeTab === "dashboard") {
+      fetch("/api/system/history")
+        .then(res => res.json())
+        .then(setSystemHistory)
+        .catch(console.error);
+    }
+  }, [activeTab]);
+
+  const handleOptimizeSystem = async () => {
+    setIsOptimizing(true);
+    try {
+      const res = await fetch("/api/system/optimize", { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        alert(data.message);
+        // Refresh diagnostics
+        fetch("/api/system/diagnostics").then(r => r.json()).then(setSystemDiag);
+      }
+    } catch (e) {
+      alert("Erro ao otimizar sistema");
+    } finally {
+      setIsOptimizing(false);
+    }
+  };
 
   const queueSettingsUpdate = (updates: any) => {
     setPendingSettings((prev: any) => ({ ...prev, ...updates }));
@@ -560,6 +702,8 @@ export default function App({
             if (data.settings.activeCustomAiId) setActiveCustomAiId(data.settings.activeCustomAiId);
             if (data.settings.customAIs) setCustomAIs(data.settings.customAIs);
             if (data.settings.modules) setModules(data.settings.modules);
+            if (data.settings.geminiApiKey) setGeminiApiKey(data.settings.geminiApiKey);
+            if (data.settings.geminiModel) setGeminiModel(data.settings.geminiModel);
          }
          setSettingsLoaded(true);
       })
@@ -603,6 +747,13 @@ export default function App({
     localStorage.setItem("creeper_active_custom_ai", activeCustomAiId);
     queueSettingsUpdate({ activeCustomAiId });
   }, [activeCustomAiId, settingsLoaded]);
+
+  useEffect(() => {
+    if (!settingsLoaded) return;
+    localStorage.setItem("creeper_gemini_key", geminiApiKey);
+    localStorage.setItem("creeper_gemini_model", geminiModel);
+    queueSettingsUpdate({ geminiApiKey, geminiModel });
+  }, [geminiApiKey, geminiModel, settingsLoaded]);
 
   useEffect(() => {
     if (!settingsLoaded) return;
@@ -747,10 +898,6 @@ export default function App({
   const [fileList, setFileList] = useState<any[]>([]);
   const [currentFolder, setCurrentFolder] = useState("");
   const [clipboardState, setClipboardState] = useState<{ path: string; action: "copy" | "cut" } | null>(null);
-  const [editingFile, setEditingFile] = useState<{
-    path: string;
-    content: string;
-  } | null>(null);
   const [showDownloadInput, setShowDownloadInput] = useState(false);
   const [downloadUrl, setDownloadUrl] = useState("");
   const [isUploading, setIsUploading] = useState(false);
@@ -813,6 +960,20 @@ export default function App({
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
+
+  useEffect(() => {
+    if (multiTerminals.length > 0) {
+      multiTerminals.forEach(id => {
+         const div = document.getElementById(`terminal-${id}`);
+         if (div && autoScroll) {
+            div.scrollTop = div.scrollHeight;
+         }
+      });
+    }
+    if (scrollRef.current && autoScroll) {
+       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [serverState.logs, multiServerStates, autoScroll, multiTerminals]);
   const [showHibernationModal, setShowHibernationModal] = useState(false);
   
   const handleScroll = () => {
@@ -1958,15 +2119,24 @@ export default function App({
       let keysArray: string[] = [];
       let activeEndpoint = "http://127.0.0.1:11434/v1/chat/completions";
       let activeModel = "llama3";
+      let effectiveProvider = aiProvider;
+
       if (aiProvider === "local") {
         const foundAi = customAIs.find(a => a.id === activeCustomAiId) || customAIs[0];
         if (foundAi) {
            activeEndpoint = foundAi.endpoint;
            activeModel = foundAi.model;
+           if (foundAi.endpoint === "gemini") effectiveProvider = "gemini";
+           
            if (foundAi.apiKey && foundAi.apiKey.trim().length > 0) {
               keysArray.unshift(foundAi.apiKey.trim());
            }
         }
+      } else if (aiProvider === "gemini") {
+         activeModel = geminiModel;
+         if (geminiApiKey.trim()) {
+            keysArray.unshift(geminiApiKey.trim());
+         }
       }
       
       const context = `Servidor Selecionado: ${currentServerId}. Status: ${serverState?.status || 'desconhecido'}. Logs recentes:\n${serverState?.logs?.slice(-10).join("\n") || ''}`;
@@ -1985,7 +2155,7 @@ export default function App({
         };
       } else {
          setAiChat((prev) => [...prev, { role: "assistant", text: "..." }]);
-         firstResult = await askAI(finalMsg, context, currentServerId, aiProvider, activeEndpoint, aiChat.slice(-10), activeModel, keysArray, modules, (chunk) => {
+         firstResult = await askAI(finalMsg, context, currentServerId, effectiveProvider, activeEndpoint, aiChat.slice(-10), activeModel, keysArray, modules, (chunk) => {
             setAiChat((prev) => {
                const n = [...prev];
                n[n.length - 1].text = chunk;
@@ -2017,7 +2187,7 @@ ${toolResult}
 Por favor, explique ou detalhe esse resultado para mim de forma natural e amigável. Não use JSON.`,
           context,
           currentServerId,
-          aiProvider,
+          effectiveProvider,
           activeEndpoint,
           aiChat.slice(-10),
           activeModel,
@@ -2043,13 +2213,13 @@ Por favor, explique ou detalhe esse resultado para mim de forma natural e amigá
            return n;
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("AI Error:", error);
       setAiChat((prev) => [
         ...prev,
         {
           role: "assistant",
-          text: "Tive um curto-circuito na redstone. Tente novamente! 🔌",
+          text: `❌ Erro no processamento da IA: ${error.message || "Curto-circuito desconhecido"}. Verifique sua conexão e Chave de API nas Configurações. 🔌`,
         },
       ]);
     }
@@ -2068,23 +2238,33 @@ Por favor, explique ou detalhe esse resultado para mim de forma natural e amigá
       let keysArray: string[] = [];
       let activeGenEndpoint = "http://127.0.0.1:11434/v1/chat/completions";
       let activeGenModel = "llama3";
+      let effectiveGenProvider = aiProvider;
+
       if (aiProvider === "local") {
         const foundAi = customAIs.find(a => a.id === activeCustomAiId) || customAIs[0];
         if (foundAi) {
            activeGenEndpoint = foundAi.endpoint;
            activeGenModel = foundAi.model;
+           if (foundAi.endpoint === "gemini") effectiveGenProvider = "gemini";
+
            if (foundAi.apiKey && foundAi.apiKey.trim().length > 0) {
               keysArray.unshift(foundAi.apiKey.trim());
            }
         }
+      } else if (aiProvider === "gemini") {
+         activeGenModel = geminiModel;
+         if (geminiApiKey.trim()) {
+            keysArray.unshift(geminiApiKey.trim());
+         }
       }
+
       const context = "";
       const prompt = `Atue como um desenvolvedor Skript (Minecraft). O usuário quer o seguinte plugin/sistema:
 "${pluginDescription}"
 
 Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Retorne APENAS o código encapsulado num bloco \`\`\`skript ... \`\`\`. Use blocos de command, on event, etc conforme necessário e não utilize ferramentas [ACTION:...] aqui! Só envie o código, sem explicações extras.`;
       
-      const result = await askAI(prompt, "Skript Plugin Generation Mode", currentServerId, aiProvider, activeGenEndpoint, [], activeGenModel, keysArray, modules);
+      const result = await askAI(prompt, "Skript Plugin Generation Mode", currentServerId, effectiveGenProvider, activeGenEndpoint, [], activeGenModel, keysArray, modules);
       
       const rawText = result.text || "";
       const codeMatch = rawText.match(/```(?:skript|sk|yaml)?\n([\s\S]*?)```/);
@@ -2124,12 +2304,17 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
     }
   };
 
+  const [commandHistory, setCommandHistory] = useState<string[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+
   const sendCommand = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!command.trim() || !currentServerId) return;
 
-    // Immediate local feedback
     let cmd = command.trim();
+    setCommandHistory(prev => [cmd, ...prev.slice(0, 49)]);
+    setHistoryIndex(-1);
+
     if (cmd.startsWith("/")) cmd = cmd.substring(1);
     
     setCommand("");
@@ -2157,6 +2342,27 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
     }
   };
 
+  const handleTerminalKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (historyIndex < commandHistory.length - 1) {
+        const newIndex = historyIndex + 1;
+        setHistoryIndex(newIndex);
+        setCommand(commandHistory[newIndex]);
+      }
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (historyIndex > 0) {
+        const newIndex = historyIndex - 1;
+        setHistoryIndex(newIndex);
+        setCommand(commandHistory[newIndex]);
+      } else if (historyIndex === 0) {
+        setHistoryIndex(-1);
+        setCommand("");
+      }
+    }
+  };
+
   const getStatusBubble = () => {
     switch (serverState.status) {
       case "online":
@@ -2170,7 +2376,22 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
     }
   };
 
+  const [notifications, setNotifications] = useState<{id: string, text: string, type: 'info' | 'warn' | 'success'}[]>([]);
+
+  const addNotification = (text: string, type: 'info' | 'warn' | 'success' = 'info') => {
+    const id = Math.random().toString(36).substring(7);
+    setNotifications(prev => [...prev, { id, text, type }]);
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== id));
+    }, 5000);
+  };
+
   const formatLogLine = (text: string) => {
+    // Detect healer messages for notifications
+    if (text.includes("[IA-HEALER]") && !notifications.some(n => n.text.includes("HEALER"))) {
+       addNotification("Auto-Healer: Diagnosticando anomalias detectadas nos logs... 🛡️", "info");
+    }
+
     const urlRegex = /(https?:\/\/[^\s\x1B"'()]+)/g;
     if (!text.match(urlRegex)) return text;
     const parts = text.split(/(https?:\/\/[^\s\x1B"'()]+)/g);
@@ -2185,10 +2406,145 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
     );
   };
 
+  const [showQuickSearch, setShowQuickSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  useEffect(() => {
+    const handleK = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        setShowQuickSearch(prev => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleK);
+    return () => window.removeEventListener("keydown", handleK);
+  }, []);
+
+  const filteredItems = [
+    ...servers.map(s => ({ type: "server", id: s.id, name: s.name, icon: <Server size={14} /> })),
+    { type: "tab", id: "dashboard", name: "Dashboard", icon: <LayoutDashboard size={14} /> },
+    { type: "tab", id: "servers", name: "Servidores", icon: <Server size={14} /> },
+    { type: "tab", id: "files", name: "Arquivos", icon: <FileCode size={14} /> },
+    { type: "tab", id: "store", name: "Marketplace", icon: <Store size={14} /> },
+    { type: "tab", id: "system", name: "Sistema", icon: <Activity size={14} /> },
+  ].filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()));
+
   return (
     <div
-      className={`min-h-screen font-sans selection:bg-emerald-500 selection:text-white transition-all duration-700 ${isPaperPig ? (theme === "dark" ? "bg-[#1E1114] text-pink-50" : "bg-[#fdf2f8] text-pink-950") : (theme === "dark" ? "bg-[#040D09] text-emerald-50" : "bg-zinc-50 text-emerald-950")} ${isHibernating ? "grayscale-[1] brightness-50 contrast-125" : ""}`}
+      className={`min-h-screen font-sans selection:bg-emerald-500 selection:text-white transition-all duration-700 ${isPaperPig ? (theme === "dark" ? "bg-[#1E1114] text-pink-50" : "bg-[#fdf2f8] text-pink-950") : (theme === "dark" ? "bg-animate text-emerald-50" : "bg-zinc-50 text-emerald-950")} ${isHibernating ? "grayscale-[1] brightness-50 contrast-125" : ""}`}
     >
+      {/* Floating Notifications UI */}
+      <div className="fixed top-6 right-6 z-[120] flex flex-col gap-3 pointer-events-none">
+        <AnimatePresence>
+          {notifications.map(n => (
+            <motion.div
+              key={n.id}
+              initial={{ x: 300, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: 300, opacity: 0 }}
+              className={`px-6 py-4 rounded-2xl border-2 flex items-center gap-4 pointer-events-auto backdrop-blur-xl shadow-2xl ${
+                n.type === 'success' ? 'bg-emerald-500/20 border-emerald-500 text-emerald-100' :
+                n.type === 'warn' ? 'bg-amber-500/20 border-amber-500 text-amber-100' :
+                'bg-blue-500/20 border-blue-500 text-blue-100'
+              }`}
+            >
+               {n.type === 'success' ? <Check size={18} /> : n.type === 'warn' ? <ShieldAlert size={18} /> : <Info size={18} />}
+               <span className="font-black text-xs uppercase tracking-widest">{n.text}</span>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
+
+      <div className="fixed bottom-0 left-0 w-full z-[80] bg-black/80 backdrop-blur-md border-t border-emerald-500/20 py-2 overflow-hidden pointer-events-none">
+        <div className="flex whitespace-nowrap animate-marquee">
+          {[
+            "🛡️ VPS Protegida com Backup Automático",
+            "(•◡•) Dica: Pressione Ctrl+K para busca rápida",
+            "🚀 Sua rede Playit.gg está ativa e segura",
+            "✨ IA detectou 15% a mais de performance usando Java 21",
+            "💎 Servidores Titanium: Performance sem limites",
+            "🛠️ Dica: Clique com o botão direito nos arquivos para ações mágicas",
+            "🌈 Modo PaperPig ativo? Que fofo!",
+            "🔥 Use /save-all frequentemente para evitar perdas",
+            "🛡️ Auto-Healer monitorando seus logs 24/7",
+          ].map((msg, i) => (
+            <span key={i} className="mx-8 text-[10px] font-black text-emerald-500/50 uppercase tracking-[0.4em] italic">
+              {msg}
+            </span>
+          ))}
+          {/* Duplicate for seamless marquee */}
+          {[
+            "🛡️ VPS Protegida com Backup Automático",
+            "(•◡•) Dica: Pressione Ctrl+K para busca rápida",
+            "🚀 Sua rede Playit.gg está ativa e segura",
+            "✨ IA detectou 15% a mais de performance usando Java 21",
+            "💎 Servidores Titanium: Performance sem limites",
+            "🛠️ Dica: Clique com o botão direito nos arquivos para ações mágicas",
+            "🌈 Modo PaperPig ativo? Que fofo!",
+            "🔥 Use /save-all frequentemente para evitar perdas",
+            "🛡️ Auto-Healer monitorando seus logs 24/7",
+          ].map((msg, i) => (
+            <span key={`dup-${i}`} className="mx-8 text-[10px] font-black text-emerald-500/50 uppercase tracking-[0.4em] italic">
+              {msg}
+            </span>
+          ))}
+        </div>
+      </div>
+      <AnimatePresence>
+        {showQuickSearch && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm p-4 flex items-start justify-center pt-24"
+            onClick={() => setShowQuickSearch(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: -20 }}
+              animate={{ scale: 1, y: 0 }}
+              className="bg-zinc-900 border-2 border-emerald-500/50 w-full max-w-xl rounded-3xl shadow-2xl shadow-emerald-500/20 overflow-hidden"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="p-4 border-b border-white/5 flex items-center gap-3">
+                <Search className="text-emerald-500" size={20} />
+                <input
+                  autoFocus
+                  placeholder="Buscar servidor, aba ou função... (Esc para fechar)"
+                  className="bg-transparent border-none outline-none text-white w-full font-bold uppercase italic tracking-tighter"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <div className="max-h-[400px] overflow-y-auto p-2">
+                {filteredItems.map(item => (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      if (item.type === "server") {
+                        setCurrentServerId(item.id);
+                        setActiveTab("servers");
+                      } else {
+                        setActiveTab(item.id);
+                      }
+                      setShowQuickSearch(false);
+                    }}
+                    className="w-full text-left p-4 rounded-2xl hover:bg-emerald-500/10 flex items-center justify-between group transition-all"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="text-emerald-500 bg-emerald-500/10 p-2 rounded-xl group-hover:scale-110 transition-transform">
+                        {item.icon}
+                      </div>
+                      <span className="text-white font-black uppercase italic tracking-widest text-xs">{item.name}</span>
+                    </div>
+                    <span className="text-[9px] text-white/20 font-bold uppercase tracking-[0.3em]">{item.type}</span>
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div
         className={`fixed inset-0 creeper-pattern pointer-events-none ${isPaperPig ? "hidden" : ""} ${theme === "light" ? "opacity-[0.015]" : "opacity-[0.04]"} mix-blend-overlay`}
       />
@@ -2265,6 +2621,38 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                   <button onClick={() => setShowAiCustomConfigModal(false)} className="text-emerald-500 hover:text-emerald-300 transition"><X size={24} /></button>
                 </div>
                 
+                <div className="w-full bg-emerald-950/40 border border-emerald-900/40 rounded-2xl p-4 mb-2 space-y-4 shadow-inner">
+                  <h4 className="text-[11px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-2">
+                    <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                    🛰️ Configuração Gemini Nativo (Google)
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider block mb-1">Gemini API Key (Para uso Client-Side)</label>
+                      <input 
+                        type="password"
+                        value={geminiApiKey} 
+                        onChange={(e) => setGeminiApiKey(e.target.value)}
+                        placeholder="AIza..."
+                        className="w-full bg-black/40 border border-emerald-900/50 rounded-xl px-3 py-2 text-emerald-100 text-xs outline-none focus:border-emerald-500 transition-all font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider block mb-1">Modelo de IA Padrão (Gemini)</label>
+                      <select 
+                        value={geminiModel} 
+                        onChange={(e) => setGeminiModel(e.target.value)}
+                        className="w-full bg-black/40 border border-emerald-900/50 rounded-xl px-3 py-2 text-emerald-100 text-xs outline-none focus:border-emerald-500 transition-all cursor-pointer"
+                      >
+                        <option value="gemini-3-flash-preview">Gemini 3.0 Flash (Última Geração)</option>
+                        <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                        <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                        <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash (Experimental)</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="flex flex-wrap gap-2 mb-4">
                   <span className="text-[10px] text-emerald-500 font-bold uppercase w-full">Adicionar Rápido:</span>
                   <button onClick={() => setCustomAIs([...customAIs, { id: "gemini_" + Date.now(), name: "Gemini (Google)", endpoint: "gemini", model: "gemini-2.5-flash", apiKey: "" }])} className="bg-emerald-900/40 hover:bg-emerald-800 text-emerald-300 text-[10px] px-3 py-1 rounded">Gemini</button>
@@ -2390,6 +2778,55 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                   >
                     CONCLUÍDO
                   </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+
+          {editingFile && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[150] bg-black/90 backdrop-blur-xl flex items-center justify-center p-4 lg:p-10"
+            >
+              <motion.div
+                initial={{ scale: 0.95, y: 30 }}
+                animate={{ scale: 1, y: 0 }}
+                className="bg-zinc-900 border-2 border-emerald-500/30 rounded-[2.5rem] shadow-2xl w-full max-w-6xl h-full flex flex-col overflow-hidden"
+              >
+                <div className="p-6 border-b border-white/5 flex items-center justify-between bg-black/20">
+                   <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-emerald-600/20 rounded-2xl flex items-center justify-center text-emerald-500 border border-emerald-500/20 shadow-lg">
+                         <FileCode size={24} />
+                      </div>
+                      <div>
+                         <h3 className="text-xl font-black text-white tracking-widest uppercase italic">{editingFile}</h3>
+                         <p className="text-[10px] font-bold text-emerald-500/40 uppercase tracking-[0.2em]">{fileFolder || "Raiz"}</p>
+                      </div>
+                   </div>
+                   <div className="flex items-center gap-3">
+                      <button 
+                        onClick={() => handleSaveFile(editingFile, editingContent)}
+                        className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg active:scale-95 transition-all border-b-4 border-emerald-800"
+                      >
+                         Salvar Arquivo
+                      </button>
+                      <button 
+                        onClick={() => setEditingFile(null)}
+                        className="p-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-2xl transition"
+                      >
+                         <X size={24} />
+                      </button>
+                   </div>
+                </div>
+                <div className="flex-1 p-6">
+                   <textarea 
+                     value={editingContent}
+                     onChange={(e) => setEditingContent(e.target.value)}
+                     className="w-full h-full bg-black/40 text-emerald-100 font-mono text-sm p-6 rounded-3xl border border-white/5 outline-none focus:border-emerald-500/30 transition-all resize-none shadow-inner"
+                     spellCheck={false}
+                   />
                 </div>
               </motion.div>
             </motion.div>
@@ -3541,10 +3978,28 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
               </div>
               <nav className="flex lg:flex-col flex-wrap gap-2 lg:gap-0 lg:space-y-1 pb-2 lg:pb-0">
                 <MenuLink
+                  icon={<LayoutDashboard size={20} />}
+                  label="Dashboard"
+                  active={activeTab === "dashboard"}
+                  onClick={() => setActiveTab("dashboard")}
+                />
+                <MenuLink
                   icon={<Server size={20} />}
                   label={t("servers")}
                   active={activeTab === "servers"}
                   onClick={() => setActiveTab("servers")}
+                />
+                <MenuLink 
+                  icon={<Cpu size={20} />} 
+                  label="Sistema"
+                  active={activeTab === "system"}
+                  onClick={() => setActiveTab("system")}
+                />
+                <MenuLink 
+                  icon={<FileCode size={20} />} 
+                  label="Arquivos"
+                  active={activeTab === "files"}
+                  onClick={() => setActiveTab("files")}
                 />
                 <MenuLink
                   icon={<Globe size={20} />}
@@ -3615,6 +4070,153 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
             )}
 
             <AnimatePresence mode="wait">
+              {activeTab === "dashboard" && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.98 }}
+                  className="space-y-6"
+                >
+                  {/* Header Stats */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    {[
+                      { label: "Servidores", value: servers.length, icon: <Server size={20} />, color: "emerald" },
+                      { label: "Status VPS", value: "Excelente", icon: <CheckCircle2 size={20} />, color: "sky" },
+                      { label: "Uptime", value: "99.9%", icon: <Zap size={20} />, color: "amber" },
+                      { label: "Jogadores", value: "0", icon: <Users size={20} />, color: "pink" },
+                    ].map((stat, idx) => (
+                      <motion.div
+                        key={idx}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: idx * 0.1 }}
+                        className="bg-black/40 backdrop-blur-md border border-white/5 p-5 rounded-[2rem] flex items-center gap-4 group hover:border-emerald-500/30 transition-all cursor-default"
+                      >
+                        <div className={`w-12 h-12 bg-${stat.color}-500/10 rounded-2xl flex items-center justify-center text-${stat.color}-500 border border-${stat.color}-500/20 group-hover:scale-110 transition-transform`}>
+                          {stat.icon}
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">{stat.label}</p>
+                          <h4 className="text-xl font-black text-white tracking-tighter">{stat.value}</h4>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+
+                  {/* Main Monitoring Chart */}
+                  <div className="bg-black/40 backdrop-blur-md border border-white/5 rounded-[2.5rem] p-8 relative overflow-hidden group">
+                    <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.5)]" />
+                    <div className="flex items-center justify-between mb-8">
+                       <div>
+                          <h3 className="text-2xl font-black text-white tracking-tighter uppercase italic italic">Monitoramento <span className="text-emerald-500">Global</span></h3>
+                          <p className="text-xs font-bold text-white/30 uppercase tracking-widest mt-1">Recursos da VPS em tempo real</p>
+                       </div>
+                       <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-2">
+                             <div className="w-3 h-3 rounded-full bg-emerald-500" />
+                             <span className="text-[10px] font-black text-white/50 uppercase tracking-widest">CPU</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                             <div className="w-3 h-3 rounded-full bg-sky-500" />
+                             <span className="text-[10px] font-black text-white/50 uppercase tracking-widest">RAM</span>
+                          </div>
+                       </div>
+                    </div>
+
+                    <div className="h-[250px] w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={systemHistory.length > 0 ? systemHistory : [{time: '00:00', cpu: 10, mem: 20}]}>
+                          <defs>
+                            <linearGradient id="colorCpu" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                              <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                            </linearGradient>
+                            <linearGradient id="colorMem" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.3}/>
+                              <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0}/>
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ffffff05" />
+                          <XAxis 
+                            dataKey="time" 
+                            axisLine={false} 
+                            tickLine={false} 
+                            tick={{fill: '#ffffff20', fontSize: 10, fontWeight: 'bold'}}
+                          />
+                          <YAxis 
+                            axisLine={false} 
+                            tickLine={false} 
+                            tick={{fill: '#ffffff20', fontSize: 10, fontWeight: 'bold'}}
+                          />
+                          <ChartTooltip 
+                            contentStyle={{backgroundColor: '#000', border: '1px solid #ffffff10', borderRadius: '15px'}}
+                            itemStyle={{fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase'}}
+                          />
+                          <Area type="monotone" dataKey="cpu" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorCpu)" />
+                          <Area type="monotone" dataKey="mem" stroke="#0ea5e9" strokeWidth={3} fillOpacity={1} fill="url(#colorMem)" />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* AI INSIGHTS */}
+                    <div className="bg-black/60 backdrop-blur-xl border-2 border-emerald-500/20 rounded-[2.5rem] p-8 relative group overflow-hidden">
+                       <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
+                          <Brain size={120} />
+                       </div>
+                       <div className="relative z-10">
+                          <div className="flex items-center gap-3 mb-6">
+                             <div className="w-10 h-10 bg-emerald-500 rounded-2xl flex items-center justify-center text-black shadow-[0_0_15px_rgba(16,185,129,0.5)]">
+                               <Sparkles size={20} />
+                             </div>
+                             <h3 className="text-xl font-black text-white tracking-widest uppercase italic text-glow">AI Insights</h3>
+                          </div>
+                          <div className="space-y-4">
+                             <div className="p-4 bg-emerald-500/5 rounded-2xl border border-emerald-500/10">
+                                <p className="text-xs font-bold text-emerald-400 uppercase tracking-widest mb-1 flex items-center gap-2">
+                                   <Zap size={12} /> Sugestão de Otimização
+                                </p>
+                                <p className="text-sm font-medium text-emerald-50/80 leading-relaxed italic">
+                                  "Percebi que seu servidor Principal está usando Java 17, mas a versão 1.21 roda melhor com Java 21 (+15% perf). Deseja atualizar?"
+                                </p>
+                             </div>
+                             <button 
+                               onClick={() => setActiveTab("ai")}
+                               className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-[0.3em] rounded-2xl shadow-lg border-b-4 border-emerald-900 transition-all active:scale-95 flex items-center justify-center gap-3"
+                             >
+                                Falar com a IA <ArrowRight size={16} />
+                             </button>
+                          </div>
+                       </div>
+                    </div>
+
+                    {/* QUICK ACTIONS */}
+                    <div className="bg-zinc-900/60 backdrop-blur-xl border border-white/5 rounded-[2.5rem] p-8">
+                       <h3 className="text-xl font-black text-white tracking-widest uppercase italic mb-6">Ações Rápidas</h3>
+                       <div className="grid grid-cols-2 gap-4">
+                          {[
+                            { label: "Otimizar VPS", icon: <Zap />, color: "emerald", action: handleOptimizeSystem },
+                            { label: "Novo Server", icon: <Plus />, color: "sky", action: () => { setShowCreateModal(true); setNewServerConfig({ name: "", ram: 4, type: "spigot", version: "1.21.1", usePlayit: true, minRam: 1, url: "" }); } },
+                            { label: "Diagnóstico", icon: <Activity />, color: "amber", action: () => setActiveTab("system") },
+                            { label: "Sair", icon: <Power />, color: "rose", action: () => window.location.reload() },
+                          ].map((btn, bidx) => (
+                             <button
+                               key={bidx}
+                               onClick={btn.action}
+                               className={`p-6 bg-zinc-800/40 hover:bg-zinc-700/60 rounded-[2rem] border border-white/5 flex flex-col items-center justify-center gap-3 transition-all hover:scale-105 active:scale-95 group`}
+                             >
+                                <div className={`text-${btn.color}-500 group-hover:scale-125 transition-transform`}>
+                                   {btn.icon}
+                                </div>
+                                <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">{btn.label}</span>
+                             </button>
+                          ))}
+                       </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
               {activeTab === "servers" && (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
@@ -3632,10 +4234,27 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                       </div>
                     </div>
 
-                    <div className="space-y-4">
+                    <motion.div 
+                      className="space-y-4"
+                      variants={{
+                        hidden: { opacity: 0 },
+                        show: {
+                          opacity: 1,
+                          transition: {
+                            staggerChildren: 0.1
+                          }
+                        }
+                      }}
+                      initial="hidden"
+                      animate="show"
+                    >
                       {servers.map((srv) => (
-                        <div
+                        <motion.div
                           key={srv.id}
+                          variants={{
+                            hidden: { opacity: 0, x: -20 },
+                            show: { opacity: 1, x: 0 }
+                          }}
                           className={`p-6 rounded-[2rem] border-4 transition-all cursor-pointer shadow-sm hover:shadow-xl ${currentServerId === srv.id ? "bg-emerald-900/20 border-emerald-500" : "bg-black/20 border-zinc-900 border-opacity-50 hover:border-emerald-900/50"}`}
                           onClick={() => setCurrentServerId(srv.id)}
                         >
@@ -3765,7 +4384,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                               )}
                             </div>
                           </div>
-                        </div>
+                        </motion.div>
                       ))}
 
                       <button
@@ -3784,7 +4403,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                           </p>
                         </div>
                       </button>
-                    </div>
+                    </motion.div>
                   </div>
 
                   {/* Infos redundantes removidas */}
@@ -4291,82 +4910,124 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
 
               {activeTab === "store" && (
                 <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  className="bg-black/40 backdrop-blur-md border border-emerald-900/50 rounded-3xl shadow-sm p-4 sm:p-6 relative overflow-hidden flex flex-col items-center justify-center min-h-[500px]"
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.98 }}
+                  className="space-y-6"
                 >
-                  <Store
-                    size={64}
-                    className="text-emerald-500 mb-4 opacity-80"
-                  />
-                  <h3 className="text-base font-black text-white tracking-tighter mb-4 text-center uppercase">
-                    {t("store_editor_title") || "Gerenciador de Lojas"}
-                  </h3>
-                  <p className="text-emerald-500 font-bold mb-4 text-center max-w-lg leading-relaxed mix-blend-screen text-[9px] sm:text-xs uppercase tracking-widest hidden sm:block">
-                    {t("store_editor_desc") ||
-                      "Crie sua própria loja Skript 100% customizada ou gerencie plugins de Lojas NPC / GUI nativos."}
-                  </p>
+                  <div className="flex items-center justify-between">
+                     <div>
+                        <h2 className="text-3xl font-black text-white tracking-tighter uppercase italic">Plugin <span className="text-emerald-500">Marketplace</span></h2>
+                        <p className="text-xs font-bold text-white/30 uppercase tracking-[0.3em] mt-1">Turbine seu servidor com um clique</p>
+                     </div>
+                     <div className="relative">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20" size={16} />
+                        <input 
+                           className="bg-black/40 border border-white/5 rounded-2xl pl-12 pr-6 py-3 text-xs font-bold text-white placeholder:text-white/10 outline-none focus:border-emerald-500 transition-all w-64 shadow-inner"
+                           placeholder="Buscar plugins..."
+                           value={storeSearch}
+                           onChange={(e) => {
+                              setStoreSearch(e.target.value);
+                              searchStore(e.target.value);
+                           }}
+                        />
+                     </div>
+                  </div>
 
-                  <div className="flex flex-col items-center gap-4 w-full max-w-lg">
-                    <button
-                      onClick={() => {
-                        const prompt = window.prompt(
-                          "Descreva a sua loja (Ex: Loja de Vips, Loja de Blocos, NPCs que vendem espadas):",
-                          "Quero uma loja GUI simples que venda pedra por $10",
-                        );
-                        if (!prompt) return;
-
-                        setAiInput(
-                          `Crie um plugin Skript para uma Loja In-Game com as seguintes características: ${prompt}. O código DEVE estar em um bloco \`\`\`skript ... \`\`\`. O Skript deve usar um menu GUI e ter economia básica.`,
-                        );
-                        setActiveTab("ai");
-                      }}
-                      className="w-full py-4 rounded-xl flex items-center justify-center gap-3 font-black text-xs uppercase shadow-lg transition-transform active:scale-95 border-b-4 bg-emerald-500 hover:bg-emerald-400 text-emerald-950 border-emerald-700"
-                    >
-                      <Sparkles size={18} />{" "}
-                      {t("store_generate_skript") ||
-                        "Gerar Loja Skript In-Game (IA)"}
-                    </button>
-
-                    <div className="grid grid-cols-2 gap-3 w-full">
-                      <button
-                        onClick={() => {
-                          setActiveTab("store");
-                          setStoreSearch("Shopkeepers");
-                        }}
-                        className="w-full py-4 rounded-xl flex flex-col items-center justify-center gap-2 font-black text-[9px] uppercase shadow-lg transition-transform active:scale-95 border-b-4 bg-zinc-800 hover:bg-zinc-700 text-emerald-400 border-zinc-950"
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {[
+                      { id: "worldedit", name: "WorldEdit", desc: "Editor de mapas in-game definitivo.", category: "Utilitário", downloads: "25M", stars: 5, icon: <Map size={24} />, color: "emerald" },
+                      { id: "essentials", name: "EssentialsX", desc: "Mais de 100 comandos essenciais para survival.", category: "Core", downloads: "15M", stars: 5, icon: <Sparkles size={24} />, color: "sky" },
+                      { id: "luckperms", name: "LuckPerms", desc: "Gerenciador de permissões avançado e visual.", category: "Segurança", downloads: "10M", stars: 5, icon: <Shield size={24} />, color: "amber" },
+                      { id: "vault", name: "Vault", desc: "API de economia universal para plugins.", category: "API", downloads: "30M", stars: 4, icon: <Database size={24} />, color: "pink" },
+                      { id: "citizens", name: "Citizens 2", desc: "Adicione NPCs interativos ao seu mundo.", category: "Gameplay", downloads: "5M", stars: 5, icon: <Users size={24} />, color: "purple" },
+                      { id: "skript", name: "Skript", desc: "Crie mecânicas complexas sem saber Java.", category: "Scripting", downloads: "8M", stars: 5, icon: <FileCode size={24} />, color: "rose" },
+                    ]
+                    .filter(p => !storeSearch || p.name.toLowerCase().includes(storeSearch.toLowerCase()) || p.desc.toLowerCase().includes(storeSearch.toLowerCase()))
+                    .map((p, idx) => (
+                      <motion.div
+                        key={p.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: idx * 0.05 }}
+                        className="bg-black/40 backdrop-blur-md border border-white/5 p-6 rounded-[2.5rem] group hover:border-emerald-500/30 transition-all flex flex-col h-full relative overflow-hidden"
                       >
-                        <Users size={16} /> {t("store_npc_shopkeepers")}
-                      </button>
-                      <button
-                        onClick={() => {
-                          setActiveTab("store");
-                          setStoreSearch("EconomyShopGUI");
-                        }}
-                        className="w-full py-4 rounded-xl flex flex-col items-center justify-center gap-2 font-black text-[9px] uppercase shadow-lg transition-transform active:scale-95 border-b-4 bg-zinc-800 hover:bg-zinc-700 text-emerald-400 border-zinc-950"
-                      >
-                        <Store size={16} /> {t("store_gui_economy")}
-                      </button>
-                      <button
-                        onClick={() => {
-                          setActiveTab("store");
-                          setStoreSearch("Citizens");
-                        }}
-                        className="col-span-2 w-full py-4 rounded-xl flex flex-col items-center justify-center gap-2 font-black text-[9px] uppercase shadow-lg transition-transform active:scale-95 border-b-4 bg-zinc-800 hover:bg-zinc-700 text-emerald-400 border-zinc-950"
-                      >
-                        <Bot size={16} /> {t("store_npc_commands")}
-                      </button>
-                    </div>
+                        <div className={`absolute -top-10 -right-10 text-${p.color}-500 opacity-5 group-hover:opacity-10 transition-opacity`}>
+                          {p.icon}
+                        </div>
+                        <div className="flex items-start justify-between mb-6">
+                           <div className={`w-14 h-14 bg-${p.color}-500/10 rounded-2xl flex items-center justify-center text-${p.color}-500 border border-${p.color}-500/20 group-hover:scale-110 transition-transform`}>
+                              {p.icon}
+                           </div>
+                           <div className="flex flex-col items-end">
+                              <span className="text-[9px] font-black text-white/20 uppercase tracking-widest">{p.category}</span>
+                              <div className="flex gap-0.5 mt-1">
+                                 {[...Array(5)].map((_, i) => (
+                                    <Star key={i} size={8} className={i < p.stars ? "text-amber-500" : "text-white/10"} fill={i < p.stars ? "currentColor" : "none"} />
+                                 ))}
+                              </div>
+                           </div>
+                        </div>
+                        <h4 className="text-xl font-black text-white tracking-tighter uppercase italic">{p.name}</h4>
+                        <p className="text-xs text-white/40 mt-2 mb-6 leading-relaxed flex-1">{p.desc}</p>
+                        
+                        <div className="flex items-center justify-between gap-4">
+                           <div className="flex flex-col">
+                              <span className="text-[8px] font-black text-white/20 uppercase tracking-widest">Downloads</span>
+                              <span className="text-[10px] font-black text-emerald-500">{p.downloads}</span>
+                           </div>
+                           <button 
+                             onClick={async () => {
+                                if (!currentServerId) return alert("Selecione um servidor primeiro!");
+                                const ok = window.confirm(`Deseja baixar e instalar ${p.name} no servidor ${currentServerId}?`);
+                                if (ok) {
+                                  try {
+                                    const res = await fetch("/api/server/plugins/install", {
+                                      method: "POST",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({
+                                        serverId: currentServerId,
+                                        pluginId: p.id,
+                                        name: p.name
+                                      })
+                                    });
+                                    const data = await res.json();
+                                    if (data.success) {
+                                      alert(`✨ ${p.name} instalado com sucesso! Reinicie o servidor para aplicar.`);
+                                      setFileList([]); // Força refresh se estiver na aba de arquivos
+                                    }
+                                  } catch (e) {
+                                    alert("Erro ao instalar plugin.");
+                                  }
+                                }
+                             }}
+                             className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[10px] uppercase tracking-widest rounded-xl shadow-lg border-b-4 border-emerald-800 transition-all active:scale-95 flex items-center gap-2"
+                           >
+                              <Download size={14} /> Instalar
+                           </button>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
 
-                    <div className="w-full mt-4 p-5 bg-black/40 border border-emerald-900/50/40 rounded-2xl text-center">
-                      <p className="text-[9px] text-zinc-500 font-black tracking-widest uppercase mb-1">
-                        {t("store_status_help")}
-                      </p>
-                      <div className="text-zinc-600 font-normal text-xs leading-relaxed max-w-md mx-auto">
-                        {t("store_help_desc")}
-                      </div>
-                    </div>
+                  {/* AI Plugin Builder Prompt */}
+                  <div className="bg-gradient-to-r from-emerald-950/40 to-black/40 backdrop-blur-xl border-2 border-emerald-500/20 rounded-[3rem] p-10 flex flex-col md:flex-row items-center gap-10 mt-12 relative overflow-hidden">
+                     <div className="absolute top-0 right-0 p-12 opacity-5">
+                        <Sparkles size={200} />
+                     </div>
+                     <div className="relative z-10 space-y-4 max-w-md">
+                        <h3 className="text-3xl font-black text-white tracking-tighter uppercase italic leading-none">Não encontrou o que <span className="text-emerald-500">precisa?</span></h3>
+                        <p className="text-sm font-medium text-white/40 leading-relaxed italic">Conte para nossa IA que tipo de mecânica você quer criar, e ela escreverá o Skript completo para você agora mesmo.</p>
+                     </div>
+                     <div className="flex-1 w-full relative z-10 group">
+                        <input 
+                           className="w-full bg-black/60 border-2 border-emerald-900 shadow-2xl rounded-[2rem] px-8 py-6 text-emerald-50 outline-none focus:border-emerald-500 transition-all placeholder:text-emerald-900/50 italic text-lg"
+                           placeholder="Ex: Quero um sistema de ranks com prestígio..."
+                        />
+                        <button className="absolute right-4 top-4 bottom-4 px-8 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-[0.2em] rounded-2xl shadow-xl transition-all active:scale-95 text-xs flex items-center gap-2">
+                           <Brain size={18} /> Criar Skript
+                        </button>
+                     </div>
                   </div>
                 </motion.div>
               )}
@@ -4436,6 +5097,130 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                         />
                       </div>
                     )}
+                  </div>
+                </motion.div>
+              )}
+
+              {activeTab === "system" && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="space-y-6 pb-20"
+                >
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="md:col-span-2 bg-black/40 backdrop-blur-md border border-emerald-900/50 rounded-3xl p-6 shadow-xl">
+                      <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-3">
+                          <Cpu className="text-emerald-500" size={24} />
+                          <h2 className="text-2xl font-black uppercase italic tracking-tighter">Saúde da VPS</h2>
+                        </div>
+                        <button 
+                          onClick={handleOptimizeSystem}
+                          disabled={isOptimizing}
+                          className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-[10px] uppercase transition-all shadow-lg border-b-4 active:scale-95 ${isOptimizing ? "bg-zinc-800 border-zinc-950 text-zinc-500" : "bg-emerald-600 border-emerald-800 text-white hover:bg-emerald-500"}`}
+                        >
+                          <Zap size={14} className={isOptimizing ? "animate-spin" : ""} />
+                          {isOptimizing ? "Otimizando..." : "Otimizar Sistema"}
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div className="space-y-4">
+                           <div className="flex justify-between items-end">
+                              <span className="text-[10px] font-black text-emerald-500/60 uppercase tracking-widest">Uso de Memória RAM</span>
+                              <span className="text-sm font-black text-emerald-400">{systemDiag?.mem?.percent || 0}%</span>
+                           </div>
+                           <div className="h-4 bg-black/40 rounded-full border border-emerald-900/30 overflow-hidden shadow-inner">
+                              <motion.div 
+                                initial={{ width: 0 }}
+                                animate={{ width: `${systemDiag?.mem?.percent || 0}%` }}
+                                className={`h-full transition-all duration-1000 ${ (systemDiag?.mem?.percent || 0) > 85 ? "bg-gradient-to-r from-emerald-600 to-rose-600" : "bg-gradient-to-r from-emerald-600 to-emerald-400" }`}
+                              />
+                           </div>
+                           <div className="flex justify-between text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+                              <span>Livre: {systemDiag?.mem?.free || 0} GB</span>
+                              <span>Total: {systemDiag?.mem?.total || 0} GB</span>
+                           </div>
+                        </div>
+
+                        <div className="space-y-4">
+                           <div className="flex justify-between items-end">
+                              <span className="text-[10px] font-black text-emerald-500/60 uppercase tracking-widest">Carga da CPU (1m)</span>
+                              <span className="text-sm font-black text-emerald-400">{systemDiag?.cpu || 0}</span>
+                           </div>
+                           <div className="h-4 bg-black/40 rounded-full border border-emerald-900/30 overflow-hidden shadow-inner">
+                              <motion.div 
+                                initial={{ width: 0 }}
+                                animate={{ width: `${Math.min(100, (parseFloat(systemDiag?.cpu || "0") * 50))}%` }}
+                                className="h-full bg-gradient-to-r from-emerald-600 to-blue-400 transition-all duration-1000"
+                              />
+                           </div>
+                           <div className="flex justify-between text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+                              <span>Sistema: {systemDiag?.platform}</span>
+                              <span>Hostname: {systemDiag?.hostname}</span>
+                           </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-emerald-950/20 backdrop-blur-md border border-emerald-900/30 rounded-3xl p-6 flex flex-col items-center justify-center text-center space-y-4 shadow-xl">
+                       <div className="w-16 h-16 bg-emerald-600/20 rounded-2xl flex items-center justify-center text-emerald-500 border border-emerald-500/30 shadow-lg">
+                          <Activity size={32} />
+                       </div>
+                       <div className="space-y-1">
+                          <h4 className="text-lg font-black uppercase tracking-tighter">Uptime do Node</h4>
+                          <p className="text-3xl font-black text-emerald-400 tracking-tighter">{systemDiag?.uptime || 0}h</p>
+                       </div>
+                       <p className="text-[10px] font-bold text-emerald-500/40 uppercase leading-tight tracking-widest">Painel rodando de forma <br/> independente e estável.</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <section className="bg-black/40 border border-emerald-900/50 rounded-3xl p-6 space-y-4 shadow-xl">
+                        <h4 className="text-xs font-black text-emerald-500 uppercase tracking-widest flex items-center gap-2">
+                           <Zap size={16} /> Tuning Inteligente JVM
+                        </h4>
+                        <p className="text-xs text-zinc-400 leading-relaxed">Otimize as flags de inicialização do Java automaticamente com base na memória disponível.</p>
+                        <div className="space-y-2">
+                           <div className="p-3 bg-emerald-900/10 border border-emerald-500/10 rounded-xl flex items-center justify-between group hover:bg-emerald-900/20 transition-all">
+                              <span className="text-[10px] font-bold uppercase text-emerald-400 group-hover:text-white">Aikar's Flags (Alta Performance)</span>
+                              <button className="bg-emerald-600 p-2 rounded-lg text-white shadow-lg active:scale-95 transition"><CheckCircle2 size={14} /></button>
+                           </div>
+                           <div className="p-3 bg-zinc-900/40 border border-white/5 rounded-xl flex items-center justify-between group hover:bg-black/40 transition-all">
+                              <span className="text-[10px] font-bold uppercase text-zinc-500 group-hover:text-zinc-300">G1GC Low Latency (Moderado)</span>
+                              <button className="bg-zinc-800 p-2 rounded-lg text-zinc-600 hover:bg-emerald-600 hover:text-white transition"><ArrowRight size={14} /></button>
+                           </div>
+                        </div>
+                     </section>
+
+                     <section className="bg-black/40 border border-emerald-900/50 rounded-3xl p-6 space-y-4 shadow-xl">
+                        <h4 className="text-xs font-black text-emerald-500 uppercase tracking-widest flex items-center gap-2">
+                           <LayoutDashboard size={16} /> Status dos Serviços
+                        </h4>
+                        <div className="space-y-3">
+                           <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                 <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                                 <span className="text-[10px] font-black uppercase tracking-widest">Servidor Web</span>
+                              </div>
+                              <span className="text-[10px] font-bold text-emerald-500/60 uppercase tracking-widest">Operacional</span>
+                           </div>
+                           <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                 <div className="w-2 h-2 bg-emerald-500 rounded-full" />
+                                 <span className="text-[10px] font-black uppercase tracking-widest">Processador de Logs</span>
+                              </div>
+                              <span className="text-[10px] font-bold text-emerald-500/60 uppercase tracking-widest">Ativo</span>
+                           </div>
+                           <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                 <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
+                                 <span className="text-[10px] font-black uppercase tracking-widest">Motor de IA (Local)</span>
+                              </div>
+                              <span className="text-[10px] font-bold text-amber-500/60 uppercase tracking-widest">Aguardando...</span>
+                           </div>
+                        </div>
+                     </section>
                   </div>
                 </motion.div>
               )}
@@ -4811,8 +5596,17 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                     ))}
                     {aiLoading && (
                       <div className="flex justify-start">
-                        <div className="bg-black/40 border border-emerald-900/50 text-emerald-500 p-4 rounded-2xl rounded-tl-none animate-pulse italic font-black text-xs uppercase tracking-widest">
-                          {t("ai_thinking")} ( ੭•͈ω•͈)੭
+                        <div className="bg-black/40 border border-emerald-900/50 text-emerald-500 p-4 rounded-2xl rounded-tl-none flex items-center gap-3">
+                           <motion.div
+                             animate={{ rotate: 360, scale: [1, 1.2, 1] }}
+                             transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                             className="text-emerald-400"
+                           >
+                             <Brain size={20} />
+                           </motion.div>
+                           <div className="italic font-black text-xs uppercase tracking-widest animate-pulse whitespace-nowrap">
+                              {t("ai_thinking")} (•◡•)
+                           </div>
                         </div>
                       </div>
                     )}
@@ -4837,21 +5631,40 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                          📚 {t("ai_btn_search_docs")}
                        </button>
                     </div>
-                    <form onSubmit={(e) => handleAskAI(e)} className="relative">
-                      <input
-                        className="w-full bg-black/60 border border-emerald-900/50 rounded-2xl px-6 py-5 text-emerald-50 font-medium outline-none focus:border-emerald-500 transition-all shadow-inner pr-16 disabled:opacity-50 disabled:cursor-not-allowed"
-                        placeholder={aiProvider === "off" ? t("ai_disabled_placeholder") : t("ask_ai_placeholder")}
-                        value={aiInput}
-                        onChange={(e) => setAiInput(e.target.value)}
-                        disabled={aiProvider === "off" || aiLoading}
-                      />
+                    <form onSubmit={(e) => handleAskAI(e)} className="relative flex items-center gap-3">
                       <button
-                        type="submit"
-                        disabled={!aiInput.trim() || aiLoading || aiProvider === "off"}
-                        className="absolute right-3 top-3 w-8 h-8 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-lg border-b-4 border-emerald-800 transition-all flex items-center justify-center disabled:opacity-50 disabled:grayscale"
+                        type="button"
+                        onClick={() => {
+                           const recognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+                           if (recognition) {
+                              const rec = new recognition();
+                              rec.lang = 'pt-BR';
+                              rec.onresult = (evt: any) => setAiInput(evt.results[0][0].transcript);
+                              rec.start();
+                           } else {
+                              alert("Voz não suportada neste navegador.");
+                           }
+                        }}
+                        className="w-14 h-14 bg-emerald-950/40 border border-emerald-900/50 rounded-2xl flex items-center justify-center text-emerald-500 hover:bg-emerald-800 hover:text-white transition-all shadow-inner shrink-0"
                       >
-                        <Send size={24} />
+                         <Mic size={24} />
                       </button>
+                      <div className="relative flex-1">
+                        <input
+                          className="w-full bg-black/60 border border-emerald-900/50 rounded-2xl px-6 py-4 text-emerald-50 font-medium outline-none focus:border-emerald-500 transition-all shadow-inner pr-16 disabled:opacity-50 disabled:cursor-not-allowed"
+                          placeholder={aiProvider === "off" ? t("ai_disabled_placeholder") : t("ask_ai_placeholder")}
+                          value={aiInput}
+                          onChange={(e) => setAiInput(e.target.value)}
+                          disabled={aiProvider === "off" || aiLoading}
+                        />
+                        <button
+                          type="submit"
+                          disabled={!aiInput.trim() || aiLoading || aiProvider === "off"}
+                          className="absolute right-3 top-3 w-10 h-10 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-lg border-b-4 border-emerald-800 transition-all flex items-center justify-center disabled:opacity-50 disabled:grayscale"
+                        >
+                          <Send size={24} />
+                        </button>
+                      </div>
                     </form>
                   </div>
                 </motion.div>
@@ -4943,15 +5756,73 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                        </div>
                     </div>
                   </div>
+                   
+                   <div className="bg-emerald-500/5 border-2 border-emerald-500/20 rounded-2xl p-4 mt-4 flex flex-wrap items-center justify-between gap-4 relative z-10">
+                      <div className="flex items-center gap-6">
+                         <div className="flex flex-col">
+                            <span className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em]">Servidor Ativo</span>
+                            <div className="flex items-center gap-2">
+                               <div className={`w-2 h-2 rounded-full ${serverState.status === "online" ? "bg-emerald-500 shadow-[0_0_8px_#10b981]" : "bg-red-500"}`} />
+                               <span className="text-xs font-black text-white uppercase italic">{servers.find(s => s.id === currentServerId)?.name || currentServerId}</span>
+                            </div>
+                         </div>
+                         <div className="flex flex-col">
+                            <span className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em]">Status</span>
+                            <span className="text-xs font-black text-emerald-500 uppercase italic leading-none">{serverState.status?.toUpperCase()}</span>
+                         </div>
+                         <div className="hidden md:flex flex-col">
+                            <span className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em]">Porta</span>
+                            <span className="text-xs font-black text-white/50 uppercase italic">{servers.find(s => s.id === currentServerId)?.port || "25565"}</span>
+                         </div>
+                      </div>
 
-                  <div className={`flex ${multiTerminals.length > 0 ? "flex-col lg:flex-row gap-4 h-full" : "flex-1 flex-col"} overflow-hidden mt-4`}>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleAction(serverState.status === "online" ? "stop" : "start")}
+                          className={`flex items-center gap-2 px-4 py-2 rounded-xl font-black text-[10px] uppercase transition-all shadow-lg border-b-4 ${serverState.status === "online" ? "bg-red-600 border-red-900 hover:bg-red-500 text-white" : "bg-emerald-600 border-emerald-900 hover:bg-emerald-500 text-white"}`}
+                        >
+                           {serverState.status === "online" ? <Square size={14} /> : <Play size={14} />}
+                           {serverState.status === "online" ? "Stop" : "Start"}
+                        </button>
+                        
+                        <button
+                          onClick={() => {
+                            if (window.confirm("Deseja forçar o reinício deste servidor?")) {
+                               handleAction("stop");
+                               setTimeout(() => handleAction("start"), 2000);
+                            }
+                          }}
+                          className="flex items-center gap-2 px-4 py-2 bg-amber-600 border-amber-900 hover:bg-amber-500 text-white rounded-xl font-black text-[10px] uppercase transition-all shadow-lg border-b-4"
+                        >
+                           <RefreshCw size={14} /> Reiniciar
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            const blob = new Blob([serverState.logs.join("\n")], { type: "text/plain" });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement("a");
+                            a.href = url;
+                            a.download = `logs-${currentServerId}.txt`;
+                            a.click();
+                          }}
+                          className="hidden sm:flex items-center gap-2 px-4 py-2 bg-zinc-800 border-zinc-950 hover:bg-zinc-700 text-white rounded-xl font-black text-[10px] uppercase transition-all shadow-lg border-b-4 hover:text-emerald-400"
+                        >
+                           <Download size={14} /> Logs
+                        </button>
+                      </div>
+                   </div>
+
+                   <div className={`flex ${multiTerminals.length > 0 ? "flex-col lg:flex-row gap-4 h-full" : "flex-1 flex-col"} overflow-hidden mt-4`}>
                     <div className="flex-1 flex flex-col relative bg-black/80 rounded-2xl border border-emerald-900/50 shadow-inner tech-grid overflow-hidden">
                       <div className="bg-emerald-900/30 text-[9px] font-black uppercase tracking-widest text-emerald-500 py-1 px-3 border-b border-emerald-900/50">{servers.find(s => s.id === currentServerId)?.name || 'Principal'}</div>
                       <div
                         ref={scrollRef}
                         onScroll={handleScroll}
-                        className="flex-1 overflow-y-auto pr-6 space-y-1.5 custom-scrollbar font-mono text-[11px] p-6 lg:p-6 p-4"
+                        className="flex-1 overflow-y-auto pr-6 space-y-1.5 custom-scrollbar font-mono text-[11px] p-6 lg:p-6 p-4 relative"
                       >
+                        {/* Scanlines Effect */}
+                        <div className="absolute inset-0 pointer-events-none opacity-[0.03] bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-10 bg-[length:100%_2px,3px_100%]" />
                         {serverState.logs.length === 0 && (
                           <div className="text-emerald-900 animate-pulse italic">
                             Aguardando sinais vitais...
@@ -4966,7 +5837,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                               {(i + 1).toString().padStart(2, "0")}
                             </span>
                             <p
-                              className={`leading-relaxed break-all ${
+                              className={`leading-relaxed break-all flex items-center gap-2 ${
                                 log.includes("[ERROR]") || log.includes("Exception")
                                   ? "text-red-400 font-bold bg-red-950/20 px-1"
                                   : log.includes("[SUCCESS]") ||
@@ -4981,6 +5852,18 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                               }`}
                             >
                               {formatLogLine(log)}
+                              {(log.includes("[ERROR]") || log.includes("Exception")) && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setAiInput(`Ocorreu um erro no servidor: "${log}". O que devo fazer para corrigir? Analise se é um erro de RAM, versão de Java ou plugin faltando.`);
+                                    setActiveTab("ai");
+                                  }}
+                                  className="px-2 py-0.5 bg-red-600 hover:bg-red-500 text-white text-[8px] font-black uppercase rounded shadow-lg transition-all active:scale-95 flex items-center gap-1 shrink-0"
+                                >
+                                   <Sparkles size={10} /> Corrigir com IA
+                                </button>
+                              )}
                             </p>
                           </div>
                         ))}
@@ -4993,10 +5876,29 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                         <span className="text-emerald-500 font-black text-xs">❯</span>
                         <input
                           className="flex-1 bg-transparent border-none outline-none text-emerald-50 placeholder:text-emerald-900 font-black text-xs"
-                          placeholder="Mande um comando mágico..."
+                          placeholder={suggestedCommand ? `Sugestão: ${suggestedCommand}` : "Mande um comando mágico..."}
                           value={command}
                           onChange={(e) => setCommand(e.target.value)}
+                          onKeyDown={handleTerminalKeyDown}
                         />
+                        {suggestedCommand && !command && (
+                          <button
+                            type="button"
+                            onClick={() => { setCommand(suggestedCommand); setSuggestedCommand(null); }}
+                            className="bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-2 py-1 rounded text-[8px] font-black uppercase flex items-center gap-1 animate-pulse"
+                          >
+                             Usar Sugestão: {suggestedCommand}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={handleSuggestCommand}
+                          disabled={isAnalyzingLogs}
+                          className="p-2 text-emerald-500 hover:bg-emerald-500/10 rounded-xl transition-all disabled:opacity-50"
+                          title="Analisar logs com IA"
+                        >
+                          {isAnalyzingLogs ? <RefreshCw className="animate-spin" size={16} /> : <Sparkles size={16} />}
+                        </button>
                       </form>
                     </div>
 
@@ -5013,8 +5915,10 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                                   <Trash2 size={10} />
                                 </button>
                               </div>
-                              <div className="flex-1 overflow-y-auto custom-scrollbar font-mono text-[9px] p-4">
-                                {state.logs.map((log, i) => (
+                              <div className="flex-1 overflow-y-auto custom-scrollbar font-mono text-[9px] p-4 relative" id={`terminal-${mId}`}>
+                                 {/* Scanlines Effect */}
+                                 <div className="absolute inset-0 pointer-events-none opacity-[0.03] bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-10 bg-[length:100%_2px,3px_100%]" />
+                                 {state.logs.map((log, i) => (
                                   <div key={i} className="flex gap-2 group hover:bg-emerald-500/5">
                                     <p className={`leading-relaxed break-all ${log.includes("[ERROR]") ? "text-red-400 font-bold" : log.includes("[SUCCESS]") ? "text-emerald-400" : log.includes("[WARN]") ? "text-amber-500" : "text-emerald-500/60"}`}>
                                       {formatLogLine(log)}

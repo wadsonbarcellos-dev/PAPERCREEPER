@@ -104,3 +104,40 @@ body.paper-pig {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+
+.glass-ultra {
+  @apply bg-black/40 backdrop-blur-2xl border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)];
+}
+
+.bg-animate {
+  background: linear-gradient(-45deg, #040D09, #0a2e31, #1b4332, #040D09);
+  background-size: 400% 400%;
+  animation: gradient 15s ease infinite;
+}
+
+@keyframes gradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.text-glow {
+  text-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+}
+
+.animate-marquee {
+  display: flex;
+  width: fit-content;
+  animation: marquee 30s linear infinite;
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.tech-grid {
+  background-image: linear-gradient(rgba(16, 185, 129, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(16, 185, 129, 0.05) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
