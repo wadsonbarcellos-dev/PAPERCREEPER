@@ -2224,7 +2224,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                 
                 <div className="flex flex-wrap gap-2 mb-4">
                   <span className="text-[10px] text-emerald-500 font-bold uppercase w-full">Adicionar Rápido:</span>
-                  <button onClick={() => setCustomAIs([...customAIs, { id: "gemini_" + Date.now(), name: "Gemini (Google)", endpoint: "gemini", model: "gemini-3.1-flash-lite", apiKey: "" }])} className="bg-emerald-900/40 hover:bg-emerald-800 text-emerald-300 text-[10px] px-3 py-1 rounded">Gemini</button>
+                  <button onClick={() => setCustomAIs([...customAIs, { id: "gemini_" + Date.now(), name: "Gemini (Google)", endpoint: "gemini", model: "gemini-2.5-flash", apiKey: "" }])} className="bg-emerald-900/40 hover:bg-emerald-800 text-emerald-300 text-[10px] px-3 py-1 rounded">Gemini</button>
                   <button onClick={() => setCustomAIs([...customAIs, { id: "ollama_" + Date.now(), name: "Ollama (Local)", endpoint: "http://127.0.0.1:11434/v1/chat/completions", model: "llama3", apiKey: "" }])} className="bg-emerald-900/40 hover:bg-emerald-800 text-emerald-300 text-[10px] px-3 py-1 rounded">Ollama</button>
                   <button onClick={() => setCustomAIs([...customAIs, { id: "lmstudio_" + Date.now(), name: "LM Studio (Local)", endpoint: "http://127.0.0.1:1234/v1/chat/completions", model: "local-model", apiKey: "lm-studio" }])} className="bg-emerald-900/40 hover:bg-emerald-800 text-emerald-300 text-[10px] px-3 py-1 rounded">LM Studio</button>
                   <button onClick={() => setCustomAIs([...customAIs, { id: "nvidia_" + Date.now(), name: "Nvidia NIM", endpoint: "https://integrate.api.nvidia.com/v1/chat/completions", model: "deepseek-ai/deepseek-r1", apiKey: "" }])} className="bg-emerald-900/40 hover:bg-emerald-800 text-emerald-300 text-[10px] px-3 py-1 rounded">Nvidia NIM</button>
@@ -2263,13 +2263,13 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                             <label className="text-[10px] text-emerald-500 font-bold uppercase tracking-wide">Model ID</label>
                             <button 
                                 onClick={() => handleFetchModels(index)}
-                                disabled={fetchingModelsFor === ai.id}
-                                className="text-[9px] text-emerald-400 hover:text-emerald-300 font-black uppercase disabled:opacity-50"
+                                disabled={fetchingModelsFor === ai.id || ai.endpoint === "gemini"}
+                                className={`text-[9px] uppercase tracking-wider px-2 py-0.5 rounded flex items-center gap-1 ${ai.endpoint === "gemini" ? "bg-emerald-900/30 text-emerald-700 cursor-not-allowed" : "text-emerald-400 hover:text-emerald-300 font-black disabled:opacity-50"}`}
                             >
                               {fetchingModelsFor === ai.id ? "Buscando..." : "Buscar Modelos"}
                             </button>
                           </div>
-                          {fetchedModels[ai.id] && fetchedModels[ai.id].length > 0 ? (
+                          {fetchedModels[ai.id] && fetchedModels[ai.id].length > 0 && ai.endpoint !== "gemini" ? (
                             <select 
                               value={ai.model} 
                               onChange={(e) => {
@@ -2296,26 +2296,27 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                                  setCustomAIs(newAis);
                               }}
                               className="w-full bg-black/60 border border-emerald-900/50 rounded-lg px-3 py-2 text-emerald-100 text-sm outline-none focus:border-emerald-500" 
-                              placeholder="Nome do modelo. Clique em Buscar para listar."
+                              placeholder="Nome do modelo. Ex: gemini-2.5-flash"
                             />
                           )}
                         </div>
                       </div>
                       <div className="flex flex-col gap-3">
                         <div>
-                          <label className="text-[10px] text-emerald-500 font-bold uppercase tracking-wide">Endpoint (OpenAI Compatible)</label>
+                          <label className="text-[10px] text-emerald-500 font-bold uppercase tracking-wide">Endpoint (OpenAI Compatible / Ou "gemini")</label>
                           <input 
                             value={ai.endpoint} 
+                            disabled={ai.endpoint === "gemini"}
                             onChange={(e) => {
                                const newAis = [...customAIs];
                                newAis[index].endpoint = e.target.value;
                                setCustomAIs(newAis);
                             }}
-                            className="w-full bg-black/60 border border-emerald-900/50 rounded-lg px-3 py-2 text-emerald-100 text-sm outline-none focus:border-emerald-500" 
+                            className={`w-full border rounded-lg px-3 py-2 text-sm outline-none transition ${ai.endpoint === "gemini" ? "bg-emerald-950/20 border-emerald-900/30 text-emerald-600/70 cursor-not-allowed" : "bg-black/60 border-emerald-900/50 text-emerald-100 focus:border-emerald-500"}`}
                           />
                         </div>
                         <div>
-                          <label className="text-[10px] text-emerald-500 font-bold uppercase tracking-wide">API Key (Salva localmente neste navegador)</label>
+                          <label className="text-[10px] text-emerald-500 font-bold uppercase tracking-wide">API Key (Salva local no navegador - Deixe vazio se for nativo do Servidor)</label>
                           <input 
                             type="password"
                             value={ai.apiKey} 
@@ -2325,7 +2326,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                                setCustomAIs(newAis);
                             }}
                             className="w-full bg-black/60 border border-emerald-900/50 rounded-lg px-3 py-2 text-emerald-100 text-sm outline-none focus:border-emerald-500" 
-                            placeholder="Deixe em branco se for Ollama/Local"
+                            placeholder="Deixe em branco se for Local (Ollama) ou nativo/do servidor"
                           />
                         </div>
                       </div>

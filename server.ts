@@ -1154,7 +1154,8 @@ async function startServer() {
          keysToTry.push(envKey);
       }
 
-      if (keysToTry.length === 0 && !((provider === "local" && (!endpoint || endpoint.includes("127.0.") || endpoint.includes("localhost"))) || (endpoint && (endpoint.includes("127.0.") || endpoint.includes("localhost"))))) {
+      const willForceGeminiStream = provider === "gemini" || endpoint === "gemini" || modelName === "gemini-3.1-flash-lite" || modelName === "gemini-2.5-flash";
+      if (keysToTry.length === 0 && willForceGeminiStream) {
         res.write(`data: ${JSON.stringify({ error: "Nenhuma API Key configurada. Configure no menu de IA ou nas Configurações." })}\n\n`);
         return res.end();
       }
@@ -1209,7 +1210,7 @@ Exemplo: "Deixe-me procurar isso: <call:PESQUISAR>mcMMO setup</call>"
       res.setHeader("Connection", "keep-alive");
 
       const isLocalOrCustom = provider === "local" || provider === "custom";
-      const forceGemini = provider === "gemini" || endpoint === "gemini" || modelName === "gemini-3.1-flash-lite";
+      const forceGemini = provider === "gemini" || endpoint === "gemini" || modelName === "gemini-3.1-flash-lite" || modelName === "gemini-2.5-flash";
       const isRemoteOpenAICompat = !forceGemini && (provider === "remote" || (!provider && !isGeminiKey) || (currentKey && !isGeminiKey && provider !== "gemini"));
 
       if (!forceGemini && (isLocalOrCustom || isRemoteOpenAICompat)) {
@@ -1285,7 +1286,7 @@ Exemplo: "Deixe-me procurar isso: <call:PESQUISAR>mcMMO setup</call>"
               }));
            
            const stream = await ai.models.generateContentStream({
-             model: "gemini-3.1-flash-lite",
+             model: "gemini-2.5-flash",
              contents: historyFormatted,
              config: {
                systemInstruction: systemInstruction,
@@ -1331,7 +1332,8 @@ Exemplo: "Deixe-me procurar isso: <call:PESQUISAR>mcMMO setup</call>"
          keysToTry.push(envKey);
       }
 
-      if (keysToTry.length === 0 && !((provider === "local" && (!endpoint || endpoint.includes("127.0.") || endpoint.includes("localhost"))) || (endpoint && (endpoint.includes("127.0.") || endpoint.includes("localhost"))))) {
+      const willForceGeminiRest = provider === "gemini" || endpoint === "gemini" || modelName === "gemini-3.1-flash-lite" || modelName === "gemini-2.5-flash";
+      if (keysToTry.length === 0 && willForceGeminiRest) {
         throw new Error("Nenhuma API Key configurada. Configure no menu de IA ou nas Configurações.");
       }
 
@@ -1376,7 +1378,7 @@ Exemplo: "Deixe-me procurar isso: <call:PESQUISAR>mcMMO setup</call>"
       let text = "";
 
       const isLocalOrCustom = provider === "local" || provider === "custom";
-      const forceGemini = provider === "gemini" || endpoint === "gemini" || modelName === "gemini-3.1-flash-lite";
+      const forceGemini = provider === "gemini" || endpoint === "gemini" || modelName === "gemini-3.1-flash-lite" || modelName === "gemini-2.5-flash";
       const isRemoteOpenAICompat = !forceGemini && (provider === "remote" || (!provider && !isGeminiKey) || (currentKey && !isGeminiKey && provider !== "gemini"));
 
       if (!forceGemini && (isLocalOrCustom || isRemoteOpenAICompat)) {
@@ -1449,7 +1451,7 @@ Exemplo: "Deixe-me procurar isso: <call:PESQUISAR>mcMMO setup</call>"
           formattedHistory.push({ role: "user", parts: [{ text: msg }] });
 
           const result = await localAi.models.generateContent({
-            model: "gemini-3.1-flash-lite",
+            model: "gemini-2.5-flash",
             contents: formattedHistory,
             config: {
               systemInstruction: systemInstruction,
@@ -1480,13 +1482,15 @@ Exemplo: "Deixe-me procurar isso: <call:PESQUISAR>mcMMO setup</call>"
       // Tenta extrair ações do texto de forma resiliente
       let call = null;
       
+      const textToTest = text.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+
       // Look for the user's Local AI tags <call:PESQUISAR>query</call>
-      const pesquisarMatch = text.match(/<call:PESQUISAR>(.*?)<\/call>/i);
+      const pesquisarMatch = textToTest.match(/<call:PESQUISAR>(.*?)<\/call>/i);
       if (pesquisarMatch) {
          call = { name: "searchInternet", args: { query: pesquisarMatch[1].trim() } };
          text = text.replace(pesquisarMatch[0], "").trim();
       } else {
-         const consultarMatch = text.match(/<call:CONSULTAR>(.*?)<\/call>/i);
+         const consultarMatch = textToTest.match(/<call:CONSULTAR>(.*?)<\/call>/i);
          if (consultarMatch) {
             call = { name: "readMemory", args: { query: consultarMatch[1].trim() } };
             text = text.replace(consultarMatch[0], "").trim();
@@ -1494,7 +1498,7 @@ Exemplo: "Deixe-me procurar isso: <call:PESQUISAR>mcMMO setup</call>"
       }
 
       const actionRegex = /\[ACTION:\s*({[\s\S]+?})\s*]/i;
-      const actionMatch = text.match(actionRegex);
+      const actionMatch = textToTest.match(actionRegex);
       
       if (actionMatch) {
         let jsonStr = actionMatch[1].trim();
@@ -1831,7 +1835,7 @@ command /creeper-ai <text>:
         const { GoogleGenAI } = await import("@google/genai");
         const localAi = new GoogleGenAI({ apiKey: currentKey });
         const result = await localAi.models.generateContent({
-          model: "gemini-3.1-flash-lite",
+          model: "gemini-2.5-flash",
           contents: "Say hello",
         });
         res.json({ success: true, text: result.text });
@@ -2173,7 +2177,7 @@ command /creeper-ai <text>:
                     const { GoogleGenAI } = await import("@google/genai");
                     const localAi = new GoogleGenAI({ apiKey });
                     const res = await localAi.models.generateContent({
-                      model: "gemini-3.1-flash-lite",
+                      model: "gemini-2.5-flash",
                       contents: `Como assistente técnico do Minecraft, o servidor encontrou os seguintes erros recentes nas logs:\n\n${errors}\n\nAnalise em 1 ou 2 frases curtas o que pode estar errado e dê a solução ou comando necessário. Você é um ajudante automático, responda com algo como "Problema detectado: [X]. Solução: [Y]". Dicas curtas são as melhores.`,
                     });
                     if (res.text) {
