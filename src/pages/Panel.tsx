@@ -506,17 +506,16 @@ export default function App({
   const [aiProvider, setAiProvider] = useState<"remote" | "local" | "off" | "gemini">(
     () => {
       const saved = localStorage.getItem("creeper_ai_provider");
-      return (saved as "remote" | "local" | "off" | "gemini") || "gemini";
+      let val = (saved as "remote" | "local" | "off" | "gemini") || "gemini";
+      if (val === "remote") val = "gemini";
+      return val;
     }
   );
   const [aiKeysList, setAiKeysList] = useState<string>(
     () => localStorage.getItem("creeper_ai_keys_list") || ""
   );
-  const [aiEndpoint, setAiEndpoint] = useState<string>(
-    () => localStorage.getItem("creeper_ai_endpoint") || "http://127.0.0.1:11434/v1/chat/completions"
-  );
-  const [aiLocalModel, setAiLocalModel] = useState<string>(
-    () => localStorage.getItem("creeper_ai_local_model") || "llama3"
+  const [activeCustomAiId, setActiveCustomAiId] = useState<string>(
+    () => localStorage.getItem("creeper_active_custom_ai") || ""
   );
   
   const [customAIs, setCustomAIs] = useState<any[]>(() => {
@@ -580,9 +579,7 @@ export default function App({
   
   useEffect(() => {
     localStorage.setItem("creeper_ai_provider", aiProvider);
-    localStorage.setItem("creeper_ai_endpoint", aiEndpoint);
-    localStorage.setItem("creeper_ai_local_model", aiLocalModel);
-  }, [aiProvider, aiEndpoint, aiLocalModel]);
+  }, [aiProvider]);
 
   const [isVpsOptimized, setIsVpsOptimized] = useState(true);
   const [storeSearch, setStoreSearch] = useState("");
@@ -1932,13 +1929,18 @@ export default function App({
 
     try {
       let keysArray = aiKeysList.split(",").map(k => k.trim()).filter(k => k.length > 5);
+      let activeEndpoint = "gemini";
+      let activeModel = "gemini-2.5-flash";
       if (aiProvider === "local") {
-        const foundAi = customAIs.find(a => a.endpoint === aiEndpoint && a.model === aiLocalModel);
-        if (foundAi && foundAi.apiKey && foundAi.apiKey.trim().length > 0) {
-           keysArray.unshift(foundAi.apiKey.trim());
+        const foundAi = customAIs.find(a => a.id === activeCustomAiId) || customAIs[0];
+        if (foundAi) {
+           activeEndpoint = foundAi.endpoint;
+           activeModel = foundAi.model;
+           if (foundAi.apiKey && foundAi.apiKey.trim().length > 0) {
+              keysArray.unshift(foundAi.apiKey.trim());
+           }
         }
       }
-      const context = `Servidor Selecionado: ${currentServerId}. Status: ${serverState.status}. Logs recentes:\n${serverState.logs.slice(-10).join("\n")}`;
       
       let firstResult: any = null;
 
@@ -1954,7 +1956,7 @@ export default function App({
         };
       } else {
          setAiChat((prev) => [...prev, { role: "assistant", text: "..." }]);
-         firstResult = await askAI(finalMsg, context, currentServerId, aiProvider, aiEndpoint, aiChat.slice(-10), aiLocalModel, keysArray, modules, (chunk) => {
+         firstResult = await askAI(finalMsg, context, currentServerId, aiProvider, activeEndpoint, aiChat.slice(-10), activeModel, keysArray, modules, (chunk) => {
             setAiChat((prev) => {
                const n = [...prev];
                n[n.length - 1].text = chunk;
@@ -1987,9 +1989,9 @@ Por favor, explique ou detalhe esse resultado para mim de forma natural e amigá
           context,
           currentServerId,
           aiProvider,
-          aiEndpoint,
+          activeEndpoint,
           aiChat.slice(-10),
-          aiLocalModel,
+          activeModel,
           keysArray,
           modules,
           (chunk) => {
@@ -2035,10 +2037,16 @@ Por favor, explique ou detalhe esse resultado para mim de forma natural e amigá
 
     try {
       let keysArray = aiKeysList.split(",").map(k => k.trim()).filter(k => k.length > 5);
+      let activeGenEndpoint = "gemini";
+      let activeGenModel = "gemini-2.5-flash";
       if (aiProvider === "local") {
-        const foundAi = customAIs.find(a => a.endpoint === aiEndpoint && a.model === aiLocalModel);
-        if (foundAi && foundAi.apiKey && foundAi.apiKey.trim().length > 0) {
-           keysArray.unshift(foundAi.apiKey.trim());
+        const foundAi = customAIs.find(a => a.id === activeCustomAiId) || customAIs[0];
+        if (foundAi) {
+           activeGenEndpoint = foundAi.endpoint;
+           activeGenModel = foundAi.model;
+           if (foundAi.apiKey && foundAi.apiKey.trim().length > 0) {
+              keysArray.unshift(foundAi.apiKey.trim());
+           }
         }
       }
       const prompt = `Atue como um desenvolvedor Skript (Minecraft). O usuário quer o seguinte plugin/sistema:
@@ -2046,7 +2054,7 @@ Por favor, explique ou detalhe esse resultado para mim de forma natural e amigá
 
 Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Retorne APENAS o código encapsulado num bloco \`\`\`skript ... \`\`\`. Use blocos de command, on event, etc conforme necessário e não utilize ferramentas [ACTION:...] aqui! Só envie o código, sem explicações extras.`;
       
-      const result = await askAI(prompt, "Skript Plugin Generation Mode", currentServerId, aiProvider, aiEndpoint, [], aiLocalModel, keysArray, modules);
+      const result = await askAI(prompt, "Skript Plugin Generation Mode", currentServerId, aiProvider, activeGenEndpoint, [], activeGenModel, keysArray, modules);
       
       const rawText = result.text || "";
       const codeMatch = rawText.match(/```(?:skript|sk|yaml)?\n([\s\S]*?)```/);
@@ -4686,7 +4694,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                       <div className="flex items-center gap-2 w-full sm:w-auto">
                         <div className="relative flex-1 sm:flex-none">
                           <select
-                            value={aiProvider === "off" ? "off" : (aiProvider === "gemini" ? "gemini" : (customAIs.find(a => a.endpoint === aiEndpoint && a.model === aiLocalModel)?.id || (customAIs.length > 0 ? customAIs[0].id : "off")))}
+                            value={aiProvider === "off" ? "off" : (aiProvider === "gemini" ? "gemini" : (customAIs.find(a => a.id === activeCustomAiId)?.id || (customAIs.length > 0 ? customAIs[0].id : "off")))}
                             onChange={(e) => {
                               const val = e.target.value;
                               if (val === "off") {
@@ -4701,13 +4709,8 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                                 setAiProvider("local");
                                 localStorage.setItem("creeper_ai_provider", "local");
                                 setAiChat([]);
-                                const selectedAi = customAIs.find(ai => ai.id === val);
-                                if (selectedAi) {
-                                  setAiEndpoint(selectedAi.endpoint);
-                                  setAiLocalModel(selectedAi.model);
-                                  localStorage.setItem("creeper_ai_endpoint", selectedAi.endpoint);
-                                  localStorage.setItem("creeper_ai_model", selectedAi.model);
-                                }
+                                setActiveCustomAiId(val);
+                                localStorage.setItem("creeper_active_custom_ai", val);
                               }
                             }}
                             className="w-full bg-emerald-950/40 border border-emerald-900 rounded-xl px-4 py-2.5 text-xs font-bold text-emerald-300 outline-none focus:border-emerald-500 max-w-[280px] appearance-none cursor-pointer pr-10 uppercase tracking-wider shadow-inner"
