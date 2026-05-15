@@ -1163,7 +1163,7 @@ async function startServer() {
          keysToTry.push(envKey);
       }
 
-      const willForceGeminiStream = provider === "gemini" || endpoint === "gemini" || modelName === "gemini-3.1-flash-lite" || modelName === "gemini-2.5-flash";
+      const willForceGeminiStream = provider === "gemini" || endpoint === "gemini" || modelName === "gemini-3.1-flash-lite" || modelName === "gemini-2.5-flash" || modelName === "gemini-2.0-flash";
       if (keysToTry.length === 0 && willForceGeminiStream) {
         res.write(`data: ${JSON.stringify({ error: "Nenhuma API Key configurada. Configure no menu de IA ou nas Configurações." })}\n\n`);
         return res.end();
@@ -1219,7 +1219,7 @@ Exemplo: "Deixe-me procurar isso: <call:PESQUISAR>mcMMO setup</call>"
       res.setHeader("Connection", "keep-alive");
 
       const isLocalOrCustom = provider === "local" || provider === "custom";
-      const forceGemini = provider === "gemini" || endpoint === "gemini" || modelName === "gemini-3.1-flash-lite" || modelName === "gemini-2.5-flash";
+      const forceGemini = provider === "gemini" || endpoint === "gemini" || modelName === "gemini-3.1-flash-lite" || modelName === "gemini-2.5-flash" || modelName === "gemini-2.0-flash";
       const isRemoteOpenAICompat = !forceGemini && (provider === "remote" || (!provider && !isGeminiKey) || (currentKey && !isGeminiKey && provider !== "gemini"));
 
       if (!forceGemini && (isLocalOrCustom || isRemoteOpenAICompat)) {
@@ -1345,7 +1345,7 @@ Exemplo: "Deixe-me procurar isso: <call:PESQUISAR>mcMMO setup</call>"
          keysToTry.push(envKey);
       }
 
-      const willForceGeminiRest = provider === "gemini" || endpoint === "gemini" || modelName === "gemini-3.1-flash-lite" || modelName === "gemini-2.5-flash";
+      const willForceGeminiRest = provider === "gemini" || endpoint === "gemini" || modelName === "gemini-3.1-flash-lite" || modelName === "gemini-2.5-flash" || modelName === "gemini-2.0-flash";
       if (keysToTry.length === 0 && willForceGeminiRest) {
         throw new Error("Nenhuma API Key configurada. Configure no menu de IA ou nas Configurações.");
       }
@@ -1391,7 +1391,7 @@ Exemplo: "Deixe-me procurar isso: <call:PESQUISAR>mcMMO setup</call>"
       let text = "";
 
       const isLocalOrCustom = provider === "local" || provider === "custom";
-      const forceGemini = provider === "gemini" || endpoint === "gemini" || modelName === "gemini-3.1-flash-lite" || modelName === "gemini-2.5-flash";
+      const forceGemini = provider === "gemini" || endpoint === "gemini" || modelName === "gemini-3.1-flash-lite" || modelName === "gemini-2.5-flash" || modelName === "gemini-2.0-flash";
       const isRemoteOpenAICompat = !forceGemini && (provider === "remote" || (!provider && !isGeminiKey) || (currentKey && !isGeminiKey && provider !== "gemini"));
 
       if (!forceGemini && (isLocalOrCustom || isRemoteOpenAICompat)) {

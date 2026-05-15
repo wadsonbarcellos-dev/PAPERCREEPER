@@ -1942,6 +1942,8 @@ export default function App({
         }
       }
       
+      const context = `Servidor Selecionado: ${currentServerId}. Status: ${serverState?.status || 'desconhecido'}. Logs recentes:\n${serverState?.logs?.slice(-10).join("\n") || ''}`;
+      
       let firstResult: any = null;
 
       if (searchMatch) {
@@ -2049,6 +2051,7 @@ Por favor, explique ou detalhe esse resultado para mim de forma natural e amigá
            }
         }
       }
+      const context = "";
       const prompt = `Atue como um desenvolvedor Skript (Minecraft). O usuário quer o seguinte plugin/sistema:
 "${pluginDescription}"
 
