@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { withResilience } from "../services/resilience";
 import { logMetric, measurePerformanceAsync } from "../services/telemetry";
+import { QuickActions } from "../components/QuickActions";
 import {
   AreaChart,
   Area,
@@ -4117,28 +4118,12 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                     )}
 
                     {/* QUICK ACTIONS */}
-                    <div className="bg-zinc-900/60 backdrop-blur-xl border border-white/5 rounded-[2.5rem] p-8">
-                       <h3 className="text-xl font-black text-white tracking-widest uppercase italic mb-6">Ações Rápidas</h3>
-                       <div className="grid grid-cols-2 gap-4">
-                          {[
-                            { label: "Otimizar", icon: <Zap />, color: "emerald", action: handleOptimizeSystem },
-                            { label: "Novo Server", icon: <Plus />, color: "sky", action: () => { setShowCreateModal(true); setNewServerConfig({ name: "", ram: 4, type: "spigot", version: "1.21.1", usePlayit: true, minRam: 1, url: "" }); } },
-                            { label: "Diagnóstico", icon: <Activity />, color: "amber", action: () => setActiveTab("system") },
-                            { label: "Sair", icon: <Power />, color: "rose", action: () => window.location.reload() },
-                          ].map((btn, bidx) => (
-                             <button
-                               key={bidx}
-                               onClick={btn.action}
-                               className={`p-6 bg-zinc-800/40 hover:bg-zinc-700/60 rounded-[2rem] border border-white/5 flex flex-col items-center justify-center gap-3 transition-all hover:scale-105 active:scale-95 group`}
-                             >
-                                <div className={`text-${btn.color}-500 group-hover:scale-125 transition-transform`}>
-                                   {btn.icon}
-                                </div>
-                                <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">{btn.label}</span>
-                             </button>
-                          ))}
-                       </div>
-                    </div>
+                    <QuickActions
+                      handleOptimizeSystem={handleOptimizeSystem}
+                      setShowCreateModal={setShowCreateModal}
+                      setNewServerConfig={setNewServerConfig}
+                      setActiveTab={setActiveTab}
+                    />
                   </div>
                 </motion.div>
               )}

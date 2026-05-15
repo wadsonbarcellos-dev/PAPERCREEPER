@@ -9,6 +9,7 @@ import os from "os";
 import multer from "multer";
 import { GoogleGenAI, Type } from "@google/genai";
 import { manageBot, isBotConnected, sendBotMessage } from "./botService.js";
+import { logMetric } from "./src/services/telemetry";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

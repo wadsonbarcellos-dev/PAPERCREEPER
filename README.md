@@ -125,7 +125,25 @@ Run AI entirely offline with zero cost.
 
 ---
 
-## 🌐 Network & Playit.gg
+## 🛡️ Casos de Teste (Auditoria de Produção)
+
+Para garantir a resiliência do sistema, validamos os seguintes fluxos críticos:
+
+### Cenários de Integração (Pipeline CI)
+| Caso de Teste | Objetivo | Status |
+| :--- | :--- | :--- |
+| **Lint Check** | Validar tipagem e syntax (TS) | PASS |
+| **Build Check** | Validar bundler e integridade de dependências | PASS |
+| **Resilience Check** | Verificar disparo de Circuit Breaker em falhas de API | PASS |
+
+### Cenários de Estresse (Manual/Simulado)
+- **Latência de API:** Verificado comportamento do `withResilience` em timeouts de API.
+- **Race Condition:** Validadas ações rápidas no `Panel.tsx`.
+- **Memory Leak:** Monitorado heap via Node.js após operações intensas.
+- **Payload Malformado:** Testado `ServerProxyProvider` com inputs vazios/nulos.
+
+---
+
 Don't have port forwarding or a Dedicated IPv4? 
 1. In the Panel, go to the **Playit.gg** tab.
 2. If starting for the first time, click to Link Account.
