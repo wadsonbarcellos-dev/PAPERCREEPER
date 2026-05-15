@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 
 import { GoogleGenAI } from "@google/genai";
+import { withResilience } from "./resilience";
 
 export const askAI = async (
   prompt: string, 
@@ -14,7 +15,7 @@ export const askAI = async (
   options?: any,
   onChunk?: (text: string) => void
 ) => {
-  try {
+  return await withResilience(async () => {
     // Native Gemini Client-side handling for "pro" experience and AI Studio compatibility
     if (provider === "gemini") {
       const apiKey = (apiKeys && apiKeys.length > 0) ? apiKeys[0] : (process.env.GEMINI_API_KEY || "");
@@ -23,7 +24,7 @@ export const askAI = async (
       if (apiKey && apiKey !== "AIza_fallback") {
         try {
           const systemInstruction = `Você é o "PaperCreeper AI", o OPERADOR SUPREMO e ENGENHEIRO de servidores Minecraft.
-Personalidade: Técnico, eficiente, prestativo e com um toque de humor "Minecrafter". Use emojis como ⛏️, 💎, 🔥, 🧨, 🛡️.
+Personality: Técnico, eficiente, prestativo e com um toque de humor "Minecrafter". Use emojis como ⛏️, 💎, 🔥, 🧨, 🛡️.
 
 CAPACIDADES: Você pode sugerir e realizar ações técnicas no servidor inclusive ferramentas [ACTION:{"name": "...", "args": {...}}].`;
           const ai = new GoogleGenAI({ apiKey });
@@ -190,11 +191,8 @@ CAPACIDADES: Você pode sugerir e realizar ações técnicas no servidor inclusi
 
     const result = await response.json();
     return { text: result.text, call: result.call };
-  } catch (error: any) {
-    console.error("AI Bridge Error:", error);
-    return { 
-      text: `Erro ao conectar com a IA: ${error.message}. 
-             Dica: Certifique-se de que a Chave de API está configurada na aba de Configurações! 🔌` 
-    };
-  }
+  }, { 
+    text: `Erro ao conectar com a IA: Serviço indisponível temporariamente. 
+           Dica: Certifique-se de que a Chave de API está configurada na aba de Configurações! 🔌`
+  });
 };

@@ -522,6 +522,7 @@ export default function App({
     ai_memory: boolean;
     ai_bot: boolean;
     server_hibernation: boolean;
+    server_advanced_resources: boolean;
   }>(() => {
     try {
       const saved = localStorage.getItem("ppc_modules");
@@ -534,11 +535,12 @@ export default function App({
             ai_internet: parsed.ai_internet ?? true,
             ai_memory: parsed.ai_memory ?? true,
             ai_bot: parsed.ai_bot ?? true,
-            server_hibernation: parsed.server_hibernation ?? false
+            server_hibernation: parsed.server_hibernation ?? false,
+            server_advanced_resources: parsed.server_advanced_resources ?? true
          };
       }
     } catch (e) {}
-    return { map: true, store: true, ai: true, ai_internet: true, ai_memory: true, ai_bot: true, server_hibernation: false };
+    return { map: true, store: true, ai: true, ai_internet: true, ai_memory: true, ai_bot: true, server_hibernation: false, server_advanced_resources: true };
   });
 
   const [serverState, setServerState] = useState<ServerState>({
@@ -2455,41 +2457,6 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
         </AnimatePresence>
       </div>
 
-      <div className="fixed bottom-0 left-0 w-full z-[80] bg-black/80 backdrop-blur-md border-t border-emerald-500/20 py-2 overflow-hidden pointer-events-none">
-        <div className="flex whitespace-nowrap animate-marquee">
-          {[
-            "🛡️ VPS Protegida com Backup Automático",
-            "(•◡•) Dica: Pressione Ctrl+K para busca rápida",
-            "🚀 Sua rede Playit.gg está ativa e segura",
-            "✨ IA detectou 15% a mais de performance usando Java 21",
-            "💎 Servidores Titanium: Performance sem limites",
-            "🛠️ Dica: Clique com o botão direito nos arquivos para ações mágicas",
-            "🌈 Modo PaperPig ativo? Que fofo!",
-            "🔥 Use /save-all frequentemente para evitar perdas",
-            "🛡️ Auto-Healer monitorando seus logs 24/7",
-          ].map((msg, i) => (
-            <span key={i} className="mx-8 text-[10px] font-black text-emerald-500/50 uppercase tracking-[0.4em] italic">
-              {msg}
-            </span>
-          ))}
-          {/* Duplicate for seamless marquee */}
-          {[
-            "🛡️ VPS Protegida com Backup Automático",
-            "(•◡•) Dica: Pressione Ctrl+K para busca rápida",
-            "🚀 Sua rede Playit.gg está ativa e segura",
-            "✨ IA detectou 15% a mais de performance usando Java 21",
-            "💎 Servidores Titanium: Performance sem limites",
-            "🛠️ Dica: Clique com o botão direito nos arquivos para ações mágicas",
-            "🌈 Modo PaperPig ativo? Que fofo!",
-            "🔥 Use /save-all frequentemente para evitar perdas",
-            "🛡️ Auto-Healer monitorando seus logs 24/7",
-          ].map((msg, i) => (
-            <span key={`dup-${i}`} className="mx-8 text-[10px] font-black text-emerald-500/50 uppercase tracking-[0.4em] italic">
-              {msg}
-            </span>
-          ))}
-        </div>
-      </div>
       <AnimatePresence>
         {showQuickSearch && (
           <motion.div
@@ -4078,118 +4045,70 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                   className="space-y-6"
                 >
                   {/* Header Stats */}
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    {[
-                      { label: "Servidores", value: servers.length, icon: <Server size={20} />, color: "emerald" },
-                      { label: "Status VPS", value: "Excelente", icon: <CheckCircle2 size={20} />, color: "sky" },
-                      { label: "Uptime", value: "99.9%", icon: <Zap size={20} />, color: "amber" },
-                      { label: "Jogadores", value: "0", icon: <Users size={20} />, color: "pink" },
-                    ].map((stat, idx) => (
-                      <motion.div
-                        key={idx}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: idx * 0.1 }}
-                        className="bg-black/40 backdrop-blur-md border border-white/5 p-5 rounded-[2rem] flex items-center gap-4 group hover:border-emerald-500/30 transition-all cursor-default"
-                      >
-                        <div className={`w-12 h-12 bg-${stat.color}-500/10 rounded-2xl flex items-center justify-center text-${stat.color}-500 border border-${stat.color}-500/20 group-hover:scale-110 transition-transform`}>
-                          {stat.icon}
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">{stat.label}</p>
-                          <h4 className="text-xl font-black text-white tracking-tighter">{stat.value}</h4>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </div>
-
-                  {/* Main Monitoring Chart */}
-                  <div className="bg-black/40 backdrop-blur-md border border-white/5 rounded-[2.5rem] p-8 relative overflow-hidden group">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.5)]" />
-                    <div className="flex items-center justify-between mb-8">
-                       <div>
-                          <h3 className="text-2xl font-black text-white tracking-tighter uppercase italic italic">Monitoramento <span className="text-emerald-500">Global</span></h3>
-                          <p className="text-xs font-bold text-white/30 uppercase tracking-widest mt-1">Recursos da VPS em tempo real</p>
-                       </div>
-                       <div className="flex items-center gap-4">
-                          <div className="flex items-center gap-2">
-                             <div className="w-3 h-3 rounded-full bg-emerald-500" />
-                             <span className="text-[10px] font-black text-white/50 uppercase tracking-widest">CPU</span>
+                  {modules.ai && (
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      {[
+                        { label: "Servidores", value: servers.length, icon: <Server size={20} />, color: "emerald" },
+                        ...(modules.server_advanced_resources ? [
+                          { label: "Status VPS", value: "Excelente", icon: <CheckCircle2 size={20} />, color: "sky" },
+                          { label: "Uptime", value: "99.9%", icon: <Zap size={20} />, color: "amber" },
+                          { label: "Jogadores", value: "0", icon: <Users size={20} />, color: "pink" },
+                        ] : [])
+                      ].map((stat, idx) => (
+                        <motion.div
+                          key={idx}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: idx * 0.1 }}
+                          className="bg-black/40 backdrop-blur-md border border-white/5 p-5 rounded-[2rem] flex items-center gap-4 group hover:border-emerald-500/30 transition-all cursor-default"
+                        >
+                          <div className={`w-12 h-12 bg-${stat.color}-500/10 rounded-2xl flex items-center justify-center text-${stat.color}-500 border border-${stat.color}-500/20 group-hover:scale-110 transition-transform`}>
+                            {stat.icon}
                           </div>
-                          <div className="flex items-center gap-2">
-                             <div className="w-3 h-3 rounded-full bg-sky-500" />
-                             <span className="text-[10px] font-black text-white/50 uppercase tracking-widest">RAM</span>
+                          <div>
+                            <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">{stat.label}</p>
+                            <h4 className="text-xl font-black text-white tracking-tighter">{stat.value}</h4>
                           </div>
-                       </div>
+                        </motion.div>
+                      ))}
                     </div>
+                  )}
 
-                    <div className="h-[250px] w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={systemHistory.length > 0 ? systemHistory : [{time: '00:00', cpu: 10, mem: 20}]}>
-                          <defs>
-                            <linearGradient id="colorCpu" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                              <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                            </linearGradient>
-                            <linearGradient id="colorMem" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.3}/>
-                              <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0}/>
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ffffff05" />
-                          <XAxis 
-                            dataKey="time" 
-                            axisLine={false} 
-                            tickLine={false} 
-                            tick={{fill: '#ffffff20', fontSize: 10, fontWeight: 'bold'}}
-                          />
-                          <YAxis 
-                            axisLine={false} 
-                            tickLine={false} 
-                            tick={{fill: '#ffffff20', fontSize: 10, fontWeight: 'bold'}}
-                          />
-                          <ChartTooltip 
-                            contentStyle={{backgroundColor: '#000', border: '1px solid #ffffff10', borderRadius: '15px'}}
-                            itemStyle={{fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase'}}
-                          />
-                          <Area type="monotone" dataKey="cpu" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorCpu)" />
-                          <Area type="monotone" dataKey="mem" stroke="#0ea5e9" strokeWidth={3} fillOpacity={1} fill="url(#colorMem)" />
-                        </AreaChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </div>
-
+                  {/* Infos redundantes removidas */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
                     {/* AI INSIGHTS */}
-                    <div className="bg-black/60 backdrop-blur-xl border-2 border-emerald-500/20 rounded-[2.5rem] p-8 relative group overflow-hidden">
-                       <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
-                          <Brain size={120} />
-                       </div>
-                       <div className="relative z-10">
-                          <div className="flex items-center gap-3 mb-6">
-                             <div className="w-10 h-10 bg-emerald-500 rounded-2xl flex items-center justify-center text-black shadow-[0_0_15px_rgba(16,185,129,0.5)]">
-                               <Sparkles size={20} />
-                             </div>
-                             <h3 className="text-xl font-black text-white tracking-widest uppercase italic text-glow">AI Insights</h3>
-                          </div>
-                          <div className="space-y-4">
-                             <div className="p-4 bg-emerald-500/5 rounded-2xl border border-emerald-500/10">
-                                <p className="text-xs font-bold text-emerald-400 uppercase tracking-widest mb-1 flex items-center gap-2">
-                                   <Zap size={12} /> Sugestão de Otimização
-                                </p>
-                                <p className="text-sm font-medium text-emerald-50/80 leading-relaxed italic">
-                                  "Percebi que seu servidor Principal está usando Java 17, mas a versão 1.21 roda melhor com Java 21 (+15% perf). Deseja atualizar?"
-                                </p>
-                             </div>
-                             <button 
-                               onClick={() => setActiveTab("ai")}
-                               className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-[0.3em] rounded-2xl shadow-lg border-b-4 border-emerald-900 transition-all active:scale-95 flex items-center justify-center gap-3"
-                             >
-                                Falar com a IA <ArrowRight size={16} />
-                             </button>
-                          </div>
-                       </div>
-                    </div>
+                    {modules.ai && (
+                      <div className="bg-black/60 backdrop-blur-xl border-2 border-emerald-500/20 rounded-[2.5rem] p-8 relative group overflow-hidden">
+                        <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
+                            <Brain size={120} />
+                        </div>
+                        <div className="relative z-10">
+                            <div className="flex items-center gap-3 mb-6">
+                              <div className="w-10 h-10 bg-emerald-500 rounded-2xl flex items-center justify-center text-black shadow-[0_0_15px_rgba(16,185,129,0.5)]">
+                                <Sparkles size={20} />
+                              </div>
+                              <h3 className="text-xl font-black text-white tracking-widest uppercase italic text-glow">AI Insights</h3>
+                            </div>
+                            <div className="space-y-4">
+                              <div className="p-4 bg-emerald-500/5 rounded-2xl border border-emerald-500/10">
+                                  <p className="text-xs font-bold text-emerald-400 uppercase tracking-widest mb-1 flex items-center gap-2">
+                                    <Zap size={12} /> Sugestão de Otimização
+                                  </p>
+                                  <p className="text-sm font-medium text-emerald-50/80 leading-relaxed italic">
+                                    "Percebi que seu servidor Principal está usando Java 17, mas a versão 1.21 roda melhor com Java 21 (+15% perf). Deseja atualizar?"
+                                  </p>
+                              </div>
+                              <button 
+                                onClick={() => setActiveTab("ai")}
+                                className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-[0.3em] rounded-2xl shadow-lg border-b-4 border-emerald-900 transition-all active:scale-95 flex items-center justify-center gap-3"
+                              >
+                                  Falar com a IA <ArrowRight size={16} />
+                              </button>
+                            </div>
+                        </div>
+                      </div>
+                    )}
 
                     {/* QUICK ACTIONS */}
                     <div className="bg-zinc-900/60 backdrop-blur-xl border border-white/5 rounded-[2.5rem] p-8">
@@ -5167,10 +5086,12 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                        <div className="w-16 h-16 bg-emerald-600/20 rounded-2xl flex items-center justify-center text-emerald-500 border border-emerald-500/30 shadow-lg">
                           <Activity size={32} />
                        </div>
-                       <div className="space-y-1">
+                   {modules.server_advanced_resources && (
+                      <div className="space-y-1">
                           <h4 className="text-lg font-black uppercase tracking-tighter">Uptime do Node</h4>
                           <p className="text-3xl font-black text-emerald-400 tracking-tighter">{systemDiag?.uptime || 0}h</p>
                        </div>
+                   )}
                        <p className="text-[10px] font-bold text-emerald-500/40 uppercase leading-tight tracking-widest">Painel rodando de forma <br/> independente e estável.</p>
                     </div>
                   </div>
@@ -5309,6 +5230,9 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                           </button>
                           <button onClick={() => { setModules((m) => ({ ...m, server_hibernation: !m.server_hibernation })); if (!modules.server_hibernation) setShowHibernationModal(true); }} className={`px-3 py-2 rounded-xl flex items-center gap-2 font-bold text-[10px] uppercase transition-all border-b-2 active:scale-[0.98] ${modules.server_hibernation ? "bg-amber-600 border-amber-800 text-white" : "bg-black/20 border-black/40 text-amber-600/50 hover:bg-black/30"}`}>
                             <Moon size={12} /> Hibernação
+                          </button>
+                          <button onClick={() => setModules((m) => ({ ...m, server_advanced_resources: !m.server_advanced_resources }))} className={`px-3 py-2 rounded-xl flex items-center gap-2 font-bold text-[10px] uppercase transition-all border-b-2 active:scale-[0.98] ${modules.server_advanced_resources ? "bg-emerald-600 border-emerald-800 text-white" : "bg-black/20 border-black/40 text-zinc-500 hover:bg-black/30"}`}>
+                            <Zap size={12} /> Recursos Avançados
                           </button>
                         </div>
                       </section>
