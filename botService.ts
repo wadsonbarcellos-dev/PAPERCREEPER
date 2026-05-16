@@ -101,6 +101,8 @@ export async function manageBot(
           - save_memory (args: { key: string, value: string })
           - give_item (args: { player: string, item: string, amount: string })
           - tell_story (args: { story: string (textao formatado) })
+          - auto_heal_file (args: { file_path: string, replace_target: string, new_content: string, commit_message: string })
+          - read_source_file (args: { file_path: string })
           `;
 
           let targetEndpoint = "https://api.openai.com/v1/chat/completions";
@@ -242,6 +244,47 @@ export async function manageBot(
                      bot.chat(`/give ${pl} ${targetItem} ${amt}`);
                      emitLog(`[Bot] Usado comando mágico para dar ${amt} ${targetItem} a ${pl}`);
                      bot.chat(`Tome aqui seu item, ${pl}! ✨`);
+                 } else if (call.name === "auto_heal_file") {
+                     const fp = call.args?.file_path as string;
+                     const rt = call.args?.replace_target as string;
+                     const nc = call.args?.new_content as string;
+                     const cm = call.args?.commit_message as string;
+                     const fullPath = path.join(process.cwd(), fp);
+                     try {
+                        if (fs.existsSync(fullPath)) {
+                           let c = fs.readFileSync(fullPath, "utf-8");
+                           c = c.replace(rt, nc);
+                           fs.writeFileSync(fullPath, c, "utf-8");
+                           bot.chat(`[Auto-Healer] O arquivo ${fp} foi corrigido com sucesso!`);
+                           exec(`git add ${fp} && git commit -m "[Auto-Healer] ${cm}" && git push origin main`, (err, stdout, stderr) => {
+                               if (err) emitLog(`[Git Error] ${stderr || err.message}`);
+                               else {
+                                   emitLog(`[Git Success] Push realizado com sucesso.`);
+                                   bot.chat(`[Auto-Healer] Patch enviado pro repositório central! `);
+                               }
+                           });
+                        } else {
+                           bot.chat(`[Auto-Healer] O arquivo ${fp} não foi encontrado.`);
+                        }
+                     } catch(e: any) {
+                        bot.chat(`[Auto-Healer] Erro na correção: ${e.message}`);
+                     }
+                 } else if (call.name === "read_source_file") {
+                     const fp = call.args?.file_path as string;
+                     try {
+                        const fullPath = path.join(process.cwd(), fp);
+                        if (fs.existsSync(fullPath)) {
+                           const content = fs.readFileSync(fullPath, "utf-8");
+                           bot.chat(`[Source Reader] Arquivo lido. Possui ${content.length} caracteres.`);
+                           const memFileLocal = path.join(process.cwd(), "data", "ai_memory.json");
+                           let jLocal = {};
+                           if(fs.existsSync(memFileLocal)) jLocal = JSON.parse(fs.readFileSync(memFileLocal, "utf-8"));
+                           (jLocal as any)[`file_cache_${fp}`] = content.substring(0, 1500);
+                           fs.writeFileSync(memFileLocal, JSON.stringify(jLocal));
+                        } else {
+                           bot.chat(`[Source Reader] Arquivo ${fp} não existe no ecossistema.`);
+                        }
+                     } catch(e) {}
                  } else if (call.name === "tell_story") {
                      const story = call.args?.story as string;
                      const lines = story.split("\n").map((l: string) => l.trim()).filter((l: string) => l.length > 0);

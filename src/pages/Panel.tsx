@@ -582,6 +582,28 @@ export default function App({
   const [fileFolder, setFileFolder] = useState("");
   const [editingFile, setEditingFile] = useState<any>(null);
   const [editingContent, setEditingContent] = useState("");
+  const [aiInsight, setAiInsight] = useState<{title: string, text: string, type: string} | null>(null);
+  const [isInsightLoading, setIsInsightLoading] = useState(false);
+
+  const fetchAiInsight = async () => {
+    if (!modules.ai) return;
+    setIsInsightLoading(true);
+    try {
+      const res = await fetch("/api/ai/insights");
+      const data = await res.json();
+      setAiInsight(data);
+    } catch (e) {
+      console.error("Erro ao carregar insights:", e);
+    } finally {
+      setIsInsightLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAiInsight();
+    const interval = setInterval(fetchAiInsight, 300000); // 5 min
+    return () => clearInterval(interval);
+  }, [modules.ai]);
 
   const fetchFileList = async () => {
     if (!currentServerId) return;
@@ -4098,20 +4120,38 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                               <h3 className="text-xl font-black text-white tracking-widest uppercase italic text-glow">AI Insights</h3>
                             </div>
                             <div className="space-y-4">
-                              <div className="p-4 bg-emerald-500/5 rounded-2xl border border-emerald-500/10">
-                                  <p className="text-xs font-bold text-emerald-400 uppercase tracking-widest mb-1 flex items-center gap-2">
-                                    <Zap size={12} /> Sugestão de Otimização
+                              <div className={`p-4 rounded-2xl border transition-all ${
+                                aiInsight?.type === "success" ? "bg-emerald-500/5 border-emerald-500/10" : 
+                                aiInsight?.type === "warning" ? "bg-amber-500/5 border-amber-500/10" :
+                                "bg-zinc-500/5 border-zinc-500/10"
+                              }`}>
+                                  <p className={`text-xs font-bold uppercase tracking-widest mb-1 flex items-center gap-2 ${
+                                    aiInsight?.type === "success" ? "text-emerald-400" :
+                                    aiInsight?.type === "warning" ? "text-amber-400" :
+                                    "text-zinc-400"
+                                  }`}>
+                                    <Zap size={12} /> {aiInsight?.title || "Analisando Meta-Dados..."}
                                   </p>
                                   <p className="text-sm font-medium text-emerald-50/80 leading-relaxed italic">
-                                    "Percebi que seu servidor Principal está usando Java 17, mas a versão 1.21 roda melhor com Java 21 (+15% perf). Deseja atualizar?"
+                                    {isInsightLoading ? "O Creeper está analisando os logs e a RAM dos seus servidores ativos..." : 
+                                     aiInsight?.text || "Tudo operacional. Crie um servidor para ver análises preditivas aqui."}
                                   </p>
                               </div>
-                              <button 
-                                onClick={() => setActiveTab("ai")}
-                                className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-[0.3em] rounded-2xl shadow-lg border-b-4 border-emerald-900 transition-all active:scale-95 flex items-center justify-center gap-3"
-                              >
-                                  Falar com a IA <ArrowRight size={16} />
-                              </button>
+                              <div className="flex gap-2">
+                                <button 
+                                  onClick={fetchAiInsight}
+                                  disabled={isInsightLoading}
+                                  className="p-4 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 rounded-2xl border border-zinc-800 transition-all disabled:opacity-50"
+                                >
+                                  <RefreshCw size={16} className={isInsightLoading ? "animate-spin" : ""} />
+                                </button>
+                                <button 
+                                  onClick={() => setActiveTab("ai")}
+                                  className="flex-1 py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-[0.3em] rounded-2xl shadow-lg border-b-4 border-emerald-900 transition-all active:scale-95 flex items-center justify-center gap-3"
+                                >
+                                    Falar com a IA <ArrowRight size={16} />
+                                </button>
+                              </div>
                             </div>
                         </div>
                       </div>
@@ -4193,6 +4233,11 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                                   <span className="text-[9px] font-black text-emerald-400 bg-black/40 px-2 py-0.5 rounded-full border border-emerald-950 uppercase tracking-tighter">
                                     {srv.ram}GB RAM
                                   </span>
+                                  {srv.status === "online" && srv.uptime_human && srv.uptime_human !== "Offline" && (
+                                    <span className="text-[9px] font-black text-amber-300 bg-amber-900/40 px-2 py-0.5 rounded-full border border-amber-800 uppercase tracking-tighter">
+                                      UPTIME: {srv.uptime_human}
+                                    </span>
+                                  )}
                                   {currentServerId === srv.id && (
                                     <>
                                       <span className="text-[9px] font-black text-emerald-400 bg-black/40 px-2 py-0.5 rounded-full border border-emerald-950 uppercase tracking-tighter font-mono">
@@ -5079,11 +5124,12 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                        </div>
                    {modules.server_advanced_resources && (
                       <div className="space-y-1">
-                          <h4 className="text-lg font-black uppercase tracking-tighter">Uptime do Node</h4>
-                          <p className="text-3xl font-black text-emerald-400 tracking-tighter">{systemDiag?.uptime || 0}h</p>
+                          <h4 className="text-lg font-black uppercase tracking-tighter">Tempo Online (Painel)</h4>
+                          <p className="text-xl font-black text-emerald-400 tracking-tighter">{systemDiag?.app_uptime_human || "Detectando..."}</p>
+                          <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Host Uptime: {systemDiag?.uptime_human || "N/A"}</p>
                        </div>
                    )}
-                       <p className="text-[10px] font-bold text-emerald-500/40 uppercase leading-tight tracking-widest">Painel rodando de forma <br/> independente e estável.</p>
+                       <p className="text-[10px] font-bold text-emerald-500/40 uppercase leading-tight tracking-widest">Painel operando com lógica <br/> de auto-healing ativa.</p>
                     </div>
                   </div>
 

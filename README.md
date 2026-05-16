@@ -1,11 +1,30 @@
-# 🧨 PaperCreeper - The Magic Minecraft Panel (AI + Scripts + Local Servers)
+# 🧨 PaperCreeper - The Supreme Omni-Engineer Manager
 
-**PaperCreeper** is a next-generation Minecraft server management panel built with modern edge tools, Artificial Intelligence, and performance optimizations.
-It allows you to create servers (Paper, Purpur, Velocity, BungeeCord, Forge, Fabric, etc.), manage multiple instances, edit maps, generate Skripts via AI, manage plugins via Modrinth, and even deploy an AI Assistant Bot directly into your game world.
+![Badge Node](https://img.shields.io/badge/Node.js-20.x-green)
+![Badge React](https://img.shields.io/badge/React-18-blue)
+![Badge TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)
+![Badge Docker](https://img.shields.io/badge/Docker-Ready-informational)
+
+**PaperCreeper** has evolved into a next-generation infrastructure management panel built with modern edge tools, Artificial Intelligence, and commercial-grade performance optimizations.
+It allows you to create servers, manage clusters, edit maps, generate Skripts via AI, manage plugins, and now self-heal its own code.
+
+## 🧠 Arquitetura Lógica Avançada (Omni-Engineer)
+```mermaid
+graph TD
+    A[Web/React Client] -->|HTTPS/WSS| B(API Gateway/Express)
+    B -->|Winston/Realtime| C{Socket.IO Telemetry}
+    B -->|Middlewares| D[Security/RateLimit/Helmet]
+    D --> E[Server Manager Core]
+    D --> F[AI Bot Service]
+    E --> G[(Minecraft Servers Pool)]
+    F -->|Mineflayer| G
+    F -->|GitHub Actions| H[Git Self-Healing Repo]
+    F -->|LLM Connectors| I((Gemini/OpenAI/Ollama))
+```
 
 ---
 
-## 🌟 Key Features
+## 🌟 Elite Features
 
 - **Multi-Server & Multi-Terminal:** Run and manage multiple servers simultaneously on the same host. Connect securely through an interactive web-console.
 - **Modrinth Store:** Download and install plugins, mods, and engines directly from the Modrinth database inside the panel.

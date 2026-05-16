@@ -9,7 +9,17 @@ import os from "os";
 import multer from "multer";
 import { GoogleGenAI, Type } from "@google/genai";
 import { manageBot, isBotConnected, sendBotMessage } from "./botService.js";
-import { logMetric } from "./src/services/telemetry";
+import { logMetric } from "./src/services/telemetry.js";
+import compression from "compression";
+import helmet from "helmet";
+import cors from "cors";
+import rateLimit from "express-rate-limit";
+import { logger } from "./src/server/logger.js";
+import { monitoringService } from "./src/server/services/monitoring.service.js";
+import { CircuitBreaker } from "./src/server/utils/circuit-breaker.js";
+
+const aiCircuitBreaker = new CircuitBreaker(5, 60000); // 5 failures, 1 min timeout
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -21,11 +31,17 @@ const ai = new GoogleGenAI({
 
 // Robust Error Handling: Evita que erros como ESM imports e Promessas Rejeitadas desliguem o backend do Painel.
 process.on('uncaughtException', (err) => {
-    console.error('[CRÍTICO] Uncaught Exception:', err);
+    logger.error('[CRÍTICO] Uncaught Exception:', err);
+    import('./src/server/services/auto-healer.service.js').then(({ autoHealerService }) => {
+        autoHealerService.handleCriticalError(err);
+    });
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-    console.error('[CRÍTICO] Unhandled Rejection:', reason);
+    logger.error('[CRÍTICO] Unhandled Rejection:', reason);
+    import('./src/server/services/auto-healer.service.js').then(({ autoHealerService }) => {
+        autoHealerService.handleCriticalError(reason);
+    });
 });
 
 // Helper to reliably download files using native Node
@@ -54,9 +70,16 @@ async function downloadFile(url: string, dest: string, onLog?: (msg: string) => 
 
 async function startServer() {
   const app = express();
+  app.set('trust proxy', 1);
   let currentPort = parseInt(process.env.PORT || "3000", 10);
 
-  app.use(express.json());
+  app.use(helmet({ contentSecurityPolicy: false })); // Permite o Live Preview do React
+  app.use(compression());
+  app.use(cors());
+  app.use(express.json({ limit: "50mb" }));
+  
+  const limiter = rateLimit({ windowMs: 1 * 60 * 1000, max: 500 });
+  app.use("/api/", limiter);
 
   const SERVERS_ROOT = path.join(process.cwd(), "servers");
   if (!fs.existsSync(SERVERS_ROOT)) fs.mkdirSync(SERVERS_ROOT);
@@ -209,6 +232,14 @@ async function startServer() {
         logs: ["Painel pronto!"],
       };
     }
+  };
+
+  const formatUptime = (seconds: number) => {
+    const d = Math.floor(seconds / (3600 * 24));
+    const h = Math.floor((seconds % (3600 * 24)) / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+    return `${d > 0 ? d + "d " : ""}${h}h ${m}m ${s}s`;
   };
 
   const addLog = (id: string, msg: string) => {
@@ -641,6 +672,56 @@ async function startServer() {
 
   // --- API IA (UNIVERSAL) ---
   // --- Web Tools ---
+  app.get("/api/ai/insights", async (req, res) => {
+    try {
+      const serverIds = Object.keys(serversState);
+      if (serverIds.length === 0) {
+        return res.json({
+          title: "Início Rápido",
+          text: "Você ainda não criou nenhum servidor. Use o botão '+' acima para começar sua jornada!",
+          type: "info"
+        });
+      }
+
+      // Escolhe um servidor para analisar (preferência para os que estão online ou têm logs recentes)
+      const targetId = serverIds[0]; 
+      const state = serversState[targetId];
+      const config = getSrvConfig(targetId);
+      const logsSnippet = state.logs.slice(-20).join("\n");
+
+      const prompt = `
+        Analise o estado atual deste servidor de Minecraft e forneça uma dica curta, técnica e útil (máx 2 linhas).
+        Servidor: ${config.name}
+        Versão: ${config.version}
+        Tipo: ${config.type}
+        Status: ${state.status}
+        Logs Recentes:
+        ${logsSnippet}
+
+        Responda apenas com a frase da dica, sem prefixos como "Dica:". Seja direto e técnico (Omni-Engineer style).
+      `;
+
+      const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      
+      const result = await model.generateContent(prompt);
+      const text = result.response.text().trim();
+
+      res.json({
+        title: state.status === "online" ? "Análise em Tempo Real" : "Dica de Configuração",
+        text: text,
+        type: state.status === "online" ? "success" : "warning",
+        targetServer: targetId
+      });
+    } catch (e: any) {
+      res.json({
+        title: "AI Offline",
+        text: "Não foi possível gerar insights agora. Verifique sua conexão ou chave API.",
+        type: "error"
+      });
+    }
+  });
+
   app.post("/api/ai/web/search", async (req, res) => {
     // Basic scrape or mock search using DuckDuckGo HTML
     try {
@@ -1492,9 +1573,10 @@ Exemplo: "Deixe-me procurar isso: <call:PESQUISAR>mcMMO setup</call>"
       const forceGemini = provider === "gemini" || endpoint === "gemini";
       const isRemoteOpenAICompat = !forceGemini && (provider === "remote" || (!provider && !isGeminiKey) || (currentKey && !isGeminiKey && provider !== "gemini"));
 
-      if (!forceGemini && (isLocalOrCustom || isRemoteOpenAICompat)) {
-        let aiMode = provider || "remote";
-        if (!provider && !isGeminiKey) aiMode = "remote";
+      const aiCallFunction = async () => {
+         if (!forceGemini && (isLocalOrCustom || isRemoteOpenAICompat)) {
+           let aiMode = provider || "remote";
+           if (!provider && !isGeminiKey) aiMode = "remote";
 
         // Local/Custom AI via OpenAI API compatible endpoint OR External Remote (Groq, xAI, OpenAI)
         let targetEndpoint = endpoint || "http://127.0.0.1:11434/v1/chat/completions";
@@ -1592,7 +1674,11 @@ Exemplo: "Deixe-me procurar isso: <call:PESQUISAR>mcMMO setup</call>"
             if (i === keysToTry.length - 1) throw e;
           }
         }
+        return text;
       }
+    };
+
+      text = await aiCircuitBreaker.execute(aiCallFunction);
 
       // Tenta extrair ações do texto de forma resiliente
       let call = null;
@@ -1848,20 +1934,25 @@ Exemplo: "Deixe-me procurar isso: <call:PESQUISAR>mcMMO setup</call>"
 
   app.get("/api/system/diagnostics", (req, res) => {
     try {
+      const detailedStatus = monitoringService.getHealthStatus();
       const freeMem = os.freemem();
       const totalMem = os.totalmem();
-      const loadAvg = os.loadavg();
       const uptime = os.uptime();
+      
       res.json({
         mem: {
           free: (freeMem / 1024 / 1024 / 1024).toFixed(2),
           total: (totalMem / 1024 / 1024 / 1024).toFixed(2),
           percent: Math.round(((totalMem - freeMem) / totalMem) * 100)
         },
-        cpu: loadAvg[0].toFixed(2),
+        cpu: detailedStatus.currentMetrics.cpu.replace('%', ''),
         uptime: (uptime / 3600).toFixed(1),
+        uptime_human: formatUptime(uptime),
+        app_uptime_human: formatUptime(process.uptime()),
         hostname: os.hostname(),
-        platform: os.platform()
+        platform: os.platform(),
+        appUptime: process.uptime(),
+        status: detailedStatus.status
       });
     } catch (e) {
       res.status(500).json({ error: "Erro ao coletar diagnóstico" });
@@ -1872,8 +1963,18 @@ Exemplo: "Deixe-me procurar isso: <call:PESQUISAR>mcMMO setup</call>"
     res.json(systemHistory);
   });
 
-  app.post("/api/system/optimize", (req, res) => {
-    res.json({ success: true, message: "VPS Otimizada: Cache limpo e recursos realocados para Minecraft!" });
+  app.post("/api/system/optimize", async (req, res) => {
+    try {
+      // Limpeza de cache real para mostrar efeito
+      Object.keys(srvConfigCache).forEach(key => delete srvConfigCache[key]);
+      
+      const result = await monitoringService.optimizeSystem();
+      const msg = `[SISTEMA] Otimização realizada: ${result.message}`;
+      logger.info(msg);
+      res.json(result);
+    } catch (e: any) {
+      res.status(500).json({ success: false, message: "Erro na otimização: " + e.message });
+    }
   });
 
   app.get("/api/servers", (req, res) => {
@@ -1884,6 +1985,11 @@ Exemplo: "Deixe-me procurar isso: <call:PESQUISAR>mcMMO setup</call>"
     const data = servers.map((id) => {
       const config = getSrvConfig(id);
       ensureState(id);
+      const state = serversState[id];
+      let uptime_human = "Offline";
+      if (state.status === "online" && state.startedAt) {
+        uptime_human = formatUptime((Date.now() - state.startedAt) / 1000);
+      }
       return {
         id,
         name: config.name,
@@ -1892,7 +1998,8 @@ Exemplo: "Deixe-me procurar isso: <call:PESQUISAR>mcMMO setup</call>"
         type: config.type,
         version: config.version,
         store: config.store || null,
-        status: serversState[id].status,
+        status: state.status,
+        uptime_human,
       };
     });
     res.json({ servers: data });
@@ -2169,6 +2276,7 @@ command /creeper-ai <text>:
 
     serversState[serverId].status = "starting";
     serversState[serverId].logs = []; // Limpa logs anteriores
+    serversState[serverId].startedAt = Date.now();
     addLog(serverId, `🚀 Iniciando Minecraft...`);
 
     // DYNAMIC JAVA SELECTION
@@ -3599,6 +3707,24 @@ command /creeper-ai <text>:
       }
     });
   };
+
+  const shutdown = (signal: string) => {
+      logger.info(`[${signal}] Iniciando encerramento amigável (Graceful Shutdown)...`);
+      Object.keys(serversState).forEach(serverId => {
+          logger.info(`Desligando servidor minecraft ${serverId}...`);
+          try {
+             if (serversState[serverId]?.process) {
+                 serversState[serverId].process.stdin?.write("stop\n");
+             }
+          } catch(e){}
+      });
+      setTimeout(() => {
+          logger.info("Processo encerrado completamente.");
+          process.exit(0);
+      }, 3000);
+  };
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
 
   startServerOnPort(currentPort);
 }
