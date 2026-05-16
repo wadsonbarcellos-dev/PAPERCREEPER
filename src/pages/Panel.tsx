@@ -566,6 +566,7 @@ export default function App({
       store?: any;
       status?: string;
       port?: number;
+      uptime_human?: string;
     }[]
   >([]);
   const [currentServerId, setCurrentServerId] = useState<string>("");

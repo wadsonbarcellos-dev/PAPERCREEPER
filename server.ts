@@ -25,9 +25,31 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Configuração IA no Backend (Totalmente Automática no AI Studio)
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY || "AIza_fallback",
-});
+function createSafeAI(apiKey?: string) {
+    if (!apiKey) {
+        return {
+            getGenerativeModel: () => ({
+                generateContent: async () => ({ response: { text: () => "AI Desativada: Configure a chave API no campo apropriado." } }),
+                startChat: () => ({ sendMessage: async () => ({ response: { text: () => "AI Desativada: Configure a chave API." } }) }),
+                generateContentStream: async function* () { yield { response: { text: () => "AI Desativada." } }; }
+            })
+        } as any;
+    }
+    try {
+        return new GoogleGenAI({ apiKey });
+    } catch (e) {
+        logger.error("[AI] Erro ao instanciar SDK:", e);
+        return createSafeAI(); // Fallback to mock
+    }
+}
+
+let _ai: any = null;
+const ai = { 
+    getGenerativeModel: (...args: any[]) => {
+        if (!_ai) _ai = createSafeAI(process.env.GEMINI_API_KEY);
+        return _ai.getGenerativeModel(...args as any);
+    } 
+} as any;
 
 // Robust Error Handling: Evita que erros como ESM imports e Promessas Rejeitadas desliguem o backend do Painel.
 process.on('uncaughtException', (err) => {
@@ -221,6 +243,7 @@ async function startServer() {
       logs: string[];
       process?: any;
       activeJava?: string;
+      startedAt?: number;
     }
   > = {};
 
@@ -674,6 +697,15 @@ async function startServer() {
   // --- Web Tools ---
   app.get("/api/ai/insights", async (req, res) => {
     try {
+      const apiKey = process.env.GEMINI_API_KEY || "";
+      if (!apiKey) {
+        return res.json({
+          title: "AI em Espera",
+          text: "Configure uma chave GEMINI_API_KEY no .env para ativar as análises preditivas.",
+          type: "info"
+        });
+      }
+
       const serverIds = Object.keys(serversState);
       if (serverIds.length === 0) {
         return res.json({
@@ -701,7 +733,7 @@ async function startServer() {
         Responda apenas com a frase da dica, sem prefixos como "Dica:". Seja direto e técnico (Omni-Engineer style).
       `;
 
-      const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+      const genAI = createSafeAI(apiKey);
       const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       
       const result = await model.generateContent(prompt);
@@ -1468,7 +1500,7 @@ Exemplo: "Deixe-me procurar isso: <call:PESQUISAR>mcMMO setup</call>"
       } else {
          // Gemini stream
          const { GoogleGenAI } = await import("@google/genai");
-         const ai = new GoogleGenAI({ apiKey: currentKey });
+         const ai = createSafeAI(currentKey);
          try {
            const historyFormatted = messages
               .filter(m => m.role !== "system")
@@ -1637,7 +1669,7 @@ Exemplo: "Deixe-me procurar isso: <call:PESQUISAR>mcMMO setup</call>"
         // Gemini
         const tryKey = async (key: string) => {
           const { GoogleGenAI } = await import("@google/genai");
-          const localAi = new GoogleGenAI({ apiKey: key });
+          const localAi = createSafeAI(key);
           
           const formattedHistory = (history || []).map((msg: any) => ({
             role: msg.role === "assistant" ? "model" : "user",
@@ -2116,7 +2148,7 @@ command /creeper-ai <text>:
       try {
         const currentKey = process.env.GEMINI_API_KEY || "AIza_fallback";
         const { GoogleGenAI } = await import("@google/genai");
-        const localAi = new GoogleGenAI({ apiKey: currentKey });
+        const localAi = createSafeAI(currentKey);
         const result = await localAi.models.generateContent({
           model: "gemini-2.5-flash",
           contents: "Say hello",
@@ -2459,7 +2491,7 @@ command /creeper-ai <text>:
                 if (apiKey && !apiKey.startsWith("AIza_fallback")) {
                   try {
                     const { GoogleGenAI } = await import("@google/genai");
-                    const localAi = new GoogleGenAI({ apiKey });
+                    const localAi = createSafeAI(apiKey);
                     const res = await localAi.models.generateContent({
                       model: "gemini-2.5-flash",
                       contents: `Como assistente técnico do Minecraft, o servidor encontrou os seguintes erros recentes nas logs:\n\n${errors}\n\nAnalise em 1 ou 2 frases curtas o que pode estar errado e dê a solução ou comando necessário. Você é um ajudante automático, responda com algo como "Problema detectado: [X]. Solução: [Y]". Dicas curtas são as melhores.`,
@@ -3649,7 +3681,17 @@ command /creeper-ai <text>:
 
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: { 
+        middlewareMode: true,
+        watch: {
+          ignored: [
+            "**/data/**",
+            "**/servers/**",
+            "**/dist/**",
+            "**/node_modules/**"
+          ]
+        }
+      },
       appType: "spa",
     });
     app.use(vite.middlewares);
