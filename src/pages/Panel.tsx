@@ -2,6 +2,13 @@ import React, { useState, useEffect, useRef } from "react";
 import { withResilience } from "../services/resilience";
 import { logMetric, measurePerformanceAsync } from "../services/telemetry";
 import { QuickActions } from "../components/QuickActions";
+import { DashStats } from "../components/DashStats";
+import { ServerList } from "../components/ServerList";
+import { ChatWindow } from "../components/ChatWindow";
+import { AIBrainMapper } from "../components/AIBrainMapper";
+import { ServerConsole } from "../components/ServerConsole";
+import { FileManager } from "../components/FileManager";
+import { Brain, ArrowRight, Zap, Square as SquareIcon } from "lucide-react";
 import {
   AreaChart,
   Area,
@@ -89,6 +96,12 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { askAI } from "../services/geminiService";
+import { AIBrainMapper } from "../components/blocks/AIBrainMapper";
+import { ChatWindow } from "../components/blocks/ChatWindow";
+import { ServerConsole } from "../components/blocks/ServerConsole";
+import { FileManager } from "../components/blocks/FileManager";
+import { DashStats } from "../components/blocks/DashStats";
+import { ServerList } from "../components/blocks/ServerList";
 import MapEditor3D from "../components/MapEditor3D";
 
 const translations: any = {
@@ -1909,31 +1922,39 @@ export default function App({
     }
   }, [serverState.logs, aiChat, activeTab, autoScroll]);
 
-  const handleAction = async (action: "start" | "stop" | "kill") => {
-    if (!currentServerId) return;
+  const handleAction = async (action: "start" | "stop" | "kill", specificId?: string) => {
+    const targetId = specificId || currentServerId;
+    if (!targetId) return;
 
-    if (action === "start") {
+    if (action === "start" && !specificId) {
       setActiveTab("console");
-    } else if (action === "stop" || action === "kill") {
+    } else if ((action === "stop" || action === "kill") && !specificId) {
       setActiveTab("servers");
     }
 
     // Optimistic UI update
-    setServerState((prev) => ({
-      ...prev,
-      status:
-        action === "start"
-          ? "starting"
-          : action === "kill"
-            ? "offline"
-            : "stopping",
-    }));
+    if (targetId === currentServerId) {
+      setServerState((prev) => ({
+        ...prev,
+        status:
+          action === "start"
+            ? "starting"
+            : action === "kill"
+              ? "offline"
+              : "stopping",
+      }));
+    } else {
+       setMultiServerStates(prev => ({
+         ...prev,
+         [targetId]: { ...prev[targetId], status: action === "start" ? "starting" : "stopping" }
+       }));
+    }
 
     try {
       const res = await fetch(`/api/server/${action}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ serverId: currentServerId }),
+        body: JSON.stringify({ serverId: targetId }),
       });
       if (!res.ok) {
         const error = await res.json();
@@ -4080,99 +4101,88 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                   initial={{ opacity: 0, scale: 0.98 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.98 }}
-                  className="space-y-6"
+                  className="space-y-8"
                 >
-                  {/* Header Stats */}
-                  {modules.ai && (
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                      {[
-                        { label: "Servidores", value: servers.length, icon: <Server size={20} />, color: "emerald" },
-                        ...(modules.server_advanced_resources ? [
-                          { label: "Status VPS", value: "Excelente", icon: <CheckCircle2 size={20} />, color: "sky" },
-                          { label: "Uptime", value: "99.9%", icon: <Zap size={20} />, color: "amber" },
-                          { label: "Jogadores", value: "0", icon: <Users size={20} />, color: "pink" },
-                        ] : [])
-                      ].map((stat, idx) => (
-                        <motion.div
-                          key={idx}
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: idx * 0.1 }}
-                          className="bg-black/40 backdrop-blur-md border border-white/5 p-5 rounded-[2rem] flex items-center gap-4 group hover:border-emerald-500/30 transition-all cursor-default"
-                        >
-                          <div className={`w-12 h-12 bg-${stat.color}-500/10 rounded-2xl flex items-center justify-center text-${stat.color}-500 border border-${stat.color}-500/20 group-hover:scale-110 transition-transform`}>
-                            {stat.icon}
-                          </div>
-                          <div>
-                            <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">{stat.label}</p>
-                            <h4 className="text-xl font-black text-white tracking-tighter">{stat.value}</h4>
-                          </div>
-                        </motion.div>
-                      ))}
-                    </div>
-                  )}
+                  <DashStats 
+                    stats={{
+                      totalServers: servers.length,
+                      onlineServers: servers.filter(s => s.status === "online").length,
+                      totalPlayers: 0,
+                      cpuLoad: "12%",
+                      ramUsage: "2.4GB",
+                      diskUsage: "15GB"
+                    }}
+                  />
 
-                  {/* Infos redundantes removidas */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="bg-black/40 backdrop-blur-md border border-emerald-900/50 rounded-3xl p-6">
+                       <ServerList 
+                         servers={servers}
+                         activeId={currentServerId}
+                         onSelect={setCurrentServerId}
+                         onAdd={() => setShowCreateModal(true)}
+                         onStatusToggle={(id) => handleAction(servers.find(s => s.id === id)?.status === "online" ? "stop" : "start", id)}
+                       />
+                    </div>
 
-                    {/* AI INSIGHTS */}
-                    {modules.ai && (
-                      <div className="bg-black/60 backdrop-blur-xl border-2 border-emerald-500/20 rounded-[2.5rem] p-8 relative group overflow-hidden">
-                        <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
-                            <Brain size={120} />
+                    <div className="space-y-6">
+                      {modules.ai && (
+                        <div className="bg-black/60 backdrop-blur-xl border-2 border-emerald-500/20 rounded-[2.5rem] p-8 relative group overflow-hidden">
+                          <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
+                              <Brain size={120} />
+                          </div>
+                          <div className="relative z-10">
+                              <div className="flex items-center gap-3 mb-6">
+                                <div className="w-10 h-10 bg-emerald-500 rounded-2xl flex items-center justify-center text-black shadow-[0_0_15px_rgba(16,185,129,0.5)]">
+                                  <Sparkles size={20} />
+                                </div>
+                                <h3 className="text-xl font-black text-white tracking-widest uppercase italic text-glow">AI Insights</h3>
+                              </div>
+                              <div className="space-y-4">
+                                <div className={`p-4 rounded-2xl border transition-all ${
+                                  aiInsight?.type === "success" ? "bg-emerald-500/5 border-emerald-500/10" : 
+                                  aiInsight?.type === "warning" ? "bg-amber-500/5 border-amber-500/10" :
+                                  "bg-zinc-500/5 border-zinc-500/10"
+                                }`}>
+                                    <p className={`text-xs font-bold uppercase tracking-widest mb-1 flex items-center gap-2 ${
+                                      aiInsight?.type === "success" ? "text-emerald-400" :
+                                      aiInsight?.type === "warning" ? "text-amber-400" :
+                                      "text-zinc-400"
+                                    }`}>
+                                      <Zap size={12} /> {aiInsight?.title || "Analisando Meta-Dados..."}
+                                    </p>
+                                    <p className="text-sm font-medium text-emerald-50/80 leading-relaxed italic">
+                                      {isInsightLoading ? "O Creeper está analisando os logs e a RAM dos seus servidores ativos..." : 
+                                       aiInsight?.text || "Tudo operacional. Crie um servidor para ver análises preditivas aqui."}
+                                    </p>
+                                </div>
+                                <div className="flex gap-2">
+                                  <button 
+                                    onClick={fetchAiInsight}
+                                    disabled={isInsightLoading}
+                                    className="p-4 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 rounded-2xl border border-zinc-800 transition-all disabled:opacity-50"
+                                  >
+                                    <RefreshCw size={16} className={isInsightLoading ? "animate-spin" : ""} />
+                                  </button>
+                                  <button 
+                                    onClick={() => setActiveTab("ai")}
+                                    className="flex-1 py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-[0.3em] rounded-2xl shadow-lg border-b-4 border-emerald-900 transition-all active:scale-95 flex items-center justify-center gap-3"
+                                  >
+                                      Falar com a IA <ArrowRight size={16} />
+                                  </button>
+                                </div>
+                              </div>
+                          </div>
                         </div>
-                        <div className="relative z-10">
-                            <div className="flex items-center gap-3 mb-6">
-                              <div className="w-10 h-10 bg-emerald-500 rounded-2xl flex items-center justify-center text-black shadow-[0_0_15px_rgba(16,185,129,0.5)]">
-                                <Sparkles size={20} />
-                              </div>
-                              <h3 className="text-xl font-black text-white tracking-widest uppercase italic text-glow">AI Insights</h3>
-                            </div>
-                            <div className="space-y-4">
-                              <div className={`p-4 rounded-2xl border transition-all ${
-                                aiInsight?.type === "success" ? "bg-emerald-500/5 border-emerald-500/10" : 
-                                aiInsight?.type === "warning" ? "bg-amber-500/5 border-amber-500/10" :
-                                "bg-zinc-500/5 border-zinc-500/10"
-                              }`}>
-                                  <p className={`text-xs font-bold uppercase tracking-widest mb-1 flex items-center gap-2 ${
-                                    aiInsight?.type === "success" ? "text-emerald-400" :
-                                    aiInsight?.type === "warning" ? "text-amber-400" :
-                                    "text-zinc-400"
-                                  }`}>
-                                    <Zap size={12} /> {aiInsight?.title || "Analisando Meta-Dados..."}
-                                  </p>
-                                  <p className="text-sm font-medium text-emerald-50/80 leading-relaxed italic">
-                                    {isInsightLoading ? "O Creeper está analisando os logs e a RAM dos seus servidores ativos..." : 
-                                     aiInsight?.text || "Tudo operacional. Crie um servidor para ver análises preditivas aqui."}
-                                  </p>
-                              </div>
-                              <div className="flex gap-2">
-                                <button 
-                                  onClick={fetchAiInsight}
-                                  disabled={isInsightLoading}
-                                  className="p-4 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 rounded-2xl border border-zinc-800 transition-all disabled:opacity-50"
-                                >
-                                  <RefreshCw size={16} className={isInsightLoading ? "animate-spin" : ""} />
-                                </button>
-                                <button 
-                                  onClick={() => setActiveTab("ai")}
-                                  className="flex-1 py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-[0.3em] rounded-2xl shadow-lg border-b-4 border-emerald-900 transition-all active:scale-95 flex items-center justify-center gap-3"
-                                >
-                                    Falar com a IA <ArrowRight size={16} />
-                                </button>
-                              </div>
-                            </div>
-                        </div>
-                      </div>
-                    )}
+                      )}
 
-                    {/* QUICK ACTIONS */}
-                    <QuickActions
-                      handleOptimizeSystem={handleOptimizeSystem}
-                      setShowCreateModal={setShowCreateModal}
-                      setNewServerConfig={setNewServerConfig}
-                      setActiveTab={setActiveTab}
-                    />
+                      <QuickActions
+                        handleOptimizeSystem={handleOptimizeSystem}
+                        setShowCreateModal={setShowCreateModal}
+                        setNewServerConfig={setNewServerConfig}
+                        setActiveTab={setActiveTab}
+                      />
+                    </div>
                   </div>
                 </motion.div>
               )}
@@ -4183,194 +4193,15 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                   exit={{ opacity: 0, y: -20 }}
                   className="space-y-6"
                 >
-                  <div className="bg-black/40 backdrop-blur-md border border-emerald-900/50 rounded-3xl shadow-sm p-6 relative overflow-hidden">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-base font-black text-white tracking-tighter flex items-center gap-3">
-                        <Server className="text-emerald-400" /> Servidores
-                      </h3>
-                      <div className="px-4 py-1.5 bg-emerald-900/50 rounded-full border border-emerald-500/30 text-emerald-400 font-black text-[9px] uppercase tracking-widest shadow-sm">
-                        {servers.length} Criados (•◡•)
-                      </div>
-                    </div>
-
-                    <motion.div 
-                      className="space-y-4"
-                      variants={{
-                        hidden: { opacity: 0 },
-                        show: {
-                          opacity: 1,
-                          transition: {
-                            staggerChildren: 0.1
-                          }
-                        }
-                      }}
-                      initial="hidden"
-                      animate="show"
-                    >
-                      {servers.map((srv) => (
-                        <motion.div
-                          key={srv.id}
-                          variants={{
-                            hidden: { opacity: 0, x: -20 },
-                            show: { opacity: 1, x: 0 }
-                          }}
-                          className={`p-6 rounded-[2rem] border-4 transition-all cursor-pointer shadow-sm hover:shadow-xl ${currentServerId === srv.id ? "bg-emerald-900/20 border-emerald-500" : "bg-black/20 border-zinc-900 border-opacity-50 hover:border-emerald-900/50"}`}
-                          onClick={() => setCurrentServerId(srv.id)}
-                        >
-                          <div className="flex items-center justify-between flex-wrap gap-4">
-                            <div className="flex items-center gap-4">
-                              <div
-                                className={`w-10 h-10 rounded-2xl flex items-center justify-center border-2 shadow-lg transition-transform ${currentServerId === srv.id ? "bg-emerald-500 border-emerald-400 rotate-3" : "bg-zinc-800 border-zinc-700"}`}
-                              >
-                                <Server size={32} className="text-white" />
-                              </div>
-                              <div className="min-w-0">
-                                <h4
-                                  className={`text-xl font-black tracking-tight truncate ${currentServerId === srv.id ? "text-white" : "text-emerald-50/80"}`}
-                                >
-                                  {srv.name}
-                                </h4>
-                                <div className="flex items-center gap-3 mt-1 flex-wrap">
-                                  <span className="text-[9px] font-black text-emerald-400 bg-black/40 px-2 py-0.5 rounded-full border border-emerald-950 uppercase tracking-tighter">
-                                    {srv.id}
-                                  </span>
-                                  {srv.type && (
-                                    <span className="text-[9px] font-black text-emerald-300 bg-emerald-900/40 px-2 py-0.5 rounded-full border border-emerald-800 uppercase tracking-tighter">
-                                      {srv.type} {srv.version}
-                                    </span>
-                                  )}
-                                  <span className="text-[9px] font-black text-emerald-400 bg-black/40 px-2 py-0.5 rounded-full border border-emerald-950 uppercase tracking-tighter">
-                                    {srv.ram}GB RAM
-                                  </span>
-                                  {srv.status === "online" && srv.uptime_human && srv.uptime_human !== "Offline" && (
-                                    <span className="text-[9px] font-black text-amber-300 bg-amber-900/40 px-2 py-0.5 rounded-full border border-amber-800 uppercase tracking-tighter">
-                                      UPTIME: {srv.uptime_human}
-                                    </span>
-                                  )}
-                                  {currentServerId === srv.id && (
-                                    <>
-                                      <span className="text-[9px] font-black text-emerald-400 bg-black/40 px-2 py-0.5 rounded-full border border-emerald-950 uppercase tracking-tighter font-mono">
-                                        {serverState.status}
-                                      </span>
-                                      {serverState.activeJava && (
-                                        <span className="text-[9px] font-black text-emerald-300 bg-emerald-900/40 px-2 py-0.5 rounded-full border border-emerald-800 uppercase tracking-tighter">
-                                          {t("java_active_tag")}: {serverState.activeJava}
-                                        </span>
-                                      )}
-                                      {serverState.config && (
-                                        <span className="text-[9px] font-black text-emerald-400 bg-black/40 px-2 py-0.5 rounded-full border border-emerald-950 uppercase tracking-tighter">
-                                          {serverState.config.ram}GB RAM
-                                        </span>
-                                      )}
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="flex gap-3 ml-auto">
-                              {currentServerId === srv.id && (
-                                <>
-                                  <button
-                                    onClick={() => setActiveTab("console")}
-                                    className="w-10 h-10 bg-emerald-950 border border-emerald-900/50 rounded-xl flex items-center justify-center text-emerald-500 hover:border-emerald-500 hover:text-white transition-all shadow-md active:scale-95"
-                                    title="Console"
-                                  >
-                                    <Terminal size={18} />
-                                  </button>
-                                  <div className="flex items-center gap-2">
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setCurrentServerId(srv.id);
-                                        setActiveTab("files");
-                                      }}
-                                      className="w-10 h-10 bg-emerald-950 border border-emerald-900/50 rounded-xl flex items-center justify-center text-emerald-500 hover:border-emerald-500 hover:text-white transition-all shadow-md active:scale-95"
-                                      title="Arquivos"
-                                    >
-                                      <Database size={18} />
-                                    </button>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setEditingServer({
-                                          id: srv.id,
-                                          name: srv.name,
-                                          ram: srv.ram || 2,
-                                          minRam: srv.minRam || 1,
-                                          store: srv.store || {
-                                            name: "",
-                                            color: "#10b981",
-                                            items: [],
-                                          },
-                                        });
-                                      }}
-                                      className="w-10 h-10 bg-emerald-950 border border-emerald-900/50 rounded-xl flex items-center justify-center text-emerald-500 hover:border-emerald-500 hover:text-white transition-all shadow-md active:scale-95"
-                                      title="Ajustes"
-                                    >
-                                      <Settings size={18} />
-                                    </button>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <button
-                                      onClick={() => {
-                                        if (
-                                          serverState.status === "starting" ||
-                                          serverState.status === "stopping"
-                                        )
-                                          return;
-                                        handleAction(
-                                          serverState.status === "online"
-                                            ? "stop"
-                                            : "start",
-                                        );
-                                      }}
-                                      disabled={
-                                        serverState.status === "starting" ||
-                                        serverState.status === "stopping"
-                                      }
-                                      className={`px-6 h-10 rounded-xl font-black text-[11px] text-white transition-all shadow-lg active:scale-95 border-b-4 ${
-                                        serverState.status === "online"
-                                          ? "bg-red-600 border-red-800 hover:bg-red-500"
-                                          : serverState.status === "offline"
-                                            ? "bg-emerald-600 border-emerald-800 hover:bg-emerald-500"
-                                            : "bg-zinc-700 border-zinc-900 animate-pulse cursor-wait"
-                                      }`}
-                                    >
-                                      {serverState.status === "online"
-                                        ? "STOP"
-                                        : serverState.status === "offline"
-                                          ? "START"
-                                          : serverState.status.toUpperCase()}
-                                    </button>
-                                  </div>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        </motion.div>
-                      ))}
-
-                      <button
-                        onClick={() => setShowCreateModal(true)}
-                        className="w-full p-6 border-2 border-dashed border-emerald-900 rounded-[2rem] text-center hover:bg-emerald-950/30 hover:border-emerald-500 transition-all group flex items-center justify-center gap-4"
-                      >
-                        <div className="w-10 h-10 bg-emerald-950 rounded-xl flex items-center justify-center group-hover:rotate-90 transition-transform border border-emerald-900">
-                          <Play size={20} className="text-emerald-500" />
-                        </div>
-                        <div>
-                          <p className="font-black text-white text-sm uppercase italic tracking-tighter">
-                            CRIAR NOVO SERVIDOR
-                          </p>
-                          <p className="text-[9px] text-emerald-600 font-black uppercase tracking-widest">
-                            Uma nova aventura te espera!
-                          </p>
-                        </div>
-                      </button>
-                    </motion.div>
+                  <div className="bg-black/40 backdrop-blur-md border border-emerald-900/50 rounded-3xl p-6 lg:p-8">
+                     <ServerList 
+                       servers={servers}
+                       activeId={currentServerId}
+                       onSelect={setCurrentServerId}
+                       onAdd={() => setShowCreateModal(true)}
+                       onStatusToggle={(id) => handleAction(servers.find(s => s.id === id)?.status === "online" ? "stop" : "start", id)}
+                     />
                   </div>
-
-                  {/* Infos redundantes removidas */}
                 </motion.div>
               )}
 
@@ -5442,10 +5273,6 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                       </section>
                     )}
                   </div>
-
-                  <div className="mt-8 flex justify-center pb-4">
-                    {/* CreeperPaper removido */}
-                  </div>
                 </motion.div>
               )}
 
@@ -5453,189 +5280,41 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className="bg-black/40 backdrop-blur-md backdrop-blur-md rounded-3xl border border-emerald-900/50 shadow-sm p-4 lg:p-6 min-h-[600px] lg:min-h-0 h-full flex flex-col relative overflow-hidden"
+                  className="bg-black/40 backdrop-blur-md rounded-3xl border border-emerald-900/50 shadow-sm p-4 lg:p-6 h-full flex flex-col relative overflow-hidden"
                 >
-                  <div className="flex items-center gap-3 mb-3 shrink-0">
-                    <div className="p-2 bg-emerald-950/20 rounded-lg text-emerald-500">
-                      <Bot size={18} />
-                    </div>
-                    <div>
-                      <h2 className="text-base font-black text-white tracking-tighter italic uppercase">
-                        Assistente
-                      </h2>
-                      <p className="text-emerald-500 text-[8px] font-black uppercase tracking-widest mt-0.5">
-                        Inteligência Creeper (•◡•)
-                      </p>
+                  <div className="flex items-center justify-between mb-3 shrink-0">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-emerald-950/20 rounded-lg text-emerald-500">
+                        <Bot size={18} />
+                      </div>
+                      <div>
+                        <h2 className="text-base font-black text-white tracking-tighter italic uppercase">
+                          Assistente IA
+                        </h2>
+                        <p className="text-emerald-500 text-[8px] font-black uppercase tracking-widest mt-0.5">
+                          Inteligência Creeper (•◡•)
+                        </p>
+                      </div>
                     </div>
                   </div>
 
-                    <div className="flex flex-col gap-2 mb-3 shrink-0">
-                      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 bg-black/20 p-3 rounded-xl border border-emerald-900/50">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 flex-1">
-                          <div className="space-y-1">
-                            <label className="text-[8px] font-black text-emerald-500 uppercase tracking-widest pl-1">💬 CHAT PRINCIPAL</label>
-                            <select
-                              value={aiMappings.chat}
-                              onChange={(e) => setAiMappings({...aiMappings, chat: e.target.value})}
-                              className="w-full bg-emerald-950/40 border border-emerald-900 rounded-lg px-3 py-2 text-[10px] font-bold text-emerald-300 outline-none focus:border-emerald-500 uppercase tracking-wider backdrop-blur-md"
-                            >
-                              <option value="default">Auto (Sincronizado)</option>
-                              <option value="gemini">✨ Gemini</option>
-                              {customAIs.map(ai => <option key={ai.id} value={ai.id}>🤖 {ai.name}</option>)}
-                            </select>
-                          </div>
-                          
-                          <div className="space-y-1">
-                            <label className="text-[8px] font-black text-blue-500 uppercase tracking-widest pl-1">🛡️ AUTO-HEALER</label>
-                            <select
-                              value={aiMappings.healer}
-                              onChange={(e) => setAiMappings({...aiMappings, healer: e.target.value})}
-                              className="w-full bg-blue-950/40 border border-blue-900 rounded-lg px-3 py-2 text-[10px] font-bold text-blue-300 outline-none focus:border-blue-500 uppercase tracking-wider backdrop-blur-md"
-                            >
-                              <option value="default">Auto (Sincronizado)</option>
-                              <option value="gemini">✨ Gemini</option>
-                              {customAIs.map(ai => <option key={ai.id} value={ai.id}>🤖 {ai.name}</option>)}
-                            </select>
-                          </div>
+                  <AIBrainMapper 
+                    aiMappings={aiMappings} 
+                    setAiMappings={setAiMappings} 
+                    customAIs={customAIs} 
+                    onConfigClick={() => setShowAiCustomConfigModal(true)} 
+                  />
 
-                          <div className="space-y-1">
-                            <label className="text-[8px] font-black text-fuchsia-500 uppercase tracking-widest pl-1">⚙️ AUTOMAÇÃO/CODE</label>
-                            <select
-                              value={aiMappings.automation}
-                              onChange={(e) => setAiMappings({...aiMappings, automation: e.target.value})}
-                              className="w-full bg-fuchsia-950/40 border border-fuchsia-900 rounded-lg px-3 py-2 text-[10px] font-bold text-fuchsia-300 outline-none focus:border-fuchsia-500 uppercase tracking-wider backdrop-blur-md"
-                            >
-                              <option value="default">Auto (Sincronizado)</option>
-                              <option value="gemini">✨ Gemini</option>
-                              {customAIs.map(ai => <option key={ai.id} value={ai.id}>🤖 {ai.name}</option>)}
-                            </select>
-                          </div>
-
-                          <div className="flex items-end pb-0.5">
-                            <button
-                              onClick={() => setShowAiCustomConfigModal(true)}
-                              className="w-full h-9 bg-emerald-900/40 hover:bg-emerald-800 text-emerald-400 rounded-lg text-[9px] font-black transition-all flex items-center justify-center border border-emerald-800 uppercase tracking-widest gap-2"
-                            >
-                              <Settings size={12} /> CONFIG APIs
-                            </button>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center gap-3 lg:border-l lg:border-emerald-900/50 lg:pl-4">
-                           <button
-                             onClick={() => setAiChat([])}
-                             className="px-4 py-2.5 bg-red-900/30 hover:bg-red-800 text-red-400 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-1.5 border border-red-900/50 hover:border-red-500/50 whitespace-nowrap"
-                             title="Apagar Memória do Chat"
-                           >
-                             <RefreshCw size={14} /> RESETAR CHAT
-                           </button>
-                        </div>
-                      </div>
-                    </div>
-
-                  <div
-                    className="flex-1 overflow-y-auto pr-4 custom-scrollbar mb-4 space-y-4"
-                    ref={scrollRef}
-                    onScroll={handleScroll}
-                  >
-                    {aiChat.length === 0 && (
-                      <div className="h-full flex flex-col items-center justify-center text-center opacity-40">
-                        <Bot size={64} className="mb-4 text-emerald-500" />
-                        <p className="font-black italic uppercase tracking-tighter text-xl">
-                          Como posso ajudar?
-                        </p>
-                        <p className="text-xs font-bold uppercase tracking-widest mt-2 max-w-xs">
-                          Pergunte sobre erros, comandos ou como otimizar seu
-                          servidor.
-                        </p>
-                      </div>
-                    )}
-                    {aiChat.map((msg, i) => (
-                      <motion.div
-                        key={i}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-                      >
-                        <div
-                          className={`max-w-[80%] p-4 rounded-2xl border-2 ${msg.role === "user" ? "bg-emerald-900 shadow-sm border-emerald-700 text-white rounded-tr-none" : "bg-black/40 border-emerald-900 text-emerald-100 rounded-tl-none font-mono text-sm shadow-inner"}`}
-                        >
-                          {msg.text}
-                        </div>
-                      </motion.div>
-                    ))}
-                    {aiLoading && (
-                      <div className="flex justify-start">
-                        <div className="bg-black/40 border border-emerald-900/50 text-emerald-500 p-4 rounded-2xl rounded-tl-none flex items-center gap-3">
-                           <motion.div
-                             animate={{ rotate: 360, scale: [1, 1.2, 1] }}
-                             transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                             className="text-emerald-400"
-                           >
-                             <Brain size={20} />
-                           </motion.div>
-                           <div className="italic font-black text-xs uppercase tracking-widest animate-pulse whitespace-nowrap">
-                              {t("ai_thinking")} (•◡•)
-                           </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="relative">
-                    <div className="absolute right-0 -top-8 flex gap-2">
-                       <button
-                         type="button"
-                         onClick={() => handleAskAI(undefined, `<call:PESQUISAR>${aiInput}</call>`)}
-                         disabled={!aiInput.trim() || aiLoading || aiProvider === "off"}
-                         className="px-3 py-1 bg-blue-900/40 hover:bg-blue-800 text-blue-400 font-bold text-[9px] uppercase tracking-widest rounded-lg border border-blue-900/50 transition-colors disabled:opacity-50 disabled:grayscale"
-                       >
-                         🔎 {t("ai_btn_search_web")}
-                       </button>
-                       <button
-                         type="button"
-                         onClick={() => handleAskAI(undefined, `<call:CONSULTAR>${aiInput}</call>`)}
-                         disabled={!aiInput.trim() || aiLoading || aiProvider === "off"}
-                         className="px-3 py-1 bg-purple-900/40 hover:bg-purple-800 text-purple-400 font-bold text-[9px] uppercase tracking-widest rounded-lg border border-purple-900/50 transition-colors disabled:opacity-50 disabled:grayscale"
-                       >
-                         📚 {t("ai_btn_search_docs")}
-                       </button>
-                    </div>
-                    <form onSubmit={(e) => handleAskAI(e)} className="relative flex items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => {
-                           const recognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-                           if (recognition) {
-                              const rec = new recognition();
-                              rec.lang = 'pt-BR';
-                              rec.onresult = (evt: any) => setAiInput(evt.results[0][0].transcript);
-                              rec.start();
-                           } else {
-                              alert("Voz não suportada neste navegador.");
-                           }
-                        }}
-                        className="w-14 h-14 bg-emerald-950/40 border border-emerald-900/50 rounded-2xl flex items-center justify-center text-emerald-500 hover:bg-emerald-800 hover:text-white transition-all shadow-inner shrink-0"
-                      >
-                         <Mic size={24} />
-                      </button>
-                      <div className="relative flex-1">
-                        <input
-                          className="w-full bg-black/60 border border-emerald-900/50 rounded-2xl px-6 py-4 text-emerald-50 font-medium outline-none focus:border-emerald-500 transition-all shadow-inner pr-16 disabled:opacity-50 disabled:cursor-not-allowed"
-                          placeholder={aiProvider === "off" ? t("ai_disabled_placeholder") : t("ask_ai_placeholder")}
-                          value={aiInput}
-                          onChange={(e) => setAiInput(e.target.value)}
-                          disabled={aiProvider === "off" || aiLoading}
-                        />
-                        <button
-                          type="submit"
-                          disabled={!aiInput.trim() || aiLoading || aiProvider === "off"}
-                          className="absolute right-3 top-3 w-10 h-10 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-lg border-b-4 border-emerald-800 transition-all flex items-center justify-center disabled:opacity-50 disabled:grayscale"
-                        >
-                          <Send size={24} />
-                        </button>
-                      </div>
-                    </form>
+                  <div className="flex-1 min-h-0">
+                    <ChatWindow 
+                      aiChat={aiChat}
+                      aiLoading={aiLoading}
+                      aiInput={aiInput}
+                      setAiInput={setAiInput}
+                      onSend={(e) => handleAskAI(e)}
+                      onReset={() => setAiChat([])}
+                      aiDisabled={aiProvider === "off"}
+                    />
                   </div>
                 </motion.div>
               )}
@@ -5645,284 +5324,30 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
-                  className="bg-black/40 backdrop-blur-md backdrop-blur-md rounded-3xl border border-emerald-900/50 shadow-sm p-4 lg:p-6 min-h-[600px] lg:h-[75vh] flex flex-col relative overflow-hidden group"
+                  className="bg-black/40 backdrop-blur-md rounded-3xl border border-emerald-900/50 shadow-sm p-4 lg:p-6 min-h-[600px] lg:h-[75vh] flex flex-col relative overflow-hidden group"
                 >
-                  <div className="absolute -top-10 -right-10 text-emerald-950 transition-colors pointer-events-none opacity-20">
-                    <Flower2 size={240} />
-                  </div>
-
-                  <div className="flex items-center justify-between mb-4 relative z-10 flex-wrap gap-4">
-                    <div className="flex items-center gap-4">
-                      <div className="p-4 bg-emerald-900/50 rounded-2xl text-emerald-400 flex-shrink-0">
-                        <Terminal size={32} />
-                      </div>
-                      <div>
-                        <h2 className="text-base font-black text-white tracking-tighter italic uppercase break-all">
-                          Terminal
-                        </h2>
-                        <div className="flex items-center flex-wrap gap-2 mt-1">
-                          <p className="text-emerald-500 text-[9px] font-black uppercase tracking-[0.2em] whitespace-nowrap">
-                            {currentServerId ? `Conectado: ${servers.find(s => s.id === currentServerId)?.name}` : 'Nenhum servidor selecionado'}
-                          </p>
-                          {currentServerId && (
-                             <button
-                               onClick={() => handleAction(serverState.status === "online" ? "stop" : "start")}
-                               disabled={serverState.status !== "online" && serverState.status !== "offline"}
-                               className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest text-white shadow-lg transition-transform active:scale-95 flex items-center gap-1.5 border-b-2 disabled:opacity-50 disabled:grayscale ${
-                                   serverState.status === "online" ? "bg-red-600 hover:bg-red-500 border-red-800" :
-                                   serverState.status === "offline" ? "bg-emerald-600 hover:bg-emerald-500 border-emerald-800" :
-                                   "bg-amber-500 hover:bg-amber-400 border-amber-700"
-                               }`}
-                             >
-                               {serverState.status === "online" ? <Square fill="currentColor" size={10} /> : <Play fill="currentColor" size={10} />}
-                               {serverState.status === "online" ? "PARAR SERVIDOR" : 
-                                serverState.status === "offline" ? "INICIAR SERVIDOR" :
-                                "AGUARDE..."}
-                             </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-2 w-full lg:w-auto">
-                       <div className="flex items-center gap-2 overflow-x-auto pb-2 custom-scrollbar">
-                         <span className="text-[9px] font-black uppercase text-emerald-500 tracking-widest mr-2">Multi-Terminais:</span>
-                         {servers.filter(s => s.status === "online").map(srv => {
-                           if (srv.id === currentServerId) return null;
-                           const active = multiTerminals.includes(srv.id);
-                           return (
-                             <button
-                               key={srv.id}
-                               onClick={() => setMultiTerminals(prev => active ? prev.filter(k => k !== srv.id) : [...prev, srv.id])}
-                               className={`px-3 py-1 text-[9px] font-black uppercase rounded-lg border flex items-center gap-1 transition-all ${active ? "bg-emerald-600 border-emerald-500 text-white" : "bg-emerald-900/20 border-emerald-900 text-emerald-700"}`}
-                             >
-                                <Terminal size={10} /> {srv.name}
-                             </button>
-                           )
-                         })}
-                       </div>
-                       <div className="flex items-center gap-2 justify-end">
-                         {modules.ai_bot && (
-                           <button
-                             onClick={async () => {
-                               if (!currentServerId) return;
-                               const res = await fetch("/api/bot/spawn", {
-                                 method: "POST",
-                                 headers: { "Content-Type": "application/json" },
-                                 body: JSON.stringify({ serverId: currentServerId, botName: "AjudanteIA", apiKey: customAIs.find(a => a.id === activeCustomAiId)?.apiKey || "" })
-                               });
-                               if (res.ok) alert("Ajudante IA ativado e entrando no servidor! Verifique o console.");
-                             }}
-                             className="px-4 py-2 bg-purple-900/40 hover:bg-purple-800 text-purple-400 font-bold rounded-xl border border-purple-800 flex items-center gap-2 transition-colors text-xs"
-                           >
-                             <Bot size={14} /> Ativar IA Ajudante
-                           </button>
-                         )}
-                         <button
-                           onClick={clearLogs}
-                           className="px-4 py-2 bg-emerald-900/40 hover:bg-emerald-800 text-emerald-400 font-bold rounded-xl border border-emerald-800 flex items-center gap-2 transition-colors text-xs"
-                         >
-                           <Trash2 size={14} /> Limpar Logs
-                         </button>
-                       </div>
-                    </div>
-                  </div>
-                   
-                   <div className="bg-emerald-500/5 border-2 border-emerald-500/20 rounded-2xl p-4 mt-4 flex flex-wrap items-center justify-between gap-4 relative z-10">
-                      <div className="flex items-center gap-6">
-                         <div className="flex flex-col">
-                            <span className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em]">Servidor Ativo</span>
-                            <div className="flex items-center gap-2">
-                               <div className={`w-2 h-2 rounded-full ${serverState.status === "online" ? "bg-emerald-500 shadow-[0_0_8px_#10b981]" : "bg-red-500"}`} />
-                               <span className="text-xs font-black text-white uppercase italic">{servers.find(s => s.id === currentServerId)?.name || currentServerId}</span>
-                            </div>
-                         </div>
-                         <div className="flex flex-col">
-                            <span className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em]">Status</span>
-                            <span className="text-xs font-black text-emerald-500 uppercase italic leading-none">{serverState.status?.toUpperCase()}</span>
-                         </div>
-                         <div className="hidden md:flex flex-col">
-                            <span className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em]">Porta</span>
-                            <span className="text-xs font-black text-white/50 uppercase italic">{servers.find(s => s.id === currentServerId)?.port || "25565"}</span>
-                         </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleAction(serverState.status === "online" ? "stop" : "start")}
-                          className={`flex items-center gap-2 px-4 py-2 rounded-xl font-black text-[10px] uppercase transition-all shadow-lg border-b-4 ${serverState.status === "online" ? "bg-red-600 border-red-900 hover:bg-red-500 text-white" : "bg-emerald-600 border-emerald-900 hover:bg-emerald-500 text-white"}`}
-                        >
-                           {serverState.status === "online" ? <Square size={14} /> : <Play size={14} />}
-                           {serverState.status === "online" ? "Stop" : "Start"}
-                        </button>
-                        
-                        <button
-                          onClick={() => {
-                            if (window.confirm("Deseja forçar o reinício deste servidor?")) {
-                               handleAction("stop");
-                               setTimeout(() => handleAction("start"), 2000);
-                            }
-                          }}
-                          className="flex items-center gap-2 px-4 py-2 bg-amber-600 border-amber-900 hover:bg-amber-500 text-white rounded-xl font-black text-[10px] uppercase transition-all shadow-lg border-b-4"
-                        >
-                           <RefreshCw size={14} /> Reiniciar
-                        </button>
-
-                        <button
-                          onClick={() => {
-                            const blob = new Blob([serverState.logs.join("\n")], { type: "text/plain" });
-                            const url = URL.createObjectURL(blob);
-                            const a = document.createElement("a");
-                            a.href = url;
-                            a.download = `logs-${currentServerId}.txt`;
-                            a.click();
-                          }}
-                          className="hidden sm:flex items-center gap-2 px-4 py-2 bg-zinc-800 border-zinc-950 hover:bg-zinc-700 text-white rounded-xl font-black text-[10px] uppercase transition-all shadow-lg border-b-4 hover:text-emerald-400"
-                        >
-                           <Download size={14} /> Logs
-                        </button>
-                      </div>
-                   </div>
-
-                   <div className={`flex ${multiTerminals.length > 0 ? "flex-col lg:flex-row gap-4 h-full" : "flex-1 flex-col"} overflow-hidden mt-4`}>
-                    <div className="flex-1 flex flex-col relative bg-black/80 rounded-2xl border border-emerald-900/50 shadow-inner tech-grid overflow-hidden">
-                      <div className="bg-emerald-900/30 text-[9px] font-black uppercase tracking-widest text-emerald-500 py-1 px-3 border-b border-emerald-900/50">{servers.find(s => s.id === currentServerId)?.name || 'Principal'}</div>
-                      <div
-                        ref={scrollRef}
-                        onScroll={handleScroll}
-                        className="flex-1 overflow-y-auto pr-6 space-y-1.5 custom-scrollbar font-mono text-[11px] p-6 lg:p-6 p-4 relative"
-                      >
-                        {/* Scanlines Effect */}
-                        <div className="absolute inset-0 pointer-events-none opacity-[0.03] bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-10 bg-[length:100%_2px,3px_100%]" />
-                        {serverState.logs.length === 0 && (
-                          <div className="text-emerald-900 animate-pulse italic">
-                            Aguardando sinais vitais...
-                          </div>
-                        )}
-                        {serverState.logs.map((log, i) => (
-                          <div
-                            key={i}
-                            className="flex gap-4 group hover:bg-emerald-500/5 transition-colors"
-                          >
-                            <span className="text-emerald-900 select-none font-bold tabular-nums w-8 text-right opacity-50 group-hover:opacity-100 italic">
-                              {(i + 1).toString().padStart(2, "0")}
-                            </span>
-                            <p
-                              className={`leading-relaxed break-all flex items-center gap-2 ${
-                                log.includes("[ERROR]") || log.includes("Exception")
-                                  ? "text-red-400 font-bold bg-red-950/20 px-1"
-                                  : log.includes("[SUCCESS]") ||
-                                      log.includes("Done") ||
-                                      log.includes("For help, type")
-                                    ? "text-emerald-400 font-black"
-                                    : log.includes("[WARN]")
-                                      ? "text-amber-500 italic"
-                                      : log.startsWith(">")
-                                        ? "text-emerald-100 font-bold border-l-2 border-emerald-500 pl-2"
-                                        : "text-emerald-500/80"
-                              }`}
-                            >
-                              {formatLogLine(log)}
-                              {(log.includes("[ERROR]") || log.includes("Exception")) && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setAiInput(`Ocorreu um erro no servidor: "${log}". O que devo fazer para corrigir? Analise se é um erro de RAM, versão de Java ou plugin faltando.`);
-                                    setActiveTab("ai");
-                                  }}
-                                  className="px-2 py-0.5 bg-red-600 hover:bg-red-500 text-white text-[8px] font-black uppercase rounded shadow-lg transition-all active:scale-95 flex items-center gap-1 shrink-0"
-                                >
-                                   <Sparkles size={10} /> Corrigir com IA
-                                </button>
-                              )}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-
-                      <form
-                        onSubmit={sendCommand}
-                        className="bg-black/60 border-t border-emerald-900/50 px-4 py-3 flex items-center gap-3 relative z-10"
-                      >
-                        <span className="text-emerald-500 font-black text-xs">❯</span>
-                        <input
-                          className="flex-1 bg-transparent border-none outline-none text-emerald-50 placeholder:text-emerald-900 font-black text-xs"
-                          placeholder={suggestedCommand ? `Sugestão: ${suggestedCommand}` : "Mande um comando mágico..."}
-                          value={command}
-                          onChange={(e) => setCommand(e.target.value)}
-                          onKeyDown={handleTerminalKeyDown}
-                        />
-                        {suggestedCommand && !command && (
-                          <button
-                            type="button"
-                            onClick={() => { setCommand(suggestedCommand); setSuggestedCommand(null); }}
-                            className="bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-2 py-1 rounded text-[8px] font-black uppercase flex items-center gap-1 animate-pulse"
-                          >
-                             Usar Sugestão: {suggestedCommand}
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={handleSuggestCommand}
-                          disabled={isAnalyzingLogs}
-                          className="p-2 text-emerald-500 hover:bg-emerald-500/10 rounded-xl transition-all disabled:opacity-50"
-                          title="Analisar logs com IA"
-                        >
-                          {isAnalyzingLogs ? <RefreshCw className="animate-spin" size={16} /> : <Sparkles size={16} />}
-                        </button>
-                      </form>
-                    </div>
-
-                    {multiTerminals.length > 0 && (
-                      <div className="flex-1 flex flex-col gap-4 overflow-y-auto custom-scrollbar">
-                        {multiTerminals.map(mId => {
-                          const state = multiServerStates[mId] || { logs: [], status: "offline" };
-                          const sname = servers.find(s => s.id === mId)?.name || mId;
-                          return (
-                            <div key={mId} className="h-64 lg:h-full lg:flex-1 shrink-0 flex flex-col relative bg-black/80 rounded-2xl border border-emerald-900/50 shadow-inner tech-grid overflow-hidden">
-                              <div className="bg-emerald-900/30 text-[9px] font-black uppercase tracking-widest text-emerald-500 py-1 px-3 border-b border-emerald-900/50 flex justify-between items-center">
-                                <span>{sname}</span>
-                                <button onClick={() => setMultiTerminals(prev => prev.filter(k => k !== mId))} className="hover:text-emerald-300">
-                                  <Trash2 size={10} />
-                                </button>
-                              </div>
-                              <div className="flex-1 overflow-y-auto custom-scrollbar font-mono text-[9px] p-4 relative" id={`terminal-${mId}`}>
-                                 {/* Scanlines Effect */}
-                                 <div className="absolute inset-0 pointer-events-none opacity-[0.03] bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-10 bg-[length:100%_2px,3px_100%]" />
-                                 {state.logs.map((log, i) => (
-                                  <div key={i} className="flex gap-2 group hover:bg-emerald-500/5">
-                                    <p className={`leading-relaxed break-all ${log.includes("[ERROR]") ? "text-red-400 font-bold" : log.includes("[SUCCESS]") ? "text-emerald-400" : log.includes("[WARN]") ? "text-amber-500" : "text-emerald-500/60"}`}>
-                                      {formatLogLine(log)}
-                                    </p>
-                                  </div>
-                                ))}
-                              </div>
-                              <form
-                                onSubmit={(e) => {
-                                  e.preventDefault();
-                                  const fcmd = (e.currentTarget.elements.namedItem("cmd") as HTMLInputElement).value;
-                                  if (!fcmd.trim()) return;
-                                  fetch("/api/server/command", {
-                                    method: "POST",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({ serverId: mId, command: fcmd })
-                                  });
-                                  (e.currentTarget.elements.namedItem("cmd") as HTMLInputElement).value = "";
-                                }}
-                                className="bg-black/60 border-t border-emerald-900/50 px-3 py-2 flex items-center gap-2"
-                              >
-                                <span className="text-emerald-700 font-black text-xs">❯</span>
-                                <input
-                                  name="cmd"
-                                  className="flex-1 bg-transparent border-none outline-none text-emerald-100 placeholder:text-emerald-900/50 font-black text-[9px]"
-                                  placeholder="Comando..."
-                                />
-                              </form>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
+                  <ServerConsole 
+                    logs={serverState.logs}
+                    status={serverState.status}
+                    serverName={servers.find(s => s.id === currentServerId)?.name || "Servidor"}
+                    onAction={handleAction}
+                    onSendCommand={(cmd) => {
+                       if (!currentServerId) return;
+                       fetch("/api/server/command", {
+                         method: "POST",
+                         headers: { "Content-Type": "application/json" },
+                         body: JSON.stringify({ serverId: currentServerId, command: cmd })
+                       });
+                    }}
+                    onClear={clearLogs}
+                    isAnalyzing={isAnalyzingLogs}
+                    onAnalyze={handleSuggestCommand}
+                    suggestedCmd={suggestedCommand}
+                    onFixWithAI={(log) => {
+                       setAiInput(`Ocorreu um erro no servidor: "${log}". O que devo fazer para corrigir?`);
+                       setActiveTab("ai");
+                    }}
+                  />
                 </motion.div>
               )}
 
@@ -5934,19 +5359,6 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={handleDrop}
                   onPaste={handlePaste}
-                  onKeyDown={(e) => {
-                    /* Support common paste shortcut if focus is not on an input */
-                    if (
-                      e.ctrlKey &&
-                      e.key === "v" &&
-                      !(
-                        e.target instanceof HTMLInputElement ||
-                        e.target instanceof HTMLTextAreaElement
-                      )
-                    ) {
-                      /* Handled by onPaste */
-                    }
-                  }}
                   tabIndex={0}
                 >
                   {editingFile ? (
@@ -5960,417 +5372,34 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                             <ChevronLeft size={20} />
                           </button>
                           <div>
-                            <h3 className="font-black text-white tracking-tighter italic uppercase">
-                              Editor
-                            </h3>
-                            <p className="text-emerald-500 text-xs font-bold">
-                              {editingFile.path}
-                            </p>
+                            <h3 className="font-black text-white tracking-tighter italic uppercase text-lg">Editor</h3>
+                            <p className="text-emerald-500 text-[10px] font-black uppercase tracking-widest">{editingFile.path}</p>
                           </div>
                         </div>
                         <div className="flex gap-2">
-                          <button
-                            onClick={() => setEditingFile(null)}
-                            className="p-4 rounded-2xl font-black text-xs text-emerald-500 hover:bg-emerald-950 transition-all"
-                          >
-                            CANCELAR
-                          </button>
-                          <button
-                            onClick={saveFile}
-                            className="px-6 py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-black text-xs shadow-lg shadow-emerald-950 transition-all active:scale-95 border-b-4 border-emerald-800"
-                          >
-                            SALVAR
-                          </button>
+                          <button onClick={() => setEditingFile(null)} className="px-6 py-4 rounded-2xl font-black text-xs text-emerald-400 hover:bg-emerald-900/40 transition-all uppercase">Cancelar</button>
+                          <button onClick={saveFile} className="px-8 py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-black text-xs shadow-lg border-b-4 border-emerald-800 transition-all active:scale-95">SALVAR</button>
                         </div>
                       </div>
                       <textarea
                         className="flex-1 w-full bg-black/60 border border-emerald-900/50 rounded-3xl p-6 font-mono text-sm text-emerald-50 outline-none focus:border-emerald-500 transition-all resize-none shadow-inner"
                         value={editingFile.content}
-                        onChange={(e) =>
-                          setEditingFile({
-                            ...editingFile,
-                            content: e.target.value,
-                          })
-                        }
+                        onChange={(e) => setEditingFile({ ...editingFile, content: e.target.value })}
                       />
                     </div>
                   ) : (
-                    <div className="flex flex-col h-full">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-4">
-                          <div className="p-4 bg-emerald-900/50 rounded-2xl border border-emerald-500/30 text-emerald-400">
-                            <Database size={32} />
-                          </div>
-                          <div>
-                            <h2 className="text-base font-black text-white tracking-tighter italic uppercase">
-                              Arquivos
-                            </h2>
-                            <div className="flex items-center gap-2 text-emerald-500 text-[9px] font-black uppercase tracking-widest mt-1">
-                              {currentFolder && (
-                                <button
-                                  onClick={() =>
-                                    setCurrentFolder(
-                                      currentFolder
-                                        .split("/")
-                                        .slice(0, -1)
-                                        .join("/"),
-                                    )
-                                  }
-                                  className="hover:text-emerald-300 transition-colors uppercase"
-                                >
-                                  {servers.find((s) => s.id === currentServerId)
-                                    ?.name || "Servidor"}
-                                </button>
-                              )}
-                              {!currentFolder && (
-                                <span className="uppercase">
-                                  {servers.find((s) => s.id === currentServerId)
-                                    ?.name || "Servidor"}
-                                </span>
-                              )}
-                              {currentFolder && (
-                                <span className="opacity-50">
-                                  {"/"} {currentFolder}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex gap-3">
-                          <button
-                            onClick={handleBackup}
-                            className="px-6 py-4 bg-amber-600 hover:bg-amber-500 text-white rounded-2xl font-black text-xs shadow-lg shadow-amber-950 transition-all active:scale-95 border-b-4 border-amber-800 flex items-center gap-2"
-                            title="Fazer Backup Completo Agora"
-                          >
-                            <Sparkles size={16} />
-                            BACKUP FULL
-                          </button>
-                          <button
-                            onClick={handleCloudBackup}
-                            className="px-6 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black text-xs shadow-lg shadow-blue-950 transition-all active:scale-95 border-b-4 border-blue-800 flex items-center gap-2"
-                            title="Fazer Backup do Mapa e Plugins para envio/nuvem"
-                          >
-                            <Cloud size={16} />
-                            BACKUP NUVEM
-                          </button>
-                          <button
-                            onClick={() => {
-                              setShowBackups(!showBackups);
-                              if (!showBackups) fetchBackups();
-                            }}
-                            className={`px-6 py-4 rounded-2xl font-black text-xs transition-all border-b-4 flex items-center gap-2 ${showBackups ? "bg-amber-900/50 text-amber-500 border-amber-900" : "bg-emerald-900/50 text-emerald-500 border-emerald-950 hover:bg-emerald-900"}`}
-                          >
-                            <Database size={16} />
-                            {showBackups ? "OCULTAR BACKUPS" : "LISTAR BACKUPS"}
-                          </button>
-                          <button
-                            onClick={() =>
-                              setShowDownloadInput(!showDownloadInput)
-                            }
-                            className={`px-6 py-4 rounded-2xl font-black text-xs transition-all border-b-4 flex items-center gap-2 ${showDownloadInput ? "bg-red-900/50 text-red-500 border-red-900" : "bg-emerald-900/50 text-emerald-500 border-emerald-950 hover:bg-emerald-900"}`}
-                          >
-                            <Globe size={16} />
-                            {showDownloadInput ? "CANCELAR" : "BAIXAR URL"}
-                          </button>
-                          <label className="cursor-pointer px-6 py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-xs shadow-lg shadow-emerald-950 transition-all active:scale-95 border-b-4 border-emerald-800 flex items-center gap-2">
-                            <Upload size={16} />
-                            UPLOAD
-                            <input
-                              type="file"
-                              multiple
-                              className="hidden"
-                              onChange={handleFileUpload}
-                            />
-                          </label>
-                          <button
-                            onClick={createFolder}
-                            className="px-6 py-4 bg-emerald-900/50 hover:bg-emerald-900 text-emerald-400 rounded-2xl font-black text-xs shadow-lg shadow-emerald-950/20 transition-all active:scale-95 border-b-4 border-emerald-950 flex items-center gap-2"
-                            title="Nova Pasta"
-                          >
-                            <Folder size={16} />
-                            NOVA PASTA
-                          </button>
-                          {clipboardState && (
-                            <button
-                              onClick={handleCopiedPaste}
-                              className="px-6 py-4 bg-blue-900/50 hover:bg-blue-900 text-blue-400 rounded-2xl font-black text-xs shadow-lg shadow-blue-950/20 transition-all active:scale-95 border-b-4 border-blue-950 flex items-center gap-2"
-                              title="Colar Arquivo"
-                            >
-                              <ClipboardPaste size={16} />
-                              COLAR {clipboardState.action === "copy" ? "(CÓPIA)" : "(MOVER)"}
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      <AnimatePresence>
-                        {showBackups && (
-                          <motion.div
-                            initial={{ height: 0, opacity: 0, marginBottom: 0 }}
-                            animate={{
-                              height: "auto",
-                              opacity: 1,
-                              marginBottom: 24,
-                            }}
-                            exit={{ height: 0, opacity: 0, marginBottom: 0 }}
-                            className="overflow-hidden"
-                          >
-                            <div className="p-6 bg-amber-900/10 border-2 border-amber-900/50 rounded-3xl flex flex-col gap-4 max-h-64 overflow-y-auto custom-scrollbar">
-                               <h3 className="text-amber-500 font-black text-xs uppercase tracking-widest flex items-center gap-2">
-                                 <Database size={14} /> Seus Backups
-                               </h3>
-                               {backups.length === 0 && cloudBackups.length === 0 && (
-                                 <div className="text-zinc-500 font-bold text-xs">Nenhum backup encontrado.</div>
-                               )}
-                               {backups.map((bak: any, idx) => (
-                                 <div key={`local-${idx}`} className="p-3 bg-black/40 rounded-xl border border-amber-900/30 flex justify-between items-center group">
-                                     <div className="flex flex-col">
-                                        <span className="text-amber-300 font-mono text-xs">{bak.name}</span>
-                                        <span className="text-zinc-500 font-bold text-[9px]">Total/Local • {(bak.size / 1024 / 1024).toFixed(2)} MB</span>
-                                     </div>
-                                     <a
-                                       href={`/api/server/backup/download?serverId=${currentServerId}&file=${bak.name}`}
-                                       className="px-4 py-2 bg-amber-600/20 hover:bg-amber-600/40 text-amber-500 hover:text-amber-400 font-black text-[9px] rounded-lg tracking-widest uppercase transition-colors"
-                                     >
-                                        Fazer Download
-                                     </a>
-                                 </div>
-                               ))}
-                               {cloudBackups.map((bak: any, idx) => (
-                                 <div key={`cloud-${idx}`} className="p-3 bg-black/40 rounded-xl border border-blue-900/40 flex justify-between items-center group">
-                                     <div className="flex flex-col">
-                                        <span className="text-blue-300 font-mono text-xs">{bak.name}</span>
-                                        <span className="text-zinc-500 font-bold text-[9px]">Cloud (Mapa/Plugins) • {(bak.size / 1024 / 1024).toFixed(2)} MB</span>
-                                     </div>
-                                     <a
-                                       href={`/api/server/cloud-backup/download?serverId=${currentServerId}&file=${bak.name}`}
-                                       className="px-4 py-2 bg-blue-600/20 hover:bg-blue-600/40 text-blue-500 hover:text-blue-400 font-black text-[9px] rounded-lg tracking-widest uppercase transition-colors"
-                                     >
-                                        Fazer Download (Nuvem)
-                                     </a>
-                                 </div>
-                               ))}
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-
-                      <AnimatePresence>
-                        {showDownloadInput && (
-                          <motion.div
-                            initial={{ height: 0, opacity: 0, marginBottom: 0 }}
-                            animate={{
-                              height: "auto",
-                              opacity: 1,
-                              marginBottom: 24,
-                            }}
-                            exit={{ height: 0, opacity: 0, marginBottom: 0 }}
-                            className="overflow-hidden"
-                          >
-                            <div className="p-6 bg-emerald-900/20 border border-emerald-500 rounded-3xl flex gap-4">
-                              <input
-                                className="flex-1 bg-black/40 border border-emerald-900/50 rounded-xl px-4 py-3 text-sm text-emerald-50 font-black outline-none focus:border-emerald-500 transition-all font-mono"
-                                placeholder="Cole aqui o link direto do arquivo (.jar, .zip, etc)"
-                                value={downloadUrl}
-                                onChange={(e) => setDownloadUrl(e.target.value)}
-                              />
-                              <button
-                                onClick={handleGeneralDownload}
-                                className="px-8 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl text-xs transition-all shadow-lg border-b-4 border-emerald-800 active:scale-95"
-                              >
-                                BAIXAR AGORA
-                              </button>
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-
-                      <div className="flex-1 overflow-y-auto pr-4 custom-scrollbar bg-black/40 rounded-3xl border border-emerald-900/50 p-6 shadow-inner relative">
-                        <div className="absolute top-4 right-4 text-[8px] font-black text-emerald-900 uppercase tracking-widest pointer-events-none">
-                          DICA: ARRASTE OU COLE (CTRL+V) ARQUIVOS AQUI
-                        </div>
-                        {uploadQueue.length > 0 && (
-                          <div className="mb-4 space-y-2 mt-4 relative z-20">
-                            {uploadQueue.map((task) => (
-                              <div
-                                key={task.id}
-                                className="bg-emerald-950/50 p-4 rounded-xl border border-emerald-900 flex flex-col gap-2 relative overflow-hidden"
-                              >
-                                <div className="flex items-center justify-between text-xs font-black z-10 w-full relative">
-                                  <span className="text-emerald-300 truncate pr-4">
-                                    {task.name}
-                                  </span>
-                                  <span
-                                    className={
-                                      task.status === "error"
-                                        ? "text-red-500 flex-shrink-0"
-                                        : task.status === "done"
-                                          ? "text-emerald-400 flex-shrink-0"
-                                          : "text-emerald-500 flex-shrink-0"
-                                    }
-                                  >
-                                    {task.status === "error"
-                                      ? "ERRO"
-                                      : task.status === "done"
-                                        ? "CONCLUÍDO"
-                                        : `${task.progress}%`}
-                                  </span>
-                                </div>
-                                <div className="h-1.5 bg-black/40 rounded-full overflow-hidden z-10 w-full relative">
-                                  <div
-                                    className={`absolute top-0 left-0 h-full transition-all duration-300 ${task.status === "error" ? "bg-red-500" : "bg-emerald-500"}`}
-                                    style={{ width: `${task.progress}%` }}
-                                  />
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        <div className="grid grid-cols-1 gap-2 mt-4 relative z-10">
-                          {fileList
-                            .sort(
-                              (a, b) =>
-                                (b.isDirectory ? 1 : 0) -
-                                (a.isDirectory ? 1 : 0),
-                            )
-                            .map((item, i) => (
-                              <div
-                                key={i}
-                                className="group flex items-center justify-between p-4 bg-emerald-950/30 hover:bg-emerald-900/50 rounded-2xl transition-all border border-emerald-900/50 hover:border-emerald-500 cursor-pointer"
-                                onClick={() => {
-                                  if (item.isDirectory) {
-                                    setCurrentFolder(currentFolder ? `${currentFolder}/${item.name}` : item.name);
-                                  } else {
-                                    if (item.name === "level.dat") {
-                                      const wName = currentFolder ? currentFolder.split('/').pop() : "world";
-                                      setEditorWorld(wName || "world");
-                                      setActiveTab("map");
-                                    } else {
-                                      openFile(currentFolder ? `${currentFolder}/${item.name}` : item.name);
-                                    }
-                                  }
-                                }}
-                              >
-                                <div className="flex items-center gap-4 min-w-0">
-                                  <div
-                                    className={`p-2 rounded-xl border-2 ${item.isDirectory ? "bg-emerald-900/50 border-emerald-500/30 text-emerald-400" : "bg-emerald-950 border-emerald-900 text-emerald-600"}`}
-                                  >
-                                    {item.isDirectory ? (
-                                      <Folder size={20} />
-                                    ) : (
-                                      <FileText size={20} />
-                                    )}
-                                  </div>
-                                  <div className="min-w-0">
-                                    <p className="font-black text-white truncate tracking-tight text-sm">
-                                      {item.name}
-                                    </p>
-                                    {!item.isDirectory && (
-                                      <p className="text-[9px] text-emerald-700 font-black uppercase">
-                                        {(item.size / 1024).toFixed(1)} KB
-                                      </p>
-                                    )}
-                                  </div>
-                                </div>
-                                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                                  {!item.isDirectory && (
-                                    <a
-                                      href={`/api/server/files/download?serverId=${currentServerId}&path=${encodeURIComponent(currentFolder ? `${currentFolder}/${item.name}` : item.name)}`}
-                                      onClick={(e) => e.stopPropagation()}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="p-3 text-emerald-900 hover:text-emerald-400 font-black"
-                                      title="Baixar Arquivo"
-                                    >
-                                      <Download size={18} />
-                                    </a>
-                                  )}
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setClipboardState({
-                                         path: currentFolder ? `${currentFolder}/${item.name}` : item.name,
-                                         action: "copy"
-                                      });
-                                    }}
-                                    className="p-3 text-emerald-900 hover:text-blue-400 font-black"
-                                    title="Copiar"
-                                  >
-                                    <Copy size={18} />
-                                  </button>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setClipboardState({
-                                         path: currentFolder ? `${currentFolder}/${item.name}` : item.name,
-                                         action: "cut"
-                                      });
-                                    }}
-                                    className="p-3 text-emerald-900 hover:text-orange-400 font-black"
-                                    title="Recortar"
-                                  >
-                                    <Scissors size={18} />
-                                  </button>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      renameFile(
-                                        currentFolder
-                                          ? `${currentFolder}/${item.name}`
-                                          : item.name,
-                                      );
-                                    }}
-                                    className="p-3 text-emerald-900 hover:text-emerald-400 font-black"
-                                    title="Renomear"
-                                  >
-                                    <Edit2 size={18} />
-                                  </button>
-                                  {item.isDirectory && (modules.map ?? true) && (
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setEditorWorld(currentFolder ? `${currentFolder}/${item.name}` : item.name);
-                                        setActiveTab("map");
-                                        setShowEditor3D(true);
-                                      }}
-                                      className="p-3 text-emerald-900 hover:text-emerald-500 font-black"
-                                      title="Abrir no Mapa 3D"
-                                    >
-                                      <Box size={18} />
-                                    </button>
-                                  )}
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      deleteFile(
-                                        currentFolder
-                                          ? `${currentFolder}/${item.name}`
-                                          : item.name,
-                                      );
-                                    }}
-                                    className="p-3 text-emerald-900 hover:text-red-500 font-black"
-                                    title="Deletar"
-                                  >
-                                    <Trash2 size={18} />
-                                  </button>
-                                </div>
-                              </div>
-                            ))}
-
-                          {fileList.length === 0 &&
-                            uploadQueue.length === 0 && (
-                              <div className="h-64 flex flex-col items-center justify-center text-emerald-900 gap-4">
-                                <Moon size={48} className="opacity-20" />
-                                <p className="font-black">Pasta vazia...</p>
-                                <p className="text-xs font-black uppercase tracking-widest">
-                                  Arraste arquivos aqui!
-                                </p>
-                              </div>
-                            )}
-                        </div>
-                      </div>
-                    </div>
+                    <FileManager 
+                      files={fileList}
+                      currentPath={currentFolder || "/"}
+                      onNavigate={(path) => setCurrentFolder(path)}
+                      onBack={() => setCurrentFolder(currentFolder.split("/").slice(0, -1).join("/"))}
+                      onRefresh={fetchFiles}
+                      onUpload={handleFileUpload}
+                      onCreateFolder={createFolder}
+                      onDelete={(path) => deleteFile({ path, name: path.split("/").pop() || "" } as any)}
+                      onEdit={(f) => editFile(f)}
+                      isLoading={loadingFiles}
+                    />
                   )}
                 </motion.div>
               )}

@@ -1,5 +1,5 @@
 import axios from "axios";
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 /**
  * PAPERCREEPER IA MANAGER - Sistema Anti-Falhas e Autoconfigurável
@@ -14,7 +14,7 @@ export interface AIResponse {
 }
 
 class IAManager {
-  private geminiClient: GoogleGenAI | null = null;
+  private geminiClient: GoogleGenerativeAI | null = null;
 
   constructor() {
     this.refreshConfig();
@@ -23,7 +23,7 @@ class IAManager {
   private refreshConfig() {
     const geminiKey = process.env.GEMINI_API_KEY;
     if (geminiKey) {
-      this.geminiClient = new GoogleGenAI({ apiKey: geminiKey });
+      this.geminiClient = new GoogleGenerativeAI(geminiKey);
     }
   }
 
@@ -175,7 +175,7 @@ class IAManager {
    * Executa chamada ao Google Gemini
    */
   private async tryGemini(prompt: string, system: string, apiKey: string, history: any[] = []): Promise<AIResponse> {
-    const client = new GoogleGenAI({ apiKey }) as any;
+    const client = new GoogleGenerativeAI(apiKey);
     const modelName = "gemini-1.5-flash";
     const model = client.getGenerativeModel({ 
       model: modelName,
@@ -184,7 +184,7 @@ class IAManager {
 
     const chat = model.startChat({
       history: history.map(m => ({
-        role: m.role === "assistant" ? "model" : "user",
+        role: m.role === "assistant" ? "model" as const : "user" as const,
         parts: [{ text: m.text }]
       }))
     });

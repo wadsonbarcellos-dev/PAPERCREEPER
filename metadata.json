@@ -2,5 +2,5 @@
   "name": "PaperCreeper Panel AI ✨",
   "description": "Painel profissional para servidores Minecraft com IA integrada, automação local/remota e otimização para VPS.",
   "requestFramePermissions": [],
-  "majorCapabilities": []
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
