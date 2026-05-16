@@ -573,6 +573,53 @@ export default function App({
   const [javas, setJavas] = useState<{ version: string; path: string; type: string }[]>([]);
   const [scanningJavas, setScanningJavas] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("dashboard");
+  const [aiMappings, setAiMappings] = useState<Record<string, string>>(() => {
+    try {
+      const saved = localStorage.getItem("creeper_ai_mappings");
+      return saved ? JSON.parse(saved) : { chat: "default", healer: "default", automation: "default" };
+    } catch {
+      return { chat: "default", healer: "default", automation: "default" };
+    }
+  });
+
+  const getAiParams = (purpose: "chat" | "healer" | "automation") => {
+    let keysArray: string[] = [];
+    let endpoint = "http://127.0.0.1:11434/v1/chat/completions";
+    let model = "llama3";
+    let provider = aiProvider;
+
+    const mapping = aiMappings[purpose];
+    if (mapping && mapping !== "default") {
+       if (mapping === "gemini") {
+          provider = "gemini";
+          model = geminiModel;
+          if (geminiApiKey.trim()) keysArray.unshift(geminiApiKey.trim());
+       } else {
+          const foundAi = customAIs.find(a => a.id === mapping);
+          if (foundAi) {
+             provider = "local";
+             endpoint = foundAi.endpoint;
+             model = foundAi.model;
+             if (foundAi.apiKey && foundAi.apiKey.trim().length > 0) {
+                keysArray.unshift(foundAi.apiKey.trim());
+             }
+          }
+       }
+    } else {
+       if (aiProvider === "local") {
+         const foundAi = customAIs.find(a => a.id === activeCustomAiId) || customAIs[0];
+         if (foundAi) {
+            endpoint = foundAi.endpoint;
+            model = foundAi.model;
+            if (foundAi.apiKey && foundAi.apiKey.trim().length > 0) keysArray.unshift(foundAi.apiKey.trim());
+         }
+       } else if (aiProvider === "gemini") {
+          model = geminiModel;
+          if (geminiApiKey.trim()) keysArray.unshift(geminiApiKey.trim());
+       }
+    }
+    return { provider, endpoint, model, keysArray };
+  };
   const [systemDiag, setSystemDiag] = useState<any>(null);
   const [systemHistory, setSystemHistory] = useState<any[]>([]);
   const [isOptimizing, setIsOptimizing] = useState(false);
@@ -629,9 +676,11 @@ export default function App({
     setIsAnalyzingLogs(true);
     setSuggestedCommand(null);
     try {
+      const { provider, endpoint, model, keysArray } = getAiParams("healer");
       const lastLogs = serverState.logs.slice(-20).join("\n");
       const prompt = `Analise os últimos logs do servidor Minecraft abaixo e sugira apenas um único comando útil (sem explicações, apenas o comando, ex: /save-all ou /stop) para resolver problemas ou otimizar algo:\n\n${lastLogs}`;
-      const suggestion = await askAI(prompt, aiProvider === "gemini" ? "gemini" : "off", customAIs.find(a => a.id === activeCustomAiId)?.apiKey || "");
+      
+      const suggestion = await askAI(prompt, "Diagnostic Context", currentServerId, provider, provider === "gemini" ? "gemini" : "/api/ai", [], model, keysArray, { ...modules, endpoint });
       if (suggestion && suggestion.text) {
         // Limpar a sugestão para pegar apenas o comando (removendo markdown se houver)
         const clean = suggestion.text.replace(/[`\/]/g, "").trim();
@@ -767,8 +816,9 @@ export default function App({
   useEffect(() => {
     if (!settingsLoaded) return;
     localStorage.setItem("creeper_ai_provider", aiProvider);
-    queueSettingsUpdate({ aiProvider });
-  }, [aiProvider, settingsLoaded]);
+    localStorage.setItem("creeper_ai_mappings", JSON.stringify(aiMappings));
+    queueSettingsUpdate({ aiProvider, aiMappings });
+  }, [aiProvider, aiMappings, settingsLoaded]);
 
   useEffect(() => {
     if (!settingsLoaded) return;
@@ -2144,28 +2194,10 @@ export default function App({
     setAiLoading(true);
 
     try {
-      let keysArray: string[] = [];
-      let activeEndpoint = "http://127.0.0.1:11434/v1/chat/completions";
-      let activeModel = "llama3";
-      let effectiveProvider = aiProvider;
-
-      if (aiProvider === "local") {
-        const foundAi = customAIs.find(a => a.id === activeCustomAiId) || customAIs[0];
-        if (foundAi) {
-           activeEndpoint = foundAi.endpoint;
-           activeModel = foundAi.model;
-           if (foundAi.endpoint === "gemini") effectiveProvider = "gemini";
-           
-           if (foundAi.apiKey && foundAi.apiKey.trim().length > 0) {
-              keysArray.unshift(foundAi.apiKey.trim());
-           }
-        }
-      } else if (aiProvider === "gemini") {
-         activeModel = geminiModel;
-         if (geminiApiKey.trim()) {
-            keysArray.unshift(geminiApiKey.trim());
-         }
-      }
+      const { provider: effectiveProvider, endpoint: actualTargetEndpoint, model: activeModel, keysArray } = getAiParams("chat");
+      
+      const activeEndpoint = effectiveProvider === "gemini" ? "gemini" : "/api/ai";
+      const extendedModules = { ...modules, endpoint: actualTargetEndpoint };
       
       const context = `Servidor Selecionado: ${currentServerId}. Status: ${serverState?.status || 'desconhecido'}. Logs recentes:\n${serverState?.logs?.slice(-10).join("\n") || ''}`;
       
@@ -2183,7 +2215,7 @@ export default function App({
         };
       } else {
          setAiChat((prev) => [...prev, { role: "assistant", text: "..." }]);
-         firstResult = await askAI(finalMsg, context, currentServerId, effectiveProvider, activeEndpoint, aiChat.slice(-10), activeModel, keysArray, modules, (chunk) => {
+         firstResult = await askAI(finalMsg, context, currentServerId, effectiveProvider, activeEndpoint, aiChat.slice(-10), activeModel, keysArray, extendedModules, (chunk) => {
             setAiChat((prev) => {
                const n = [...prev];
                n[n.length - 1].text = chunk;
@@ -2209,10 +2241,7 @@ export default function App({
 
         // Pass the result back to the IA for a final natural language response
         const secondResult = await askAI(
-          `Ação concluída. Resultado:
-${toolResult}
-
-Por favor, explique ou detalhe esse resultado para mim de forma natural e amigável. Não use JSON.`,
+          `Analise o resultado abaixo e forneça uma resposta final amigável e técnica ao Operador.\n\nRESULTADO DA FERRAMENTA:\n${toolResult}\n\nLembre-se de manter sua personalidade PaperCreeper AI. ⛏️`,
           context,
           currentServerId,
           effectiveProvider,
@@ -2220,7 +2249,7 @@ Por favor, explique ou detalhe esse resultado para mim de forma natural e amigá
           aiChat.slice(-10),
           activeModel,
           keysArray,
-          modules,
+          extendedModules,
           (chunk) => {
              setAiChat((prev) => {
                 const n = [...prev];
@@ -2263,28 +2292,7 @@ Por favor, explique ou detalhe esse resultado para mim de forma natural e amigá
     setPluginCode("");
 
     try {
-      let keysArray: string[] = [];
-      let activeGenEndpoint = "http://127.0.0.1:11434/v1/chat/completions";
-      let activeGenModel = "llama3";
-      let effectiveGenProvider = aiProvider;
-
-      if (aiProvider === "local") {
-        const foundAi = customAIs.find(a => a.id === activeCustomAiId) || customAIs[0];
-        if (foundAi) {
-           activeGenEndpoint = foundAi.endpoint;
-           activeGenModel = foundAi.model;
-           if (foundAi.endpoint === "gemini") effectiveGenProvider = "gemini";
-
-           if (foundAi.apiKey && foundAi.apiKey.trim().length > 0) {
-              keysArray.unshift(foundAi.apiKey.trim());
-           }
-        }
-      } else if (aiProvider === "gemini") {
-         activeGenModel = geminiModel;
-         if (geminiApiKey.trim()) {
-            keysArray.unshift(geminiApiKey.trim());
-         }
-      }
+      const { provider: effectiveGenProvider, endpoint: activeGenEndpoint, model: activeGenModel, keysArray } = getAiParams("automation");
 
       const context = "";
       const prompt = `Atue como um desenvolvedor Skript (Minecraft). O usuário quer o seguinte plugin/sistema:
@@ -5461,69 +5469,69 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-2 mb-3 shrink-0">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-black/20 p-2 rounded-xl border border-emerald-900/50">
-                      <div className="flex items-center gap-2 w-full sm:w-auto">
-                        <div className="relative flex-1 sm:flex-none">
-                          <select
-                            value={aiProvider === "off" ? "off" : (aiProvider === "gemini" ? "gemini" : (customAIs.find(a => a.id === activeCustomAiId)?.id || (customAIs.length > 0 ? customAIs[0].id : "off")))}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              if (val === "off") {
-                                setAiProvider("off");
-                                setAiChat([]);
-                              } else if (val === "gemini") {
-                                setAiProvider("gemini");
-                                setAiChat([]);
-                              } else {
-                                setAiProvider("local");
-                                setAiChat([]);
-                                setActiveCustomAiId(val);
-                              }
-                            }}
-                            className="w-full bg-emerald-950/40 border border-emerald-900 rounded-xl px-4 py-2.5 text-xs font-bold text-emerald-300 outline-none focus:border-emerald-500 max-w-[280px] appearance-none cursor-pointer pr-10 uppercase tracking-wider shadow-inner backdrop-blur-md"
-                          >
-                            <option value="off">🔴 IA Desativada</option>
-                            <option value="gemini">✨ Gemini (Nativo)</option>
-                            {customAIs.map(ai => <option key={ai.id} value={ai.id}>🤖 {ai.name}</option>)}
-                          </select>
-                          <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-emerald-600 font-bold">▼</div>
+                    <div className="flex flex-col gap-2 mb-3 shrink-0">
+                      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 bg-black/20 p-3 rounded-xl border border-emerald-900/50">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 flex-1">
+                          <div className="space-y-1">
+                            <label className="text-[8px] font-black text-emerald-500 uppercase tracking-widest pl-1">💬 CHAT PRINCIPAL</label>
+                            <select
+                              value={aiMappings.chat}
+                              onChange={(e) => setAiMappings({...aiMappings, chat: e.target.value})}
+                              className="w-full bg-emerald-950/40 border border-emerald-900 rounded-lg px-3 py-2 text-[10px] font-bold text-emerald-300 outline-none focus:border-emerald-500 uppercase tracking-wider backdrop-blur-md"
+                            >
+                              <option value="default">Auto (Sincronizado)</option>
+                              <option value="gemini">✨ Gemini</option>
+                              {customAIs.map(ai => <option key={ai.id} value={ai.id}>🤖 {ai.name}</option>)}
+                            </select>
+                          </div>
+                          
+                          <div className="space-y-1">
+                            <label className="text-[8px] font-black text-blue-500 uppercase tracking-widest pl-1">🛡️ AUTO-HEALER</label>
+                            <select
+                              value={aiMappings.healer}
+                              onChange={(e) => setAiMappings({...aiMappings, healer: e.target.value})}
+                              className="w-full bg-blue-950/40 border border-blue-900 rounded-lg px-3 py-2 text-[10px] font-bold text-blue-300 outline-none focus:border-blue-500 uppercase tracking-wider backdrop-blur-md"
+                            >
+                              <option value="default">Auto (Sincronizado)</option>
+                              <option value="gemini">✨ Gemini</option>
+                              {customAIs.map(ai => <option key={ai.id} value={ai.id}>🤖 {ai.name}</option>)}
+                            </select>
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[8px] font-black text-fuchsia-500 uppercase tracking-widest pl-1">⚙️ AUTOMAÇÃO/CODE</label>
+                            <select
+                              value={aiMappings.automation}
+                              onChange={(e) => setAiMappings({...aiMappings, automation: e.target.value})}
+                              className="w-full bg-fuchsia-950/40 border border-fuchsia-900 rounded-lg px-3 py-2 text-[10px] font-bold text-fuchsia-300 outline-none focus:border-fuchsia-500 uppercase tracking-wider backdrop-blur-md"
+                            >
+                              <option value="default">Auto (Sincronizado)</option>
+                              <option value="gemini">✨ Gemini</option>
+                              {customAIs.map(ai => <option key={ai.id} value={ai.id}>🤖 {ai.name}</option>)}
+                            </select>
+                          </div>
+
+                          <div className="flex items-end pb-0.5">
+                            <button
+                              onClick={() => setShowAiCustomConfigModal(true)}
+                              className="w-full h-9 bg-emerald-900/40 hover:bg-emerald-800 text-emerald-400 rounded-lg text-[9px] font-black transition-all flex items-center justify-center border border-emerald-800 uppercase tracking-widest gap-2"
+                            >
+                              <Settings size={12} /> CONFIG APIs
+                            </button>
+                          </div>
                         </div>
                         
-                        <button
-                          onClick={() => setShowAiCustomConfigModal(true)}
-                          className="px-4 py-2.5 bg-emerald-900/40 hover:bg-emerald-800 text-emerald-400 rounded-xl text-xs font-bold transition-all flex items-center justify-center border border-emerald-800 uppercase tracking-widest shrink-0"
-                          title="Gerenciar APIs e Modelos"
-                        >
-                          <Settings size={14} className="mr-1.5" />
-                          <span className="hidden sm:inline">Configurar Modelos</span>
-                          <span className="sm:hidden">APIs</span>
-                        </button>
-                      </div>
-                      
-                      <div className="flex items-center w-full sm:w-auto gap-3">
-                        <div className="hidden md:flex items-center">
-                          <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest px-2">STATUS:</span>
-                          {aiProvider === "off" ? (
-                            <span className="text-zinc-500 font-bold text-[10px] uppercase bg-black/40 px-2 py-1 rounded-md border border-zinc-800">Desativada</span>
-                          ) : (
-                            <span className="text-emerald-500 font-bold text-[10px] uppercase bg-emerald-950/30 px-2 py-1 rounded-md border border-emerald-900/50 flex items-center gap-1.5 shadow-sm">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                              Online
-                            </span>
-                          )}
+                        <div className="flex items-center gap-3 lg:border-l lg:border-emerald-900/50 lg:pl-4">
+                           <button
+                             onClick={() => setAiChat([])}
+                             className="px-4 py-2.5 bg-red-900/30 hover:bg-red-800 text-red-400 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-1.5 border border-red-900/50 hover:border-red-500/50 whitespace-nowrap"
+                             title="Apagar Memória do Chat"
+                           >
+                             <RefreshCw size={14} /> RESETAR CHAT
+                           </button>
                         </div>
-                        
-                        <button
-                          onClick={() => setAiChat([])}
-                          className="px-4 py-2.5 bg-red-900/30 hover:bg-red-800 text-red-400 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-1.5 ml-auto w-full sm:w-auto border border-red-900/50 hover:border-red-500/50"
-                          title="Apagar Memória do Chat"
-                        >
-                          <RefreshCw size={14} /> RESETAR CHAT
-                        </button>
                       </div>
                     </div>
-                  </div>
 
                   <div
                     className="flex-1 overflow-y-auto pr-4 custom-scrollbar mb-4 space-y-4"

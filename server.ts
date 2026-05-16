@@ -24,22 +24,26 @@ const aiCircuitBreaker = new CircuitBreaker(5, 60000); // 5 failures, 1 min time
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+import { iaManager } from "./src/services/iaManager.js"; // Usando .js para compatibilidade ESM compilada se necessário, ou .ts e deixar esbuild resolver. No container é .ts.
+
 // Configuração IA no Backend (Totalmente Automática no AI Studio)
 function createSafeAI(apiKey?: string) {
-    if (!apiKey) {
+    if (!apiKey || apiKey === "AIza_fallback" || apiKey.trim() === "") {
         return {
             getGenerativeModel: () => ({
-                generateContent: async () => ({ response: { text: () => "AI Desativada: Configure a chave API no campo apropriado." } }),
+                generateContent: async () => ({ response: { text: () => "AI Desativada: Configure a chave API." } }),
                 startChat: () => ({ sendMessage: async () => ({ response: { text: () => "AI Desativada: Configure a chave API." } }) }),
                 generateContentStream: async function* () { yield { response: { text: () => "AI Desativada." } }; }
-            })
+            }),
+            models: {
+                generateContent: async () => ({ response: { text: () => "AI Desativada." } })
+            }
         } as any;
     }
     try {
         return new GoogleGenAI({ apiKey });
     } catch (e) {
-        logger.error("[AI] Erro ao instanciar SDK:", e);
-        return createSafeAI(); // Fallback to mock
+        return createSafeAI(); 
     }
 }
 
@@ -276,12 +280,57 @@ async function startServer() {
     if (msg.toLowerCase().includes("error") || msg.toLowerCase().includes("exception")) {
        const config = getSrvConfig(id);
        if (config.autoHealer?.enabled) {
-          console.log(`[AUTO-HEALER] Erro detectado no servidor ${id}. Analisando...`);
-          // Aqui poderíamos chamar o askAI para encontrar soluções
-          // Por enquanto, apenas registramos a tentativa de cura no console do painel
-          setTimeout(() => {
-             addLog(id, `[IA-HEALER] 🛡️ Detectei um erro e estou analisando os arquivos de configuração para uma correção automática...`);
-          }, 2000);
+          // Já estamos processando um erro? (Debounce simples)
+          if ((serversState[id] as any).isHealerRunning) return;
+          (serversState[id] as any).isHealerRunning = true;
+
+          setTimeout(async () => {
+             try {
+                addLog(id, `[IA-HEALER] 🛡️ Detectei um erro crítico. Iniciando diagnóstico automático...`);
+                
+                let healerOptions: any = {};
+                try {
+                  if (fs.existsSync(GLOBAL_CONFIG_FILE)) {
+                    const settings = JSON.parse(fs.readFileSync(GLOBAL_CONFIG_FILE, "utf-8"));
+                    const mapping = settings.aiMappings?.healer;
+                    if (mapping && mapping !== "default") {
+                      if (mapping === "gemini") {
+                        healerOptions.provider = "gemini";
+                      } else {
+                        const customAi = settings.customAIs?.find((a: any) => a.id === mapping);
+                        if (customAi) {
+                          healerOptions.provider = "custom";
+                          healerOptions.endpoint = customAi.endpoint;
+                          healerOptions.model = customAi.model;
+                          healerOptions.geminiKey = customAi.apiKey; // Using same key param 
+                        }
+                      }
+                    }
+                  }
+                } catch(e) {}
+
+                const logsSnippet = serversState[id].logs.slice(-15).join("\n");
+                const prompt = `Analise este erro de Minecraft e sugira uma linha de comando ou alteração de arquivo para corrigir. 
+ERRO: ${msg}
+CONTEXTO LOGS:
+${logsSnippet}
+
+Sendo direto: se for um erro de RAM, sugira aumentar a RAM. Se for plugin faltando, sugira o nome.
+Responda APENAS com a sugestão curta.`;
+
+                const aiRes = await iaManager.generateResponse(prompt, "Você é um engenheiro de sistemas Minecraft especialista em debug.", [], healerOptions);
+                addLog(id, `[IA-HEALER] 💡 Diagnóstico: ${aiRes.text}`);
+                
+                // Se a IA sugerir uma ação clara, poderíamos até tentar executar, 
+                // mas por segurança e respeitando a vontade do usuário de decidir modelos, 
+                // aqui apenas automatizamos a INVESTIGAÇÃO.
+                
+             } catch (e) {
+                // Silently fail healer
+             } finally {
+                (serversState[id] as any).isHealerRunning = false;
+             }
+          }, 3000);
        }
     }
   };
@@ -697,15 +746,6 @@ async function startServer() {
   // --- Web Tools ---
   app.get("/api/ai/insights", async (req, res) => {
     try {
-      const apiKey = process.env.GEMINI_API_KEY || "";
-      if (!apiKey) {
-        return res.json({
-          title: "AI em Espera",
-          text: "Configure uma chave GEMINI_API_KEY no .env para ativar as análises preditivas.",
-          type: "info"
-        });
-      }
-
       const serverIds = Object.keys(serversState);
       if (serverIds.length === 0) {
         return res.json({
@@ -715,40 +755,31 @@ async function startServer() {
         });
       }
 
-      // Escolhe um servidor para analisar (preferência para os que estão online ou têm logs recentes)
       const targetId = serverIds[0]; 
       const state = serversState[targetId];
       const config = getSrvConfig(targetId);
       const logsSnippet = state.logs.slice(-20).join("\n");
 
-      const prompt = `
-        Analise o estado atual deste servidor de Minecraft e forneça uma dica curta, técnica e útil (máx 2 linhas).
-        Servidor: ${config.name}
-        Versão: ${config.version}
-        Tipo: ${config.type}
-        Status: ${state.status}
-        Logs Recentes:
-        ${logsSnippet}
+      const prompt = `Analise o estado atual deste servidor de Minecraft e forneça uma dica curta, técnica e útil (máx 2 linhas).
+Servidor: ${config.name} | Versão: ${config.version} | Tipo: ${config.type} | Status: ${state.status}
+Logs Recentes: ${logsSnippet}`;
 
-        Responda apenas com a frase da dica, sem prefixos como "Dica:". Seja direto e técnico (Omni-Engineer style).
-      `;
-
-      const genAI = createSafeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const sysInstruction = "Você é um assistente técnico direto. Responda apenas com a frase da dica técnica, sem prefixos.";
       
-      const result = await model.generateContent(prompt);
-      const text = result.response.text().trim();
+      const response = await iaManager.generateResponse(prompt, sysInstruction);
 
       res.json({
-        title: state.status === "online" ? "Análise em Tempo Real" : "Dica de Configuração",
-        text: text,
+        title: state.status === "online" ? `Bio-Insights (${response.provider})` : `Dica Técnica (${response.provider})`,
+        text: response.text,
         type: state.status === "online" ? "success" : "warning",
-        targetServer: targetId
+        targetServer: targetId,
+        provider: response.provider,
+        model: response.model
       });
     } catch (e: any) {
       res.json({
-        title: "AI Offline",
-        text: "Não foi possível gerar insights agora. Verifique sua conexão ou chave API.",
+        title: "AI em Standby",
+        text: "O motor de IA encontrou um gargalo temporário. Verifique sua conectividade.",
         type: "error"
       });
     }
@@ -1543,27 +1574,7 @@ Exemplo: "Deixe-me procurar isso: <call:PESQUISAR>mcMMO setup</call>"
 
   app.post("/api/ai", async (req, res) => {
     try {
-      const { prompt, context, serverId, provider, endpoint, history, modelName, apiKeys, options } = req.body;
-      const sId = serverId || "default";
-
-      let keysToTry = [];
-      if (apiKeys && Array.isArray(apiKeys)) {
-        keysToTry = apiKeys.filter(k => k && k.trim() !== "");
-      }
-      
-      const envKey = process.env.UNIVERSAL_API_KEY || process.env.GEMINI_API_KEY || "";
-      if (envKey && envKey !== "AIza_fallback" && !keysToTry.includes(envKey)) {
-         keysToTry.push(envKey);
-      }
-
-      const willForceGeminiRest = provider === "gemini" || endpoint === "gemini";
-      if (keysToTry.length === 0 && willForceGeminiRest) {
-        throw new Error("Nenhuma API Key configurada. Configure no menu de IA ou nas Configurações.");
-      }
-
-      const currentKey = keysToTry.length > 0 ? keysToTry[0] : "";
-      const isGeminiKey = currentKey && !currentKey.startsWith("gsk_") && !currentKey.startsWith("xai-") && !currentKey.startsWith("sk-") && !currentKey.startsWith("nvapi-");
-
+      const { prompt, context, history, options, apiKeys, endpoint, modelName, provider } = req.body;
       const opts = options || { ai_internet: true, ai_memory: true, ai_bot: true };
 
       // Instrução de sistema para manter a personalidade
@@ -1571,7 +1582,10 @@ Exemplo: "Deixe-me procurar isso: <call:PESQUISAR>mcMMO setup</call>"
 Você é o "PaperCreeper AI", o OPERADOR SUPREMO e ENGENHEIRO de servidores Minecraft.
 Personalidade: Técnico, eficiente, prestativo e com um toque de humor "Minecrafter". Use emojis como ⛏️, 💎, 🔥, 🧨, 🛡️.
 
-SUAS CAPACIDADES (Nomes das ferramentas suportadas):
+CONTEXTO DO SERVIDOR:
+${context || 'Nenhum contexto adicional disponível.'}
+
+SUAS CAPACIDADES:
 - "startServer": Iniciar o servidor
 - "stopServer": Parar o servidor
 - "sendTerminalCommand": Executar comando in-game (args: { "command": "cmd" })
@@ -1580,135 +1594,25 @@ SUAS CAPACIDADES (Nomes das ferramentas suportadas):
 - "saveFile": Escrever arquivo (args: { "path": "arquivo", "content": "conteudo" })
 - "listFiles": Listar pasta (args: { "folder": "plugins" })
 - "executeTerminal": Shell linux no host (args: { "command": "ls" })
-${opts.ai_internet ? `- "searchInternet": Busca na web para autoaprendizado/códigos (args: { "query": "..." })
-- "fetchUrl": Lê um site da internet (args: { "url": "..." })` : ''}
-${opts.ai_memory ? `- "saveMemory": Salva um fato ou informação importante no cérebro a longo prazo (args: { "key": "...", "content": "..." })
-- "readMemory": Consulta sua memória de longo prazo (args: { "query": "..." })` : ''}
-${opts.ai_bot ? `- "spawnBot": Cria um Bot In-Game virtual para jogar e ler chat (args: { "botName": "..." })` : ''}
+${opts.ai_internet ? `- "searchInternet": Busca na web para autoaprendizado/códigos (args: { "query": "..." })` : ''}
 
-FORMATO DE RESPOSTA OBRIGATÓRIO PARA AÇÕES:
-MÉTODO 1 (Padrão JSON):
+AÇÕES TÉCNICAS:
 Quando decidir realizar uma ação técnica, inclua no final da sua resposta estritamente este bloco JSON:
-[ACTION:{"name": "nomeDaFerramenta", "args": {"parametro": "valor"}}]
-Exemplo: "Vou deixar de dia! [ACTION:{"name": "sendTerminalCommand", "args": {"command": "time set day"}}]"
-
-MÉTODO 2 (Pesquisa Rápida na Web e Memória):
-Você também pode usar diretamente as seguintes tags para acessar a internet ou a memória:
-- Internet: <call:PESQUISAR>termo_de_busca</call>
-- Memória local: <call:CONSULTAR>termo_de_busca</call>
-Exemplo: "Deixe-me procurar isso: <call:PESQUISAR>mcMMO setup</call>"
-      `;
+[ACTION:{"name": "...", "args": {...}}]
+`;
 
       let text = "";
 
-      const isLocalOrCustom = provider === "local" || provider === "custom";
-      const forceGemini = provider === "gemini" || endpoint === "gemini";
-      const isRemoteOpenAICompat = !forceGemini && (provider === "remote" || (!provider && !isGeminiKey) || (currentKey && !isGeminiKey && provider !== "gemini"));
-
       const aiCallFunction = async () => {
-         if (!forceGemini && (isLocalOrCustom || isRemoteOpenAICompat)) {
-           let aiMode = provider || "remote";
-           if (!provider && !isGeminiKey) aiMode = "remote";
-
-        // Local/Custom AI via OpenAI API compatible endpoint OR External Remote (Groq, xAI, OpenAI)
-        let targetEndpoint = endpoint || "http://127.0.0.1:11434/v1/chat/completions";
-        let model = modelName || "llama3";
-        const currentKey = keysToTry.length > 0 ? keysToTry[0] : "";
-
-        if (targetEndpoint && !targetEndpoint.startsWith("http://") && !targetEndpoint.startsWith("https://")) {
-            targetEndpoint = "http://" + targetEndpoint;
-        }
-
-        if (aiMode === "remote" && currentKey) {
-           targetEndpoint = "https://api.openai.com/v1/chat/completions";
-           model = modelName || "gpt-4o-mini";
-           if (currentKey.startsWith("gsk_")) {
-             targetEndpoint = "https://api.groq.com/openai/v1/chat/completions";
-             model = modelName || "llama-3.3-70b-versatile"; 
-           } else if (currentKey.startsWith("xai-")) {
-             targetEndpoint = "https://api.x.ai/v1/chat/completions";
-             model = modelName || "grok-2-latest";
-           } else if (currentKey.startsWith("nvapi-")) {
-             targetEndpoint = "https://integrate.api.nvidia.com/v1/chat/completions";
-             model = modelName || "deepseek-ai/deepseek-r1"; // Default Nvidia model
-           }
-        }
-
-        const messages = [{ role: "system", content: systemInstruction }];
-        if (context) messages.push({ role: "system", content: `CONTEXTO ATUAL DO SERVIDOR:\n${context}` });
-        
-        if (history && Array.isArray(history)) {
-          history.forEach((msg: any) => messages.push({ role: msg.role === "assistant" ? "assistant" : "user", content: msg.text }));
-        }
-        
-        messages.push({ role: "user", content: prompt });
-
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 60000);
-
-        const fetchHeaders: any = { "Content-Type": "application/json" };
-        if (currentKey) {
-          fetchHeaders["Authorization"] = `Bearer ${currentKey}`;
-        }
-
-        const fetchPayload: any = { model, messages, temperature: 0.7 };
-
-        const oaiRes = await fetch(targetEndpoint, {
-          method: "POST",
-          headers: fetchHeaders,
-          body: JSON.stringify(fetchPayload),
-          signal: controller.signal
+        const response = await iaManager.generateResponse(prompt, systemInstruction, history || [], {
+          provider: provider,
+          geminiKey: apiKeys?.[0], 
+          nvidiaKey: apiKeys?.find((k: string) => k.startsWith("nvapi-")),
+          endpoint: endpoint,
+          model: modelName
         });
-        clearTimeout(timeoutId);
-        
-        if (!oaiRes.ok) throw new Error(`Http error ${oaiRes.status}`);
-        const oaiData: any = await oaiRes.json();
-        text = oaiData.choices?.[0]?.message?.content || "";
-
-      } else {
-        // Gemini
-        const tryKey = async (key: string) => {
-          const { GoogleGenAI } = await import("@google/genai");
-          const localAi = createSafeAI(key);
-          
-          const formattedHistory = (history || []).map((msg: any) => ({
-            role: msg.role === "assistant" ? "model" : "user",
-            parts: [{ text: msg.text }]
-          }));
-
-          const msg = `${context ? `CONTEXTO ATUAL DO SERVIDOR:\n${context}\n\n` : ""}${prompt}`;
-          formattedHistory.push({ role: "user", parts: [{ text: msg }] });
-
-          const result = await localAi.models.generateContent({
-            model: modelName && modelName.startsWith("gemini") ? modelName : "gemini-2.5-flash",
-            contents: formattedHistory,
-            config: {
-              systemInstruction: systemInstruction,
-              temperature: 0.8,
-              topP: 0.95,
-              topK: 64,
-            }
-          });
-          
-          return result.text;
-        };
-
-        for (let i = 0; i < keysToTry.length; i++) {
-          try {
-            text = await tryKey(keysToTry[i]);
-            break; // Success
-          } catch (e: any) {
-            console.error(`[AI] Error with key ${i + 1}/${keysToTry.length}:`, e.message);
-            if (e.message?.includes('429') && i < keysToTry.length - 1) {
-              console.log("[AI] Quota exceeded, switching to next key...");
-              continue;
-            }
-            if (i === keysToTry.length - 1) throw e;
-          }
-        }
-        return text;
-      }
-    };
+        return response.text;
+      };
 
       text = await aiCircuitBreaker.execute(aiCallFunction);
 
@@ -1977,7 +1881,7 @@ Exemplo: "Deixe-me procurar isso: <call:PESQUISAR>mcMMO setup</call>"
           total: (totalMem / 1024 / 1024 / 1024).toFixed(2),
           percent: Math.round(((totalMem - freeMem) / totalMem) * 100)
         },
-        cpu: detailedStatus.currentMetrics.cpu.replace('%', ''),
+        cpu: (detailedStatus.currentMetrics.cpu || "0%").replace('%', ''),
         uptime: (uptime / 3600).toFixed(1),
         uptime_human: formatUptime(uptime),
         app_uptime_human: formatUptime(process.uptime()),
@@ -2487,23 +2391,19 @@ command /creeper-ai <text>:
                 const errors = state.errorBuffer.join("\n");
                 state.errorBuffer = []; // clear
 
-                const apiKey = process.env.GEMINI_API_KEY;
-                if (apiKey && !apiKey.startsWith("AIza_fallback")) {
-                  try {
-                    const { GoogleGenAI } = await import("@google/genai");
-                    const localAi = createSafeAI(apiKey);
-                    const res = await localAi.models.generateContent({
-                      model: "gemini-2.5-flash",
-                      contents: `Como assistente técnico do Minecraft, o servidor encontrou os seguintes erros recentes nas logs:\n\n${errors}\n\nAnalise em 1 ou 2 frases curtas o que pode estar errado e dê a solução ou comando necessário. Você é um ajudante automático, responda com algo como "Problema detectado: [X]. Solução: [Y]". Dicas curtas são as melhores.`,
-                    });
-                    if (res.text) {
-                      addLog(
-                        serverId,
-                        `[AI Auto-Fix] 💡 ${res.text.replace(/\n/g, " ")}`,
-                      );
-                    }
-                  } catch (e) {}
-                }
+                try {
+                  const prompt = `Como assistente técnico do Minecraft, o servidor encontrou os seguintes erros recentes nas logs:\n\n${errors}\n\nAnalise em 1 ou 2 frases curtas o que pode estar errado e dê a solução ou comando necessário. Você é um ajudante automático, responda com algo como "Problema detectado: [X]. Solução: [Y]". Dicas curtas são as melhores.`;
+                  const sys = "Você é um ajudante automático de diagnóstico de Minecraft.";
+                  
+                  const response = await iaManager.generateResponse(prompt, sys);
+                  
+                  if (response.text) {
+                    addLog(
+                      serverId,
+                      `[AI Auto-Fix] 💡 (${response.provider}) ${response.text.replace(/\n/g, " ")}`,
+                    );
+                  }
+                } catch (e) {}
               }, 3000);
             }
           }
@@ -3688,6 +3588,7 @@ command /creeper-ai <text>:
             "**/data/**",
             "**/servers/**",
             "**/dist/**",
+            "**/backups/**",
             "**/node_modules/**"
           ]
         }
