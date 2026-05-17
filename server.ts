@@ -2890,7 +2890,7 @@ command /creeper-ai <text>:
     const type = (req.query.type as string) || "paper";
 
     try {
-      if (["paper", "velocity", "waterfall"].includes(type)) {
+      if (["paper", "velocity", "waterfall", "folia"].includes(type)) {
         const pRes = await fetch(`https://api.papermc.io/v2/projects/${type}`);
         const pData: any = await pRes.json();
         if (pData.versions) versions = pData.versions.reverse().slice(0, 50);
@@ -2910,16 +2910,29 @@ command /creeper-ai <text>:
             .filter((x: any) => x.stable)
             .map((x: any) => x.version)
             .slice(0, 50);
+      } else if (type === "quilt") {
+        const qRes = await fetch("https://meta.quiltmc.org/v3/versions/game");
+        const qData: any = await qRes.json();
+        if (Array.isArray(qData))
+          versions = qData
+            .map((x: any) => x.version)
+            .slice(0, 50);
       } else if (type === "mohist") {
         const mRes = await fetch("https://mohistmc.com/api/v2/projects/mohist");
         const mData: any = await mRes.json();
         if (mData.versions) versions = mData.versions.reverse();
-      } else if (type === "forge") {
+      } else if (type === "forge" || type === "neoforge") {
         const bRes = await fetch(
-          "https://bmclapi2.bangbang93.com/forge/minecraft",
+          `https://bmclapi2.bangbang93.com/${type}/minecraft`,
         );
         const bData: any = await bRes.json();
         if (Array.isArray(bData)) versions = bData.slice().reverse();
+      } else if (type === "arclight") {
+        const aRes = await fetch("https://api.github.com/repos/IzzelAliz/Arclight/releases");
+        const aData: any = await aRes.json();
+        if (Array.isArray(aData)) {
+          versions = aData.map((rel: any) => rel.tag_name).slice(0, 50);
+        }
       } else if (type === "vanilla" || type === "spigot") {
         const vRes = await fetch(
           "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json",

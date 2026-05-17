@@ -478,18 +478,22 @@ const CreeperPaper = ({ className = "", isPig = false }: { className?: string, i
 );
 
 const softwareDescriptions: Record<string, string> = {
-  paper: "Otimizado para performance, focado em suporte a plugins Spigot/Bukkit.",
-  purpur: "Fork do Paper com ainda mais recursos de customização e velocidade extrema.",
-  spigot: "O motor de plugins mais tradicional, estável e amplamente suportado.",
-  velocity: "Proxy moderno de altíssima performance para ligar múltiplos servidores.",
-  waterfall: "Fork do BungeeCord focado em estabilidade e correções de segurança.",
-  bungeecord: "O proxy original para criar redes de servidores Minecraft.",
-  fabric: "Motor moderno e leve, excelente para mods técnicos e performance.",
-  mohist: "Híbrido que permite rodar Mods (Forge) e Plugins simultaneamente.",
-  forge: "O motor de mods mais robusto e antigo, essencial para modpacks pesados.",
-  vanilla: "Minecraft puro, sem modificações, exatamente como o jogo original.",
-  nukkit: "Servidor especializado para a versão Bedrock (Celular/Console).",
-  custom: "Use seu próprio link direto (.jar) ou repositório customizado.",
+  paper: "Otimizado para performance extrema, focado em suporte estável a plugins Spigot/Bukkit.",
+  folia: "Novo motor multi-threaded da PaperMC, ideal para servidores gigantes (100+ players).",
+  purpur: "Fork do Paper com foco em customização massiva e correções rápidas de bugs.",
+  spigot: "O motor de plugins mais tradicional e estável, com suporte universal a plugins legados.",
+  velocity: "Proxy moderno de altíssima performance para interligar múltiplos servidores Minecraft.",
+  waterfall: "Fork estável do BungeeCord focado em segurança e desempenho de rede.",
+  bungeecord: "O proxy original para criação de redes de servidores (Redes Bangue).",
+  fabric: "Motor moderno, leve e modular, excelente para mods técnicos e carregamento ultra-rápido.",
+  quilt: "Sucessor espiritual do Fabric, focado em modularidade e ecossistema amigável.",
+  mohist: "Híbrido de alta performance: permite rodar Mods (Forge) e Plugins simultaneamente.",
+  arclight: "Outra opção híbrida (Forge/Plugins) conhecida por boa estabilidade em versões novas.",
+  forge: "O rei dos mods. Motor essencial para rodar os maiores e mais pesados Modpacks do mundo.",
+  neoforge: "O novo padrão oficial para modding moderno (1.20+), fork focado em inovação.",
+  vanilla: "Minecraft puro, 100% original, exatamente como a Mojang criou, sem modificações.",
+  nukkit: "Motor especializado para Bedrock Edition (Minecraft de Celular e Consoles).",
+  custom: "Use seu próprio arquivo .jar via link direto ou repositório customizado.",
 };
 
 export default function App({
@@ -3010,14 +3014,18 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                         >
                           {[
                             "paper",
+                            "folia",
                             "purpur",
                             "spigot",
                             "velocity",
                             "waterfall",
                             "bungeecord",
                             "fabric",
+                            "quilt",
                             "mohist",
+                            "arclight",
                             "forge",
+                            "neoforge",
                             "vanilla",
                             "nukkit",
                             "custom",
