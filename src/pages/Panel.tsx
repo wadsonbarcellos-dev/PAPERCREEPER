@@ -477,6 +477,21 @@ const CreeperPaper = ({ className = "", isPig = false }: { className?: string, i
   </div>
 );
 
+const softwareDescriptions: Record<string, string> = {
+  paper: "Otimizado para performance, focado em suporte a plugins Spigot/Bukkit.",
+  purpur: "Fork do Paper com ainda mais recursos de customização e velocidade extrema.",
+  spigot: "O motor de plugins mais tradicional, estável e amplamente suportado.",
+  velocity: "Proxy moderno de altíssima performance para ligar múltiplos servidores.",
+  waterfall: "Fork do BungeeCord focado em estabilidade e correções de segurança.",
+  bungeecord: "O proxy original para criar redes de servidores Minecraft.",
+  fabric: "Motor moderno e leve, excelente para mods técnicos e performance.",
+  mohist: "Híbrido que permite rodar Mods (Forge) e Plugins simultaneamente.",
+  forge: "O motor de mods mais robusto e antigo, essencial para modpacks pesados.",
+  vanilla: "Minecraft puro, sem modificações, exatamente como o jogo original.",
+  nukkit: "Servidor especializado para a versão Bedrock (Celular/Console).",
+  custom: "Use seu próprio link direto (.jar) ou repositório customizado.",
+};
+
 export default function App({
   appConfig,
   setAppConfig,
@@ -576,6 +591,7 @@ export default function App({
       uptime_human?: string;
     }[]
   >([]);
+  const [showSoftwareInfo, setShowSoftwareInfo] = useState(false);
   const [currentServerId, setCurrentServerId] = useState<string>("");
   const [javas, setJavas] = useState<{ version: string; path: string; type: string }[]>([]);
   const [scanningJavas, setScanningJavas] = useState(false);
@@ -2968,9 +2984,18 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-[9px] font-black text-emerald-400 uppercase tracking-widest px-2">
-                        Software (Motor)
-                      </label>
+                      <div className="flex items-center gap-2 px-2">
+                        <label className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">
+                          Software (Motor)
+                        </label>
+                        <button
+                          onClick={() => setShowSoftwareInfo(!showSoftwareInfo)}
+                          className={`p-1 rounded-full transition-all ${showSoftwareInfo ? "bg-emerald-500 text-white" : "text-emerald-700 hover:text-emerald-500 hover:bg-emerald-950"}`}
+                          title="Clique para ver detalhes do software"
+                        >
+                          <Info size={10} />
+                        </button>
+                      </div>
                       <div className="relative">
                         <select
                           className="w-full bg-black/40 border border-emerald-900/50 rounded-2xl px-6 py-3 text-emerald-50 font-black outline-none focus:border-emerald-500 transition-all appearance-none cursor-pointer"
@@ -3007,6 +3032,21 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                           size={16}
                         />
                       </div>
+                      <AnimatePresence>
+                        {showSoftwareInfo && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="overflow-hidden"
+                          >
+                            <div className="mt-2 p-3 bg-emerald-950/40 border border-emerald-900/30 rounded-xl text-[10px] text-emerald-400 italic leading-relaxed">
+                              <span className="font-black uppercase text-emerald-500 mr-1">{newServerConfig.type}:</span>
+                              {softwareDescriptions[newServerConfig.type]}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
 
                     {newServerConfig.type === "custom" ? (
