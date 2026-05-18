@@ -1,5 +1,6 @@
 import axios from "axios";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import crypto from "crypto";
 
 /**
  * PAPERCREEPER IA MANAGER - Sistema Anti-Falhas e Autoconfigurável
@@ -15,6 +16,8 @@ export interface AIResponse {
 
 class IAManager {
   private geminiClient: GoogleGenerativeAI | null = null;
+  private cache: Record<string, {text: string, timestamp: number}> = {};
+  private CACHE_TTL = 300000; // 5 minutos
 
   constructor() {
     this.refreshConfig();
@@ -46,32 +49,39 @@ class IAManager {
   ): Promise<AIResponse> {
     const { provider, endpoint, model, geminiKey, nvidiaKey } = options;
 
+    const cacheKey = crypto.createHash('sha256').update(JSON.stringify({prompt, systemInstruction, history, options})).digest('hex');
+    if (this.cache[cacheKey] && (Date.now() - this.cache[cacheKey].timestamp < this.CACHE_TTL)) {
+       return { text: this.cache[cacheKey].text, provider: "Cache", model: "N/A" };
+    }
+
+    let response: AIResponse;
+
     // 1. Prioridade para Endpoints Customizados/OpenAI
     if (provider === "custom" || (endpoint && endpoint.startsWith("http"))) {
-      return await this.tryGenericOpenAI(prompt, systemInstruction, endpoint!, model || "default", geminiKey || nvidiaKey || "", history);
+      response = await this.tryGenericOpenAI(prompt, systemInstruction, endpoint!, model || "default", geminiKey || nvidiaKey || "", history);
     }
-
     // 2. Ollama (Local) - Selecionado Manualmente
-    if (provider === "ollama" || provider === "local") {
-      return await this.tryOllama(prompt, systemInstruction, history);
+    else if (provider === "ollama" || provider === "local") {
+      response = await this.tryOllama(prompt, systemInstruction, history);
     }
-
     // 3. Gemini - Selecionado Manualmente
-    if (provider === "gemini") {
+    else if (provider === "gemini") {
       const key = geminiKey || process.env.GEMINI_API_KEY;
       if (!key) throw new Error("Chave Gemini não configurada.");
-      return await this.tryGemini(prompt, systemInstruction, key, history);
+      response = await this.tryGemini(prompt, systemInstruction, key, history);
     }
-
     // 4. NVIDIA - Selecionado Manualmente
-    if (provider === "nvidia") {
+    else if (provider === "nvidia") {
       const key = nvidiaKey || process.env.NVIDIA_API_KEY;
       if (!key) throw new Error("Chave NVIDIA não configurada.");
-      return await this.tryNvidia(prompt, systemInstruction, key, history);
+      response = await this.tryNvidia(prompt, systemInstruction, key, history);
+    } else {
+        // fallback apenas se for "auto" ou não especificado (Mantendo a compatibilidade com o Auto-Healer)
+        response = await this.fallbackCircuit(prompt, systemInstruction, history, options);
     }
 
-    // fallback apenas se for "auto" ou não especificado (Mantendo a compatibilidade com o Auto-Healer)
-    return this.fallbackCircuit(prompt, systemInstruction, history, options);
+    this.cache[cacheKey] = { text: response.text, timestamp: Date.now() };
+    return response;
   }
 
   /**

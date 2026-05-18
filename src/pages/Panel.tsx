@@ -817,55 +817,46 @@ export default function App({
 
   useEffect(() => {
     if (!settingsLoaded || !pendingSettings) return;
-    const timeout = setTimeout(() => {
+    const timeout = setTimeout(async () => {
+      // 1. Send to server API
       fetch("/api/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ settings: pendingSettings })
-      }).then(() => setPendingSettings(null));
+      }).catch(console.error);
+
+      // 2. Persist to localStorage
+      Object.entries(pendingSettings).forEach(([key, value]) => {
+        let storageKey = "";
+        let valToSave = value;
+
+        switch (key) {
+          case 'language': storageKey = 'creeper_lang'; break;
+          case 'theme': storageKey = 'creeper_theme'; break;
+          case 'modules': storageKey = 'ppc_modules'; valToSave = JSON.stringify(value); break;
+          case 'geminiApiKey': storageKey = 'creeper_gemini_key'; break;
+          case 'geminiModel': storageKey = 'creeper_gemini_model'; break;
+          case 'aiProvider': storageKey = 'creeper_ai_provider'; break;
+          case 'aiMappings': storageKey = 'creeper_ai_mappings'; valToSave = JSON.stringify(value); break;
+          case 'activeCustomAiId': storageKey = 'creeper_active_custom_ai'; break;
+          case 'customAIs': storageKey = 'creeper_custom_ais'; valToSave = JSON.stringify(value); break;
+        }
+
+        if (storageKey) {
+          localStorage.setItem(storageKey, valToSave as string);
+        }
+      });
+      
+      setPendingSettings(null);
     }, 2000);
     return () => clearTimeout(timeout);
   }, [pendingSettings, settingsLoaded]);
 
+  // Debounced saving handled by useEffect for pendingSettings
   useEffect(() => {
-    if (!settingsLoaded) return;
-    localStorage.setItem("creeper_lang", language);
-    localStorage.setItem("creeper_theme", theme);
     document.documentElement.className = theme;
-    queueSettingsUpdate({ language, theme });
-  }, [language, theme, settingsLoaded]);
+  }, [theme]);
 
-  useEffect(() => {
-    if (!settingsLoaded) return;
-    localStorage.setItem("creeper_custom_ais", JSON.stringify(customAIs));
-    queueSettingsUpdate({ customAIs });
-  }, [customAIs, settingsLoaded]);
-
-  useEffect(() => {
-    if (!settingsLoaded) return;
-    localStorage.setItem("creeper_ai_provider", aiProvider);
-    localStorage.setItem("creeper_ai_mappings", JSON.stringify(aiMappings));
-    queueSettingsUpdate({ aiProvider, aiMappings });
-  }, [aiProvider, aiMappings, settingsLoaded]);
-
-  useEffect(() => {
-    if (!settingsLoaded) return;
-    localStorage.setItem("creeper_active_custom_ai", activeCustomAiId);
-    queueSettingsUpdate({ activeCustomAiId });
-  }, [activeCustomAiId, settingsLoaded]);
-
-  useEffect(() => {
-    if (!settingsLoaded) return;
-    localStorage.setItem("creeper_gemini_key", geminiApiKey);
-    localStorage.setItem("creeper_gemini_model", geminiModel);
-    queueSettingsUpdate({ geminiApiKey, geminiModel });
-  }, [geminiApiKey, geminiModel, settingsLoaded]);
-
-  useEffect(() => {
-    if (!settingsLoaded) return;
-    localStorage.setItem("ppc_modules", JSON.stringify(modules));
-    queueSettingsUpdate({ modules });
-  }, [modules, settingsLoaded]);
 
   const handleFetchModels = async (aiIndex: number) => {
     const ai = customAIs[aiIndex];
