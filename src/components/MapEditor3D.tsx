@@ -6,6 +6,20 @@ import { MousePointer2, Move, Eraser, Focus, Copy, ClipboardPaste, Save, Upload,
 
 const _object = new THREE.Object3D();
 
+function ContextCleaner() {
+  const { gl } = useThree();
+  useEffect(() => {
+    return () => {
+      // Prevents Video Memory (VRAM) leak when unmounting WebGL contexts
+      if (gl) {
+        gl.dispose();
+        gl.forceContextLoss();
+      }
+    };
+  }, [gl]);
+  return null;
+}
+
 function SelectionBox({ start, end }: { start: [number, number, number], end: [number, number, number] }) {
   const minX = Math.min(start[0], end[0]) - 0.05;
   const maxX = Math.max(start[0], end[0]) + 1.05;
@@ -473,7 +487,8 @@ export default function MapEditor3D({ serverId, serverName, initialWorldName }: 
 
         {/* 3D Viewport */}
         <div className="flex-1 relative bg-[#1a1a1a]">
-          <Canvas frameloop="demand" camera={{ position: [coords.x, coords.y + 100, coords.z + 50], fov: 60 }} gl={{ antialias: true }}>
+          <Canvas frameloop="demand" camera={{ position: [coords.x, coords.y + 100, coords.z + 50], fov: 60 }} gl={{ antialias: true, preserveDrawingBuffer: false, powerPreference: "high-performance" }}>
+             <ContextCleaner />
              <DynamicChunkLoader coords={coords} onChunkChange={handleChunkChange} />
              <CameraRepositioner coords={coords} />
              <ambientLight intensity={0.6} />

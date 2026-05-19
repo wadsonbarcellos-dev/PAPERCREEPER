@@ -416,12 +416,19 @@ Responda APENAS com a sugestão curta.`;
                 const zipName = `backup-${date}.zip`;
                 const zipPath = path.join(backupDir, zipName);
                 
-                exec(`zip -r "${zipPath}" . -x "backups/*" "cache/*"`, { cwd: serverDir });
-                
-                const backups = fs.readdirSync(backupDir).sort();
-                if (backups.length > (config.autoBackup?.maxBackups || 5)) {
-                   fs.unlinkSync(path.join(backupDir, backups[0]));
-                }
+                exec(`zip -r "${zipPath}" . -x "backups/*" "cache/*"`, { cwd: serverDir }, (err) => {
+                   if (err) {
+                      console.error(`[BACKUP] Erro no backup para ${serverId}:`, err);
+                      return;
+                   }
+                   console.log(`[BACKUP] Backup automático para ${serverId} finalizado.`);
+                   try {
+                     const backups = fs.readdirSync(backupDir).sort();
+                     if (backups.length > (config.autoBackup?.maxBackups || 5)) {
+                        fs.unlinkSync(path.join(backupDir, backups[0]));
+                     }
+                   } catch(e) {}
+                });
              }
           } catch(e) {}
        }
@@ -444,6 +451,11 @@ Responda APENAS com a sugestão curta.`;
       
       systemHistory.push(payload);
       if (systemHistory.length > 20) systemHistory.shift();
+
+      if ((global as any).gc && payload.mem > 90) {
+         console.warn("[SYSTEM] High memory usage detected! Attempting manual Garbage Collection...");
+         (global as any).gc();
+      }
     } catch (e) {}
   }, 30000); // A cada 30 segundos
 
@@ -2278,6 +2290,27 @@ command /creeper-ai <text>:
       let args = [
         "-Xmx" + config.ram + "G",
         "-Xms" + (config.minRam || 1) + "G",
+        "-XX:+UseG1GC",
+        "-XX:+ParallelRefProcEnabled",
+        "-XX:MaxGCPauseMillis=200",
+        "-XX:+UnlockExperimentalVMOptions",
+        "-XX:+DisableExplicitGC",
+        "-XX:+AlwaysPreTouch",
+        "-XX:G1NewSizePercent=30",
+        "-XX:G1MaxNewSizePercent=40",
+        "-XX:G1HeapRegionSize=8M",
+        "-XX:G1ReservePercent=20",
+        "-XX:G1HeapWastePercent=5",
+        "-XX:G1MixedGCCountTarget=4",
+        "-XX:InitiatingHeapOccupancyPercent=15",
+        "-XX:G1MixedGCLiveThresholdPercent=90",
+        "-XX:G1RSetUpdatingPauseTimePercent=5",
+        "-XX:SurvivorRatio=32",
+        "-XX:+PerfDisableSharedMem",
+        "-XX:MaxTenuringThreshold=1",
+        "-XX:+HeapDumpOnOutOfMemoryError",
+        "-Dterminal.jline=false",
+        "-Dterminal.ansi=true"
       ];
 
       if (type === "velocity") {
@@ -2306,6 +2339,11 @@ command /creeper-ai <text>:
       });
 
       proc.stderr.on("data", (data) => addLog(serverId, data.toString()));
+      proc.on("error", (err) => {
+        addLog(serverId, `❌ Erro do processo: ${err.message}`);
+        serversState[serverId].status = "offline";
+        serversState[serverId].process = null;
+      });
       proc.on("close", () => {
         serversState[serverId].status = "offline";
         serversState[serverId].process = null;
@@ -3116,6 +3154,9 @@ command /creeper-ai <text>:
     } catch (e) {}
 
     const resetProc = spawn(PLAYIT_PATH, ["reset"], { cwd: process.cwd() });
+    resetProc.on("error", (err) => {
+       console.error(`[Playit Reset] error:`, err);
+    });
     resetProc.on("close", () => {
       globalPlayitClaimUrl = null;
       if (globalPlayitLogs) globalPlayitLogs.splice(0, globalPlayitLogs.length);

@@ -107,12 +107,19 @@ export const ServerList: React.FC<ServerListProps> = ({
               key={srv.id}
               layout
               initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
+              animate={{ 
+                opacity: 1, 
+                y: 0, 
+                scale: activeId === srv.id ? 1.02 : 1 
+              }}
+              whileHover={{ scale: activeId === srv.id ? 1.02 : 1.01 }}
+              whileTap={{ scale: 0.98 }}
+              transition={{ type: "spring", stiffness: 400, damping: 25 }}
               exit={{ opacity: 0, scale: 0.95 }}
               onClick={() => onSelect(srv.id)}
-              className={`group flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer relative overflow-hidden ${
+              className={`group flex items-center justify-between p-4 rounded-2xl border-2 transition-colors cursor-pointer relative overflow-hidden ${
                 activeId === srv.id
-                  ? "bg-emerald-900/40 border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.1)]"
+                  ? "bg-emerald-900/40 border-emerald-500 shadow-[0_0_30px_rgba(16,185,129,0.25)]"
                   : "bg-zinc-950/40 border-zinc-900 hover:border-emerald-900/50"
               }`}
             >

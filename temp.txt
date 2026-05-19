@@ -1,0 +1,113 @@
+4142-                  onClick={() => setActiveTab("dashboard")}
+4143-                />
+4144-                <MenuLink
+4145-                  icon={<Server size={20} />}
+4146-                  label={t("servers")}
+4147:                  active={activeTab === "servers"}
+4148-                  onClick={() => setActiveTab("servers")}
+4149-                />
+4150-                <MenuLink 
+4151-                  icon={<Cpu size={20} />} 
+4152-                  label="Sistema"
+4153-                  active={activeTab === "system"}
+4154-                  onClick={() => setActiveTab("system")}
+4155-                />
+4156-                <MenuLink 
+4157-                  icon={<FileCode size={20} />} 
+4158-                  label="Arquivos"
+4159-                  active={activeTab === "files"}
+4160-                  onClick={() => setActiveTab("files")}
+4161-                />
+4162-                <MenuLink
+4163-                  icon={<Globe size={20} />}
+4164-                  label={t("playit_title")}
+4165-                  active={activeTab === "playit"}
+4166-                  onClick={() => setActiveTab("playit")}
+4167-                />
+4168-                <MenuLink
+4169-                  icon={<Terminal size={20} />}
+4170-                  label={t("terminal")}
+4171-                  active={activeTab === "console"}
+4172-                  onClick={() => setActiveTab("console")}
+4173-                />
+4174-                {modules.ai && (
+4175-                  <>
+4176-                    <MenuLink
+4177-                      icon={<Bot size={20} />}
+4178-                      label={t("ai_assistant")}
+4179-                      active={activeTab === "ai"}
+4180-                      onClick={() => setActiveTab("ai")}
+4181-                    />
+4182-                    <MenuLink
+4183-                      icon={<Code size={20} />}
+4184-                      label={t("script_builder_menu") || "Criador de Scripts"}
+4185-                      active={activeTab === "plugin-factory"}
+4186-                      onClick={() => setActiveTab("plugin-factory")}
+4187-                    />
+4188-                  </>
+4189-                )}
+4190-                {modules.map && (
+4191-                  <MenuLink
+4192-                    icon={<Map size={20} />}
+4193-                    label={t("map_editor")}
+4194-                    active={activeTab === "map"}
+4195-                    onClick={() => setActiveTab("map")}
+4196-                  />
+4197-                )}
+--
+4323-                      />
+4324-                    </div>
+4325-                  </div>
+4326-                </motion.div>
+4327-              )}
+4328:              {activeTab === "servers" && (
+4329-                <motion.div
+4330-                  initial={{ opacity: 0, y: 20 }}
+4331-                  animate={{ opacity: 1, y: 0 }}
+4332-                  exit={{ opacity: 0, y: -20 }}
+4333-                  className="space-y-6"
+4334-                >
+4335-                  <div className="bg-black/40 backdrop-blur-md border border-emerald-900/50 rounded-3xl p-6 lg:p-8">
+4336-                     <ServerList 
+4337-                       servers={servers}
+4338-                       activeId={currentServerId}
+4339-                       onSelect={setCurrentServerId}
+4340-                       onAdd={() => setShowCreateModal(true)}
+4341-                       onStatusToggle={(id) => handleAction(servers.find(s => s.id === id)?.status === "online" ? "stop" : "start", id)}
+4342-                       onConfigure={(id) => setEditingServer(servers.find(s => s.id === id) || null)}
+4343-                     />
+4344-                  </div>
+4345-                </motion.div>
+4346-              )}
+4347-
+4348-              {activeTab === "playit" && (
+4349-                <motion.div
+4350-                  initial={{ opacity: 0, y: 20 }}
+4351-                  animate={{ opacity: 1, y: 0 }}
+4352-                  exit={{ opacity: 0, y: -20 }}
+4353-                  className="bg-black/40 backdrop-blur-md border border-emerald-900/50 rounded-3xl shadow-sm p-4 sm:p-6 relative overflow-hidden flex flex-col items-center justify-center min-h-[500px]"
+4354-                >
+4355-                  <Globe
+4356-                    size={64}
+4357-                    className="text-emerald-500 mb-4 opacity-80 animate-pulse"
+4358-                  />
+4359-                  <h3 className="text-base font-black text-white tracking-tighter mb-4 text-center uppercase">
+4360-                    Playit.gg
+4361-                  </h3>
+4362-                  <p className="text-emerald-500 font-bold mb-4 text-center max-w-lg leading-relaxed mix-blend-screen text-[9px] sm:text-xs uppercase tracking-widest hidden sm:block">
+4363-                    Túnel de rede público e global.
+4364-                    <br />
+4365-                    Ative para expor as portas dos seus servidores online sem
+4366-                    configurar roteador.
+4367-                  </p>
+4368-
+4369-                  <div className="flex flex-col items-center gap-4 w-full max-w-md">
+4370-                    <button
+4371-                      disabled={!!playitLoading}
+4372-                      onClick={async () => {
+4373-                        setPlayitLoading(
+4374-                          playitStatus.running ? "stop" : "start",
+4375-                        );
+4376-                        if (playitStatus.running) {
+4377-                          await fetch("/api/playit/stop", {
+4378-                            method: "POST",
