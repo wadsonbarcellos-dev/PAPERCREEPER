@@ -34,20 +34,20 @@ let connectionMode: 'local' | 'remote' = 'local';
 let sshConfig = { host: '', port: 22, username: 'Administrator', password: '' };
 
 
-let dbPool: sql.ConnectionPool | null = null;
+let dbClient: sql.ConnectionPool | null = null;
 let dbError: string | null = null;
 
 async function connectDB() {
    try {
-      if (dbPool) {
-         await dbPool.close();
+      if (dbClient) {
+         await dbClient.close();
       }
-      dbPool = await sql.connect(dbConfig);
+      dbClient = await sql.connect(dbConfig);
       dbError = null;
       console.log("Connected to MSSQL Database successfully.");
    } catch (error: any) {
       dbError = error.message;
-      dbPool = null;
+      dbClient = null;
       console.log("Failed to connect to DB:", error.message);
    }
 }
@@ -159,7 +159,7 @@ async function startServer() {
      res.json({
          ...dbConfig,
          password: '', // don't send password back normally, but we keep it empty for security
-         status: dbPool ? 'connected' : 'disconnected',
+         status: dbClient ? 'connected' : 'disconnected',
          error: dbError
      });
   });
@@ -172,19 +172,19 @@ async function startServer() {
       if (database) dbConfig.database = database;
       
       await connectDB();
-      res.json({ success: dbPool !== null, error: dbError });
+      res.json({ success: dbClient !== null, error: dbError });
   });
 
   // Real Database Players API
   app.get("/api/players", async (req, res) => {
-      if (!dbPool) {
+      if (!dbClient) {
           return res.status(500).json({ error: "Not connected to database. Please configure DB settings.", dbError });
       }
 
       try {
           // A standard query for MuOnline databases
           // We limit to 100 to avoid freezing on massive servers just in case
-          const result = await dbPool.request().query(`
+          const result = await dbClient.request().query(`
              SELECT TOP 100 
                 Name, 
                 Class, 
@@ -203,7 +203,7 @@ async function startServer() {
       } catch (error: any) {
           // If ResetCount doesn't exist (depends on DB version like MUDatabase vs MU2003)
           try {
-             const fallbackResult = await dbPool.request().query(`
+             const fallbackResult = await dbClient.request().query(`
                 SELECT TOP 100 Name, Class, cLevel, 0 as ResetCount, MapNumber, MapPosX, MapPosY, CtlCode, AccountID
                 FROM Character
                 ORDER BY cLevel DESC
@@ -217,7 +217,7 @@ async function startServer() {
 
   // Dashboard Stats API
   app.get("/api/dashboard-stats", async (req, res) => {
-      if (!dbPool) {
+      if (!dbClient) {
           return res.json({ 
               totalAccounts: 0, 
               totalCharacters: 0, 
@@ -228,15 +228,15 @@ async function startServer() {
 
       try {
           // Count total accounts
-          const accs = await dbPool.request().query('SELECT COUNT(*) as count FROM MEMB_INFO');
+          const accs = await dbClient.request().query('SELECT COUNT(*) as count FROM MEMB_INFO');
           // Count total characters
-          const chars = await dbPool.request().query('SELECT COUNT(*) as count FROM Character');
+          const chars = await dbClient.request().query('SELECT COUNT(*) as count FROM Character');
           // Count guilds
-          const guilds = await dbPool.request().query('SELECT COUNT(*) as count FROM Guild');
+          const guilds = await dbClient.request().query('SELECT COUNT(*) as count FROM Guild');
           // Count online players (usually ConnectStat = 1 in MEMB_STAT)
           let online = { recordset: [{ count: 0 }] };
           try {
-             online = await dbPool.request().query('SELECT COUNT(*) as count FROM MEMB_STAT WHERE ConnectStat = 1');
+             online = await dbClient.request().query('SELECT COUNT(*) as count FROM MEMB_STAT WHERE ConnectStat = 1');
           } catch(e) {
              // In case MEMB_STAT is missing or different
           }
@@ -255,12 +255,12 @@ async function startServer() {
   // DB Query Execution API
   app.post("/api/db/execute", async (req, res) => {
       const { query } = req.body;
-      if (!dbPool) {
+      if (!dbClient) {
           return res.status(500).json({ error: "Not connected to database." });
       }
       try {
           // Careful: this allows raw queries. Ensure this is only used locally!
-          const result = await dbPool.request().query(query);
+          const result = await dbClient.request().query(query);
           res.json({ success: true, result: result.recordset, rowsAffected: result.rowsAffected });
       } catch (error: any) {
           res.status(500).json({ error: error.message });

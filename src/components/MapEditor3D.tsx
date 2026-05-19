@@ -407,7 +407,7 @@ export default function MapEditor3D({ serverId, serverName, initialWorldName }: 
       {/* Top Menu Bar */}
       <div className="h-10 bg-[#2d2d2d] border-b border-zinc-800 flex items-center px-4 justify-between shrink-0">
          <div className="flex items-center gap-4 text-zinc-300 text-xs font-semibold overflow-x-auto custom-scrollbar whitespace-nowrap hidden sm:flex">
-           <span className="flex items-center gap-2 text-emerald-400"><MapIcon size={14}/> MCEdit 2.0 Web Engine</span>
+           <span className="flex items-center gap-2 text-emerald-400"><MapIcon size={14}/> MCEdit 2.0 Web</span>
            <div className="h-4 w-px bg-zinc-600"></div>
            {serverName && <span className="text-zinc-400 bg-zinc-800 px-2 rounded">Servidor: {serverName}</span>}
            <button onClick={undo} className="hover:text-white disabled:opacity-30" disabled={history.past.length===0}>Undo</button>

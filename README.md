@@ -1,4 +1,4 @@
-# 🧨 PaperCreeper - The Supreme Omni-Engineer Manager
+# 🧨 PaperCreeper - The Supreme Manager
 
 ![Badge Node](https://img.shields.io/badge/Node.js-20.x-green)
 ![Badge React](https://img.shields.io/badge/React-18-blue)
@@ -8,7 +8,7 @@
 **PaperCreeper** has evolved into a next-generation infrastructure management panel built with modern edge tools, Artificial Intelligence, and commercial-grade performance optimizations.
 It allows you to create servers, manage clusters, edit maps, generate Skripts via AI, manage plugins, and now self-heal its own code.
 
-## 🧠 Arquitetura Lógica Avançada (Omni-Engineer)
+## 🧠 Arquitetura Lógica Avançada
 ```mermaid
 graph TD
     A[Web/React Client] -->|HTTPS/WSS| B(API Gateway/Express)

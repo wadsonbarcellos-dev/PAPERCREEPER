@@ -1,4 +1,4 @@
-name: Omni-Engineer CI/CD
+name: CI/CD Pipeline
 
 on:
   push:

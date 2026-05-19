@@ -4638,7 +4638,7 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                         }}
                         className="px-3 py-2 rounded-lg flex items-center justify-center gap-1.5 font-black text-[9px] uppercase shadow-md transition-transform active:scale-95 border-b-2 bg-zinc-800 hover:bg-zinc-700 text-blue-400 border-zinc-950"
                       >
-                        <RefreshCw size={12} /> Engine Mods
+                        <RefreshCw size={12} /> Mods
                       </button>
 
                       <button
