@@ -97,6 +97,7 @@ import { ServerConsole } from "../components/blocks/ServerConsole";
 import { DashStats } from "../components/blocks/DashStats";
 import { ServerList } from "../components/blocks/ServerList";
 import MapEditor3D from "../components/MapEditor3D";
+import { TaskManager } from "../components/blocks/TaskManager";
 
 const translations: any = {
   en: {
@@ -4208,6 +4209,12 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                   active={activeTab === "settings"}
                   onClick={() => setActiveTab("settings")}
                 />
+                <MenuLink
+                  icon={<CheckCircle2 size={20} />}
+                  label="Task Manager"
+                  active={activeTab === "tasks"}
+                  onClick={() => setActiveTab("tasks")}
+                />
               </nav>
             </div>
           </div>
@@ -5153,6 +5160,16 @@ Gere o código Skript (.sk) completo e otimizado para atender a este pedido. Ret
                         </div>
                      </section>
                   </div>
+                </motion.div>
+              )}
+
+              {activeTab === "tasks" && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className={`rounded-3xl border-2 shadow-sm p-4 lg:p-6 min-h-[600px] lg:min-h-0 h-full flex flex-col relative overflow-hidden bg-[#1e1e1e] border-zinc-800`}
+                >
+                  <TaskManager />
                 </motion.div>
               )}
 

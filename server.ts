@@ -3488,6 +3488,49 @@ command /creeper-ai <text>:
     }
   });
 
+  // Task Manager API
+  const tasksFile = path.join(process.cwd(), "data", "tasks.json");
+  const readTasks = () => {
+    if (fs.existsSync(tasksFile)) return JSON.parse(fs.readFileSync(tasksFile, "utf-8"));
+    return [];
+  };
+  const writeTasks = (tasks: any) => fs.writeFileSync(tasksFile, JSON.stringify(tasks, null, 2));
+
+  app.get("/api/tasks", (req, res) => {
+    res.json(readTasks());
+  });
+
+  app.post("/api/tasks", (req, res) => {
+    const tasks = readTasks();
+    const newTask = {
+      id: "task-" + Date.now(),
+      ...req.body,
+      createdAt: Date.now()
+    };
+    tasks.push(newTask);
+    writeTasks(tasks);
+    res.json(newTask);
+  });
+
+  app.put("/api/tasks/:id", (req, res) => {
+    const tasks = readTasks();
+    const index = tasks.findIndex((t: any) => t.id === req.params.id);
+    if (index !== -1) {
+      tasks[index] = { ...tasks[index], ...req.body };
+      writeTasks(tasks);
+      res.json(tasks[index]);
+    } else {
+      res.status(404).json({ error: "Not found" });
+    }
+  });
+
+  app.delete("/api/tasks/:id", (req, res) => {
+    let tasks = readTasks();
+    tasks = tasks.filter((t: any) => t.id !== req.params.id);
+    writeTasks(tasks);
+    res.json({ success: true });
+  });
+
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { 
