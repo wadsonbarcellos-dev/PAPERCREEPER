@@ -16,6 +16,7 @@ import cors from "cors";
 import rateLimit from "express-rate-limit";
 import { logger } from "./src/server/logger.js";
 import { monitoringService } from "./src/server/services/monitoring.service.js";
+import { autoHealerService } from "./src/server/services/auto-healer.service.js";
 import { CircuitBreaker } from "./src/server/utils/circuit-breaker.js";
 
 const aiCircuitBreaker = new CircuitBreaker(5, 60000); // 5 failures, 1 min timeout
@@ -58,16 +59,12 @@ const ai = {
 // Robust Error Handling: Evita que erros como ESM imports e Promessas Rejeitadas desliguem o backend do Painel.
 process.on('uncaughtException', (err) => {
     logger.error('[CRÍTICO] Uncaught Exception:', err);
-    import('./src/server/services/auto-healer.service.js').then(({ autoHealerService }) => {
-        autoHealerService.handleCriticalError(err);
-    });
+    autoHealerService.handleCriticalError(err);
 });
 
 process.on('unhandledRejection', (reason, promise) => {
     logger.error('[CRÍTICO] Unhandled Rejection:', reason);
-    import('./src/server/services/auto-healer.service.js').then(({ autoHealerService }) => {
-        autoHealerService.handleCriticalError(reason);
-    });
+    autoHealerService.handleCriticalError(reason);
 });
 
 // Helper to reliably download files using native Node
@@ -80,17 +77,11 @@ async function downloadFile(url: string, dest: string, onLog?: (msg: string) => 
       return false;
     }
     
-    if (!res.body) throw new Error("No response body");
+    // Ler como arrayBuffer para memória (seguro e evita problemas de compatibilidade NodeJS)
+    const buffer = Buffer.from(await res.arrayBuffer());
     
     const partDest = dest + ".part";
-    const fileStream = fs.createWriteStream(partDest);
-    
-    // Convert ReadableStream to Node.js Readable and pipe it to fileStream
-    const { Readable } = await import('stream');
-    const { finished } = await import('stream/promises');
-    
-    const body: unknown = res.body; 
-    await finished(Readable.fromWeb(body as import('stream/web').ReadableStream).pipe(fileStream));
+    fs.writeFileSync(partDest, buffer);
 
     fs.renameSync(partDest, dest);
     return true;
@@ -258,6 +249,7 @@ async function startServer() {
       startedAt?: number;
       stopTimer?: any;
       isInstalling?: boolean;
+      isHealerRunning?: boolean;
     }
   > = {};
 
@@ -304,8 +296,8 @@ async function startServer() {
        const config = getSrvConfig(id);
        if (config.autoHealer?.enabled) {
           // Já estamos processando um erro? (Debounce simples)
-          if ((serversState[id] as any).isHealerRunning) return;
-          (serversState[id] as any).isHealerRunning = true;
+          if (serversState[id].isHealerRunning) return;
+          serversState[id].isHealerRunning = true;
 
           setTimeout(async () => {
              try {
@@ -351,7 +343,7 @@ Responda APENAS com a sugestão curta.`;
              } catch (e) {
                 // Silently fail healer
              } finally {
-                (serversState[id] as any).isHealerRunning = false;
+                serversState[id].isHealerRunning = false;
              }
           }, 3000);
        }
