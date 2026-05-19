@@ -153,19 +153,33 @@ export const TaskManager = () => {
                 >
                   <button 
                     onClick={() => dispatch(toggleTaskCompletion(task))}
-                    className="mt-1 relative flex-shrink-0"
+                    className="mt-1 relative flex-shrink-0 flex items-center justify-center w-6 h-6"
                   >
-                    {task.status === 'completed' ? (
-                      <motion.div
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                      >
-                         <CheckCircle2 size={24} className="text-purple-500" />
-                      </motion.div>
-                    ) : (
-                      <Circle size={24} className="text-zinc-500 hover:text-purple-400 transition-colors" />
-                    )}
+                    <AnimatePresence mode="wait" initial={false}>
+                      {task.status === 'completed' ? (
+                        <motion.div
+                          key="completed"
+                          initial={{ scale: 0, rotate: -45 }}
+                          animate={{ scale: 1, rotate: 0 }}
+                          exit={{ scale: 0, rotate: 45 }}
+                          transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                          className="absolute inset-0"
+                        >
+                           <CheckCircle2 size={24} className="text-purple-500 drop-shadow-md" />
+                        </motion.div>
+                      ) : (
+                        <motion.div
+                          key="pending"
+                          initial={{ scale: 0, rotate: 45 }}
+                          animate={{ scale: 1, rotate: 0 }}
+                          exit={{ scale: 0, rotate: -45 }}
+                          transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                          className="absolute inset-0"
+                        >
+                          <Circle size={24} className="text-zinc-500 hover:text-purple-400 transition-colors" />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </button>
 
                   <div className={`flex-1 ${task.status === 'completed' ? 'line-through text-zinc-500' : ''}`}>
